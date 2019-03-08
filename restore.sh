@@ -1,6 +1,6 @@
 #!/bin/bash
 rm -rf /xcp/repo/*
-rm -rf /xcpion/jobs/*
+rm -rf /xcption/jobs/*
 rm -rf /mnt/slave1/xcp/*
 rm -rf /mnt/slave2/xcp/*
 for i in {1..20}

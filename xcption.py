@@ -25,11 +25,51 @@ defaultcpu = 100
 defaultmemory = 200
 
 parser = argparse.ArgumentParser()
-parser.add_argument('-a','--action', choices=['init', 'baseline', 'sync', 'status'], help="action to take during invokation",required=True,type=str)
-parser.add_argument('-c','--csvfile', help="input CSV file with the following columns: Job Name,SRC Path,DST Path",required=True,type=str)
-parser.add_argument('-d','--debug', help="log debug messages to console", action='store_true')
+#parser.add_argument('-a','--action', choices=['init', 'baseline', 'sync', 'status'], help="action to take during invokation",required=True,type=str)
+
+parser.add_argument('-c','--csvfile', help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
+parser.add_argument('-d','--debug',   help="log debug messages to console", action='store_true')
+
+
+subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
+
+# create the sub commands 
+parser_status   = subparser.add_parser('status',   help='display status')
+parser_init     = subparser.add_parser('init',     help='intialize/update configuration')
+parser_baseline = subparser.add_parser('baseline', help='start baseline')
+parser_sync     = subparser.add_parser('sync',     help='start scheule')
+parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
+parser_pause    = subparser.add_parser('pause',    help='disabe next scheuled sync')
+parser_resume   = subparser.add_parser('resume',   help='resume scheduled sync')
+parser_scan     = subparser.add_parser('scan',     help='scan fielsystem')
+parser_rescan   = subparser.add_parser('rescan',   help='rescan fielsystem')
+parser_delete   = subparser.add_parser('delete',   help='delete existing config')
+
+parser_logs = subparser.add_parser('logs',     help='display xcp logs')
+
+parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_init.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_init.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_sync.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_sync.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_syncnow.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_syncnow.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_pause.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_pause.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_resume.add_argument('-j','--job',     help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_resume.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
 args = parser.parse_args()
+
 
 #initialize logging 
 log = logging.getLogger()
@@ -72,90 +112,99 @@ def parse_csv(csv_path):
 				jobname = row[0]
 				src     = row[1]
 				dst     = row[2]
-				
-				cron    = ''
-				if 3 < len(row): cron    = row[3] 
-				if cron == '':   cron    = defaultjobcron 
+
+				if (jobfilter == '' or jobfilter == jobname) and (srcfilter == '' or srcfilter == src):
+
+					
+					cron    = ''
+					if 3 < len(row): cron    = row[3] 
+					if cron == '':   cron    = defaultjobcron 
 
 
-				cpu     = '' 
-				if 4 < len(row): cpu     = row[4] 
-				if cpu == '':    cpu     = defaultcpu 
-				
-				memory  = ''
-				if 5 < len(row): memory  = row[5] 
-				if memory == '': memory  = defaultmemory 
-				
-				logging.info("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst) 
-				if not re.search("\S+\:\/\S+", src):
-					logging.error("src path format is incorrect: " + src) 
-					exit(1)	
-				if not re.search("\S+\:\/\S+", dst):
-					logging.error("dst path format is incorrect: " + dst)
-					exit(1)	
-				
-				if args.action == 'init':
-					#check if src/dst can be mounted
-					subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
-					if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-						logging.error("cannot mount src using nfs: " + src)
-						exit(1)					
-					subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
+					cpu     = '' 
+					if 4 < len(row): cpu     = row[4] 
+					if cpu == '':    cpu     = defaultcpu 
 					
-					if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-						logging.error("cannot mount dst using nfs: " + dst)
-						exit(1)					
-					subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)	
+					memory  = ''
+					if 5 < len(row): memory  = row[5] 
+					if memory == '': memory  = defaultmemory 
 					
-				srchost,srcpath = src.split(":")
-				dsthost,dstpath = dst.split(":")		
-				
-				#validate no duplicate src and destination 
-				if not jobname in jobsdict:
-					jobsdict[jobname]={}
-				if src in jobsdict[jobname]:
-					logging.error("duplicate src path: " + src)
-					exit(1)
-				if dst in dstdict:
-					logging.error("duplicate dst path: " + dst)
-					exit(1)
+					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst) 
+					if not re.search("\S+\:\/\S+", src):
+						logging.error("src path format is incorrect: " + src) 
+						exit(1)	
+					if not re.search("\S+\:\/\S+", dst):
+						logging.error("dst path format is incorrect: " + dst)
+						exit(1)	
+					
+					if args.subparser_name == 'init':
+						#check if src/dst can be mounted
+						subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
+						logging.info("validating src:" + src + " and dst:" + dst+ " are mountable") 
+						if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+							logging.error("cannot mount src using nfs: " + src)
+							exit(1)					
+						subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
 						
-				srcbase = src.replace(':/','-_')
-				srcbase = srcbase.replace('/','_')
-				
-				dstbase = dst.replace(':/','-_')
-				dstbase = dstbase.replace('/','_')
-				
-				baseline_job_name = 'baseline_'+jobname+'_'+srcbase
-				sync_job_name = 'sync_'+jobname+'_'+srcbase
-				
-				xcpindexname = srcbase +'-'+dstbase	
-				
-				#fill dict with info
-				jobsdict[jobname][src] = {}
-				jobsdict[jobname][src]["dst"] = dst
-				jobsdict[jobname][src]["srchost"] = srchost
-				jobsdict[jobname][src]["srcpath"] = srcpath
-				jobsdict[jobname][src]["dsthost"] = dsthost
-				jobsdict[jobname][src]["dstpath"] = dstpath
-				jobsdict[jobname][src]["srcbase"] = srcbase
-				jobsdict[jobname][src]["dstbase"] = dstbase
-				jobsdict[jobname][src]["baseline_job_name"] = baseline_job_name
-				jobsdict[jobname][src]["sync_job_name"] = sync_job_name
-				jobsdict[jobname][src]["xcpindexname"] = xcpindexname
-				jobsdict[jobname][src]["cron"] = cron
-				jobsdict[jobname][src]["cpu"] = cpu
-				jobsdict[jobname][src]["memory"] = memory
+						if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+							logging.error("cannot mount dst using nfs: " + dst)
+							exit(1)					
+						subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)	
+						
+					srchost,srcpath = src.split(":")
+					dsthost,dstpath = dst.split(":")		
+					
+					#validate no duplicate src and destination 
+					if not jobname in jobsdict:
+						jobsdict[jobname]={}
+					if src in jobsdict[jobname]:
+						logging.error("duplicate src path: " + src)
+						exit(1)
+					if dst in dstdict:
+						logging.error("duplicate dst path: " + dst)
+						exit(1)
+							
+					srcbase = src.replace(':/','-_')
+					srcbase = srcbase.replace('/','_')
+					
+					dstbase = dst.replace(':/','-_')
+					dstbase = dstbase.replace('/','_')
+					
+					baseline_job_name = 'baseline_'+jobname+'_'+srcbase
+					sync_job_name     = 'sync_'+jobname+'_'+srcbase
+					scan_job_name     = 'scan_'+jobname+'_'+srcbase
+					rescan_job_name   = 'rescan_'+jobname+'_'+srcbase					
+					
+					xcpindexname = srcbase +'-'+dstbase	
+					
+					#fill dict with info
+					jobsdict[jobname][src] = {}
+					jobsdict[jobname][src]["dst"] = dst
+					jobsdict[jobname][src]["srchost"] = srchost
+					jobsdict[jobname][src]["srcpath"] = srcpath
+					jobsdict[jobname][src]["dsthost"] = dsthost
+					jobsdict[jobname][src]["dstpath"] = dstpath
+					jobsdict[jobname][src]["srcbase"] = srcbase
+					jobsdict[jobname][src]["dstbase"] = dstbase
+					jobsdict[jobname][src]["baseline_job_name"] = baseline_job_name
+					jobsdict[jobname][src]["sync_job_name"]     = sync_job_name
+					jobsdict[jobname][src]["scan_job_name"]     = scan_job_name
+					jobsdict[jobname][src]["rescan_job_name"]   = rescan_job_name					
+					jobsdict[jobname][src]["xcpindexname"]      = xcpindexname
+					jobsdict[jobname][src]["xcpscanindexname"]  = 'scan-'+xcpindexname
+					jobsdict[jobname][src]["cron"]   = cron
+					jobsdict[jobname][src]["cpu"]    = cpu
+					jobsdict[jobname][src]["memory"] = memory
 
-				
-				dstdict[dst] = 1
-				line_count += 1
+					
+					dstdict[dst] = 1
+					line_count += 1
 
 def create_nomad_jobs():
 	root = os.path.dirname(os.path.abspath(__file__))
 	#loading job ginga2 templates 
 	templates_dir = os.path.join(root, ginga2templatedir)
-	env = Environment( loader = FileSystemLoader(templates_dir) )
+	env = Environment(loader=FileSystemLoader(templates_dir) )
 	
 	try:
 		baseline_template = env.get_template('nomad_baseline.txt')
@@ -169,60 +218,107 @@ def create_nomad_jobs():
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_sync.txt'))
 		exit(1)
 	
+	try:
+		scan_template = env.get_template('nomad_scan.txt')
+	except:
+		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_scan.txt'))
+		exit(1)
+	
+	try:	
+		rescan_template = env.get_template('nomad_rescan.txt')
+	except:
+		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_rescan.txt'))
+		exit(1)		
+	
 	for jobname in jobsdict:
-		jobdir = os.path.join(root, jobsdir,jobname)
 		
-		#check if job dir exists
-		if os.path.exists(jobdir):
-			logging.warning("job directory:" + jobdir + " - already exists") 
-		else:	
-			if os.makedirs(jobdir):
-				logging.error("could not create output directory: " + jobdir)				
-				exit(1)
-				
-		for src in jobsdict[jobname]:
-			jobdetails = jobsdict[jobname][src]
+		if jobfilter == '' or jobfilter == jobname:
+
+			jobdir = os.path.join(root, jobsdir,jobname)
 			
-			dst	              = jobdetails['dst']
-			srcbase           = jobdetails['srcbase']
-			dstbase           = jobdetails['dstbase']
-			baseline_job_name = jobdetails['baseline_job_name']
-			sync_job_name     = jobdetails['sync_job_name']
-			xcpindexname      = jobdetails['xcpindexname']	
-			jobcron           = jobdetails['cron']
-			cpu    			  = jobdetails['cpu']
-			memory            = jobdetails['memory']
-			
-			#creating baseline job 
-			baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
-			
-			logging.info("creating baseline job file: " + baseline_job_file)				
-			with open(baseline_job_file, 'w') as fh:
-				fh.write(baseline_template.render(
-					dcname=dcname,
-					baseline_job_name=baseline_job_name,
-					xcppath=xcppath,
-					xcpindexname=xcpindexname,
-					memory=memory,
-					cpu=cpu,	
-					src=src,
-					dst=dst
-				))
-			#call( [ 'nomad', 'run', baseline_job_file] )
-			
-			#creating sync job 
-			sync_job_file = os.path.join(jobdir,sync_job_name+'.hcl')		
-			logging.info("creating sync job file: " + sync_job_file)				
-			with open(sync_job_file, 'w') as fh:
-				fh.write(sync_template.render(
-					dcname=dcname,
-					sync_job_name=sync_job_name,
-					jobcron=jobcron,
-					xcppath=xcppath,
-					xcpindexname=xcpindexname,
-					memory=memory,
-					cpu=cpu					
-				))
+			#check if job dir exists
+			if os.path.exists(jobdir):
+				logging.warning("job directory:" + jobdir + " - already exists") 
+			else:	
+				if os.makedirs(jobdir):
+					logging.error("could not create output directory: " + jobdir)				
+					exit(1)
+					
+			for src in jobsdict[jobname]:
+				if srcfilter == '' or srcfilter == src:
+					jobdetails = jobsdict[jobname][src]
+					
+					dst	              = jobdetails['dst']
+					srcbase           = jobdetails['srcbase']
+					dstbase           = jobdetails['dstbase']
+					baseline_job_name = jobdetails['baseline_job_name']
+					sync_job_name     = jobdetails['sync_job_name']
+					scan_job_name     = jobdetails['scan_job_name']
+					rescan_job_name   = jobdetails['rescan_job_name']					
+					xcpindexname      = jobdetails['xcpindexname']	
+					xcpscanindexname  = jobdetails['xcpscanindexname']
+					jobcron           = jobdetails['cron']
+					cpu    			  = jobdetails['cpu']
+					memory            = jobdetails['memory']
+					
+					#creating baseline job 
+					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
+					logging.info("creating/updating relationship configs for src:"+src)
+					logging.debug("creating baseline job file: " + baseline_job_file)				
+					with open(baseline_job_file, 'w') as fh:
+						fh.write(baseline_template.render(
+							dcname=dcname,
+							baseline_job_name=baseline_job_name,
+							xcppath=xcppath,
+							xcpindexname=xcpindexname,
+							memory=memory,
+							cpu=cpu,	
+							src=src,
+							dst=dst
+						))
+					
+					#creating sync job 
+					sync_job_file = os.path.join(jobdir,sync_job_name+'.hcl')		
+					logging.debug("creating sync job file: " + sync_job_file)				
+					with open(sync_job_file, 'w') as fh:
+						fh.write(sync_template.render(
+							dcname=dcname,
+							sync_job_name=sync_job_name,
+							jobcron=jobcron,
+							xcppath=xcppath,
+							xcpindexname=xcpindexname,
+							memory=memory,
+							cpu=cpu					
+						))
+
+					#creating scan job
+					scan_job_file = os.path.join(jobdir,scan_job_name+'.hcl')	
+					logging.debug("creating scan job file: " + scan_job_file)				
+					with open(scan_job_file, 'w') as fh:
+						fh.write(baseline_template.render(
+							dcname=dcname,
+							baseline_job_name=scan_job_name,
+							xcppath=xcppath,
+							xcpindexname=xcpscanindexname,
+							memory=memory,
+							cpu=cpu,	
+							src=src,
+							dst=dst
+						))					
+
+					#creating rescan job 
+					rescan_job_file = os.path.join(jobdir,rescan_job_name+'.hcl')		
+					logging.debug("creating rescan job file: " + rescan_job_file)				
+					with open(rescan_job_file, 'w') as fh:
+						fh.write(sync_template.render(
+							dcname=dcname,
+							sync_job_name=rescan_job_name,
+							jobcron=jobcron,
+							xcppath=xcppath,
+							xcpindexname=xcpscanindexname,
+							memory=memory,
+							cpu=cpu					
+						))
 
 def start_nomad_jobs(action):
 
@@ -231,69 +327,79 @@ def start_nomad_jobs(action):
 	n = nomad.Nomad(host="localhost", timeout=5)
 	
 	for jobname in jobsdict:
-		jobdir = os.path.join(root, jobsdir,jobname)
+		if jobfilter == '' or jobfilter == jobname:
+			jobdir = os.path.join(root, jobsdir,jobname)
 
-		#check if job dir exists
-		if not os.path.exists(jobdir):
-			logging.error("job directory:" + jobdir + " not exists. please init first") 
-			exit (1)
+			#check if job dir exists
+			if not os.path.exists(jobdir):
+				logging.error("job config directory:" + jobdir + " not exists. please init first") 
+				exit (1)
+					
+			for src in jobsdict[jobname]:
+				if srcfilter == '' or srcfilter == src:
+					jobdetails = jobsdict[jobname][src]
+					
+					dst	          = jobdetails['dst']
+					srcbase       = jobdetails['srcbase']
+					dstbase       = jobdetails['dstbase']
+					nomadjobname  = jobdetails[action+'_job_name']
+					xcpindexname  = jobdetails['xcpindexname']	
 				
-		for src in jobsdict[jobname]:
-			jobdetails = jobsdict[jobname][src]
-			
-			dst	          = jobdetails['dst']
-			srcbase       = jobdetails['srcbase']
-			dstbase       = jobdetails['dstbase']
-			nomadjobname  = jobdetails[action+'_job_name']
-			xcpindexname  = jobdetails['xcpindexname']	
-		
-			try:	
-				job = n.job.get_job(nomadjobname)
-			except:
-				job = ''
-			
-			if job:
-				logging.warning("job name:"+nomadjobname+" already exists") 
-			
-			if (action != 'baseline' and job) or not job:
-				jobfile = os.path.join(jobdir,nomadjobname+'.hcl')		
-				logging.info("starting job:" + nomadjobname) 
-				nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
-				nomadjobdict = json.loads(nomadjobjson)
-				
-				
-				nomadjobdict['Job']['Stop'] = False
+					try:	
+						job = n.job.get_job(nomadjobname)
+					except:
+						job = ''
+					
+					if job:
+						logging.debug("job name:"+nomadjobname+" already exists") 
+					
+					if (action != 'baseline' and job) or not job:
+						jobfile = os.path.join(jobdir,nomadjobname+'.hcl')		
+						if not os.path.exists(jobfile): 
+							logging.warning("log file"+jobfile+" for job:"+nomadjobname+" could not be found, please run init again") 
+						else:
+							logging.info("starting/updating job:" + nomadjobname) 
+							nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
+							nomadjobdict = json.loads(nomadjobjson)
+							
+							
+							nomadjobdict['Job']['Stop'] = False
 
 
-				try:
-					nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
-				except:
-					logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+jobfile+ " for more details") 
-					exit(1)
+							try:
+								nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
+							except:
+								logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+jobfile+ " for more details") 
+								exit(1)
 
-				nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
-				try:
-					job = n.job.get_job(nomadjobname)
-				except:
-					logging.error("job:"+nomadjobname+" creation failed") 
+							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
+							try:
+								job = n.job.get_job(nomadjobname)
+							except:
+								logging.error("job:"+nomadjobname+" creation failed") 
 
-			elif action == 'baseline' and job:
-				logging.warning("baseline job cannot be updated") 
+					elif action == 'baseline' and job:
+						logging.warning("baseline job already exists and cannot be updated") 
 
 
-			
+#filter by job or relationship
+jobfilter = args.job
+if not jobfilter: jobfilter = ''
+
+srcfilter = args.source
+if not srcfilter: srcfilter = ''
 
 parse_csv(args.csvfile)
-if args.action == 'init':
+if args.subparser_name == 'init':
 	create_nomad_jobs()
 
-if args.action == 'baseline':
+if args.subparser_name == 'baseline':
 	start_nomad_jobs('baseline')
 
-if args.action == 'sync':
+if args.subparser_name == 'sync':
 	start_nomad_jobs('sync')
 	
-if args.action == 'status':
-	create_nomad_status()
+#if args.subparser_name == 'status':
+#	create_nomad_status()
 
 
