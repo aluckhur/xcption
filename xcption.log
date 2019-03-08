@@ -1,0 +1,23 @@
+2019-03-08 17:30:14,855 - INFO - starting xcption.py
+2019-03-08 17:30:14,856 - INFO - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-08 17:30:15,197 - ERROR - could not find template file: /xcption/template/nomad_baseline.txt
+2019-03-08 17:30:41,759 - INFO - starting xcption.py
+2019-03-08 17:30:41,760 - INFO - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-08 17:30:42,105 - INFO - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src1.hcl
+2019-03-08 17:30:42,105 - INFO - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src1.hcl
+2019-03-08 17:30:48,427 - INFO - starting xcption.py
+2019-03-08 17:30:48,427 - INFO - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-08 17:30:48,434 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-08 17:30:48,435 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 404 37
+2019-03-08 17:30:48,436 - INFO - starting job:baseline_job2_192.168.100.2-_xcp_src1
+2019-03-08 17:30:48,458 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src1/plan HTTP/1.1" 200 240
+2019-03-08 17:30:48,463 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 149
+2019-03-08 17:30:48,465 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 815
+2019-03-08 17:30:52,490 - INFO - starting xcption.py
+2019-03-08 17:30:52,490 - INFO - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-08 17:30:52,497 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-08 17:30:52,499 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 404 37
+2019-03-08 17:30:52,499 - INFO - starting job:sync_job2_192.168.100.2-_xcp_src1
+2019-03-08 17:30:52,525 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src1/plan HTTP/1.1" 200 241
+2019-03-08 17:30:52,547 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 118
+2019-03-08 17:30:52,550 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 854
