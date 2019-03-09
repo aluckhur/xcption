@@ -4,7 +4,7 @@ job "rescan_job2_192.168.100.2-_xcp_src6" {
   type = "batch"
 
   periodic {
-    cron             = "*/05 * * * *"
+    cron             = "*/5 * * * *"
     prohibit_overlap = true
   }
   
@@ -27,7 +27,7 @@ job "rescan_job2_192.168.100.2-_xcp_src6" {
 	  
 	  resources {
 	    cpu    = 100
-	    memory = 200
+	    memory = 800
 	  }
       logs {
         max_files     = 10

@@ -8,8 +8,9 @@ import os
 import json
 import pprint
 import nomad
+import requests
 import subprocess
-
+from prettytable import PrettyTable
 from jinja2 import Environment, FileSystemLoader
 
 pp = pprint.PrettyPrinter(indent=1)
@@ -22,7 +23,7 @@ jobsdir = 'jobs' #relative to the script directory
 ginga2templatedir = 'template' #relative to the script directory 
 defaultjobcron = "*/5 * * * *"
 defaultcpu = 100
-defaultmemory = 200
+defaultmemory = 800
 
 parser = argparse.ArgumentParser()
 #parser.add_argument('-a','--action', choices=['init', 'baseline', 'sync', 'status'], help="action to take during invokation",required=True,type=str)
@@ -100,6 +101,20 @@ logging.info("starting " + os.path.basename(sys.argv[0]))
 jobsdict = {}
 dstdict = {}
 nomadout = {}
+
+#creation of the nomad instance 
+n = nomad.Nomad(host="localhost", timeout=5)
+#baseutl for nomad rest api requests 
+nomadapiurl = 'http://localhost:4646/v1/'
+
+#return nomad job details has dict, assert if not exists 
+def getnomadjobdetails (nomadjobname):
+	job = {}
+	try:
+		job = n.job.get_job(nomadjobname)
+	except:
+		assert not job 
+	return job
 
 def parse_csv(csv_path):
 	with open(csv_path) as csv_file:
@@ -324,8 +339,6 @@ def start_nomad_jobs(action):
 
 	root = os.path.dirname(os.path.abspath(__file__))			
 	
-	n = nomad.Nomad(host="localhost", timeout=5)
-	
 	for jobname in jobsdict:
 		if jobfilter == '' or jobfilter == jobname:
 			jobdir = os.path.join(root, jobsdir,jobname)
@@ -361,10 +374,6 @@ def start_nomad_jobs(action):
 							logging.info("starting/updating job:" + nomadjobname) 
 							nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
 							nomadjobdict = json.loads(nomadjobjson)
-							
-							
-							nomadjobdict['Job']['Stop'] = False
-
 
 							try:
 								nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
@@ -377,9 +386,113 @@ def start_nomad_jobs(action):
 								job = n.job.get_job(nomadjobname)
 							except:
 								logging.error("job:"+nomadjobname+" creation failed") 
+								exit(1)
+
+
+
+							#force immediate baseline than disable the cron 
+							if action == 'baseline':
+								response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
+								if not response.ok:
+									logging.error("job:"+nomadjobname+" force start failed") 
+									exit(1)
+
+								#nomadjobdict['Job']['Stop'] = True
+								#nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
+								#try:
+								#	job = n.job.get_job(nomadjobname)
+								#except:
+								#	logging.error("job:"+nomadjobname+" disable cron failed failed") 
+								#	exit(1)
 
 					elif action == 'baseline' and job:
 						logging.warning("baseline job already exists and cannot be updated") 
+
+#create general status table 
+def create_general_status ():
+
+	root = os.path.dirname(os.path.abspath(__file__))			
+
+	#get nomad allocations 
+	jobs  = n.jobs.get_jobs()
+	allocs = n.allocations.get_allocations()
+	
+	#build the table object
+	table = PrettyTable()
+	table.field_names = ["Job","Source Path", "Dest Path", "Baseline Status", "Baseline Time", "Sync Status", "Sync Schedule"]
+	rowcount = 0
+	
+	for jobname in jobsdict:
+		if jobfilter == '' or jobfilter == jobname:
+			jobdir = os.path.join(root, jobsdir,jobname)
+
+			#check if job dir exists
+			if not os.path.exists(jobdir):
+				logging.error("job config directory:" + jobdir + " not exists. please init first") 
+				exit (1)
+					
+			for src in jobsdict[jobname]:
+				jobdetails = jobsdict[jobname][src]
+				
+				dst	          = jobdetails['dst']
+				srcbase       = jobdetails['srcbase']
+				dstbase       = jobdetails['dstbase']
+				xcpindexname  = jobdetails['xcpindexname']	
+
+				baseline_job_name = jobdetails['baseline_job_name']
+				sync_job_name     = jobdetails['sync_job_name']
+				scan_job_name     = jobdetails['scan_job_name']
+				rescan_job_name   = jobdetails['rescan_job_name']					
+				xcpindexname      = jobdetails['xcpindexname']			
+				jobcron           = jobdetails['cron']
+
+				baselinestatus = 'unknown'
+				baselinetime   = '-'
+
+				updatestatus   = 'unknow'
+				updatetime     = '-'
+				syncsched     = jobcron
+
+				for job in jobs:				
+					if job['ID'].startswith(baseline_job_name+'/periodic-'):
+						baselinestatus = job['Status']
+						for alloc in allocs:
+							if alloc['JobID'].startswith(baseline_job_name+'/periodic-'):
+								baselinestatus =  alloc['ClientStatus']
+								response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task=baseline&type=stderr&plain=true')
+								if response.content:
+									lastline = response.content.splitlines()[-1]
+									matchObj = re.search("\s+(\S*\d+s)(\.)?$", lastline, re.M|re.I)
+									if matchObj: 
+										baselinetime = matchObj.group(1)
+					if job['ID'] == sync_job_name:
+						if job['Stop']: syncsched = 'Disabled'
+					if job['ID'].startswith(sync_job_name+'/periodic-'):
+
+						updatestatus = job['Status']
+						
+						for alloc in allocs:
+							if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
+								updatestatus =  alloc['ClientStatus']
+								if updatestatus == 'complete': updatestatus = 'idle'
+
+
+
+								
+				table.add_row([jobname,src,dst,baselinestatus,baselinetime,updatestatus,syncsched])
+				rowcount += 1
+					
+	
+	if rowcount > 0:
+		table.border = False
+		table.align = 'l'
+		print table
+	else:
+		print "no data found"
+
+#####################################################################################################
+###################                        MAIN                                        ##############
+#####################################################################################################
 
 
 #filter by job or relationship
@@ -399,7 +512,10 @@ if args.subparser_name == 'baseline':
 if args.subparser_name == 'sync':
 	start_nomad_jobs('sync')
 	
-#if args.subparser_name == 'status':
-#	create_nomad_status()
+if args.subparser_name == 'status' and not srcfilter:
+	create_general_status()
+
+
+
 
 

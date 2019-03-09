@@ -1,4 +1,6 @@
 #!/bin/bash
+ssh slave1 wondershaper clear enp0s8
+ssh slave2 wondershaper clear enp0s8
 rm -rf /xcp/repo/*
 rm -rf /xcption/jobs/*
 rm -rf /mnt/slave1/xcp/*

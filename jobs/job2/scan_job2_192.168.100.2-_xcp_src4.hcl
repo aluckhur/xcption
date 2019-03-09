@@ -3,6 +3,11 @@ job "scan_job2_192.168.100.2-_xcp_src4" {
 
   type = "batch"
 
+  periodic {
+    cron             = "0 0 31 2 *"
+    prohibit_overlap = true
+  }
+  
   constraint {
     attribute = "${attr.kernel.name}"
     value     = "linux"
@@ -21,7 +26,7 @@ job "scan_job2_192.168.100.2-_xcp_src4" {
       driver = "raw_exec"
 	  resources {
 	    cpu    = 100
-	    memory = 200
+	    memory = 800
 	  }
       logs {
         max_files     = 10

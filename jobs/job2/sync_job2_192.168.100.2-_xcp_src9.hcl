@@ -27,7 +27,7 @@ job "sync_job2_192.168.100.2-_xcp_src9" {
 	  
 	  resources {
 	    cpu    = 100
-	    memory = 200
+	    memory = 800
 	  }
       logs {
         max_files     = 10
