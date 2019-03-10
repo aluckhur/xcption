@@ -86,7 +86,7 @@ fi
 
 if [ "$INSTALLTYPE" = "client" ]; then
 
-  cat << EOCCF >/etc/nomad.d/
+  cat << EOCCF >/etc/nomad.d/client.hcl
 bind_addr = "0.0.0.0"
 region             = "${DATACENTER_NAME}"
 datacenter         = "${DATACENTER_NAME}"
