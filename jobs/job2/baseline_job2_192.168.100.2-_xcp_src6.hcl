@@ -33,7 +33,7 @@ job "baseline_job2_192.168.100.2-_xcp_src6" {
         max_file_size = 10
       }	  
       config {
-        command = "/usr/sbin/xcp"
+        command = "/usr/local/bin/xcp"
         args    = ["copy","-newid","192.168.100.2-_xcp_src6-192.168.100.4-_xcp_dst6","192.168.100.2:/xcp/src6","192.168.100.4:/xcp/dst6"]
       }
     }

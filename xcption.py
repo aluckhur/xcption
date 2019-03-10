@@ -17,8 +17,8 @@ pp = pprint.PrettyPrinter(indent=1)
 
 #general settings
 dcname = 'DC1'
-xcppath = '/usr/sbin/xcp'
-xcprepopath = '/xcption/xcprepo'
+xcppath = '/usr/local/bin/xcp'
+xcprepopath = os.path.join(os.path.dirname(os.path.realpath(__file__)),'system','xcp_repo')
 nomadpath = '/usr/local/bin/nomad'
 jobsdir = 'jobs' #relative to the script directory 
 ginga2templatedir = 'template' #relative to the script directory 

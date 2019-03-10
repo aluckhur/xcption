@@ -150,7 +150,7 @@ if grep -q "xcp_repo" "$fstab"
 then
 	echo "${SCRIPT_DIR}/xcp_repo already in fstab" 
 else
-        echo "${XCPREPO} ${SCRIPT_DIR}/xcp_repo nfs  defaults,vers=3    0 0" >> $fstab
-	mount ${SCRIPT_DIR}/xcp_repo
+  echo "${XCPREPO} ${SCRIPT_DIR}/xcp_repo nfs  defaults,vers=3 0 0" >> $fstab
+  mount ${SCRIPT_DIR}/xcp_repo
 fi
    

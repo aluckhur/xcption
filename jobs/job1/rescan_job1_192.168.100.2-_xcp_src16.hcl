@@ -34,7 +34,7 @@ job "rescan_job1_192.168.100.2-_xcp_src16" {
         max_file_size = 10
       }	  
       config {
-        command = "/usr/sbin/xcp"
+        command = "/usr/local/bin/xcp"
         args    = ["sync","-id","scan-192.168.100.2-_xcp_src16-192.168.100.3-_xcp_dst16"]
       }
     }

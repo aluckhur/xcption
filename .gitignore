@@ -2,4 +2,4 @@
 #ignore logs directory
 logs/
 jobs/
-xcprepo/
+xcp_repo/

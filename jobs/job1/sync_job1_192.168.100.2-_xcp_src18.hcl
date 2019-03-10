@@ -34,7 +34,7 @@ job "sync_job1_192.168.100.2-_xcp_src18" {
         max_file_size = 10
       }	  
       config {
-        command = "/usr/sbin/xcp"
+        command = "/usr/local/bin/xcp"
         args    = ["sync","-id","192.168.100.2-_xcp_src18-192.168.100.3-_xcp_dst18"]
       }
     }

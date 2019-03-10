@@ -33,7 +33,7 @@ job "scan_job2_192.168.100.2-_xcp_src9" {
         max_file_size = 10
       }	  
       config {
-        command = "/usr/sbin/xcp"
+        command = "/usr/local/bin/xcp"
         args    = ["copy","-newid","scan-192.168.100.2-_xcp_src9-192.168.100.4-_xcp_dst9","192.168.100.2:/xcp/src9","192.168.100.4:/xcp/dst9"]
       }
     }
