@@ -9,7 +9,7 @@ export SERVERIP=x.x.x.x
 export TERM=xterm-256color
 export DEBIAN_FRONTEND=noninteractive
 export DATACENTER_NAME="DC1"
-export XCPREPO="10.68.65.57:/xcprepo"
+export XCPREPO="10.68.65.67:/xcprepo"
 
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
