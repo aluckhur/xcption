@@ -42,7 +42,7 @@ job "xcption_gc" {
           max_file_size = 10
         }	  
         config {
-          command = "/xcption/system/xcption_gc.sh"
+          command = "/root/xcption/system/xcption_gc.sh"
         }
       }
   }
