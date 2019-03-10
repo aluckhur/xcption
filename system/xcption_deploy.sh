@@ -105,9 +105,9 @@ client {
 }
 
 advertise {
-  http = "${LOCAL_IPV4}:4646"
-  rpc  = "${LOCAL_IPV4}:4647"
-  serf = "${LOCAL_IPV4}:4648"
+  http = "${SERVERIP}:4646"
+  rpc  = "${SERVERIP}:4647"
+  serf = "${SERVERIP}:4648"
 }
 
 EOCCF
