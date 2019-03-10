@@ -4,7 +4,7 @@ job "sync_job2_192.168.100.2-_xcp_src1" {
   type = "batch"
 
   periodic {
-    cron             = "*/5 * * * *"
+    cron             = "*/1 * * * *"
     prohibit_overlap = true
   }
   

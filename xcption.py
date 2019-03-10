@@ -18,10 +18,11 @@ pp = pprint.PrettyPrinter(indent=1)
 #general settings
 dcname = 'DC1'
 xcppath = '/usr/sbin/xcp'
+xcprepopath = '/xcption/xcprepo'
 nomadpath = '/usr/local/bin/nomad'
 jobsdir = 'jobs' #relative to the script directory 
 ginga2templatedir = 'template' #relative to the script directory 
-defaultjobcron = "*/5 * * * *"
+defaultjobcron = "*/1 * * * *"
 defaultcpu = 100
 defaultmemory = 800
 
@@ -95,7 +96,7 @@ log.addHandler(ch)
 handler = logging.StreamHandler(sys.stdout)
 handler.setLevel(logging.INFO)
 
-logging.info("starting " + os.path.basename(sys.argv[0])) 
+logging.debug("starting " + os.path.basename(sys.argv[0])) 
 
 #initialize dict objects
 jobsdict = {}
@@ -181,9 +182,11 @@ def parse_csv(csv_path):
 							
 					srcbase = src.replace(':/','-_')
 					srcbase = srcbase.replace('/','_')
+					srcbase = srcbase.replace(' ','-')
 					
 					dstbase = dst.replace(':/','-_')
 					dstbase = dstbase.replace('/','_')
+					dstbase = dstbase.replace(' ','-')
 					
 					baseline_job_name = 'baseline_'+jobname+'_'+srcbase
 					sync_job_name     = 'sync_'+jobname+'_'+srcbase
@@ -408,6 +411,37 @@ def start_nomad_jobs(action):
 					elif action == 'baseline' and job:
 						logging.warning("baseline job already exists and cannot be updated") 
 
+#parse stats from xcp logs, logs can be retrived from api or file in the repo
+def parse_stats_from_log (allocid,type):
+
+	#output dict
+	results = {}
+	#logs file are periodicaly copied to the xcprepo folder using periodic nomad xcption_gc job using system/xcption_gc.sh script 
+	logfileinxcprepo = os.path.join(xcprepopath,'tmpreports','alloc',allocid,'alloc','logs',type+'.stderr.0')
+	logging.debug("log file name path:"+logfileinxcprepo)								
+
+	#try to get the log file using api
+	response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+type+'&type=stderr&plain=true')
+
+	lastline = ''
+
+	if response.ok and response.content:
+		logging.debug("log for job:"+allocid+" is avaialble using api")								
+		lastline = response.content.splitlines()[-1]
+	elif os.path.isfile(logfileinxcprepo):
+		logging.debug("log for job:"+allocid+" is avaialble in file")								
+		with open(logfileinxcprepo, 'r') as f:
+		    lines = f.read().splitlines()
+		    lastline = lines[-1]
+	else: 
+		logging.warning("could not find log file for job:"+allocid)																	
+
+	if lastline:
+		matchObj = re.search("\s+(\S*\d+s)(\.)?$", lastline, re.M|re.I)
+		if matchObj: results['time'] = matchObj.group(1)
+	return results
+
+
 #create general status table 
 def create_general_status ():
 
@@ -419,7 +453,7 @@ def create_general_status ():
 	
 	#build the table object
 	table = PrettyTable()
-	table.field_names = ["Job","Source Path", "Dest Path", "Baseline Status", "Baseline Time", "Sync Status", "Sync Schedule"]
+	table.field_names = ["Job","Source Path", "Dest Path", "Baseline Status", "Baseline Time", "Sync Status", "Last Sync Time"]
 	rowcount = 0
 	
 	for jobname in jobsdict:
@@ -450,36 +484,47 @@ def create_general_status ():
 				baselinetime   = '-'
 
 				updatestatus   = 'unknow'
-				updatetime     = '-'
+				synctime     = '-'
 				syncsched     = jobcron
 
-				for job in jobs:				
+				for job in jobs:
+					synccounter = 0				
 					if job['ID'].startswith(baseline_job_name+'/periodic-'):
 						baselinestatus = job['Status']
 						for alloc in allocs:
 							if alloc['JobID'].startswith(baseline_job_name+'/periodic-'):
-								baselinestatus =  alloc['ClientStatus']
-								response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task=baseline&type=stderr&plain=true')
-								if response.content:
-									lastline = response.content.splitlines()[-1]
-									matchObj = re.search("\s+(\S*\d+s)(\.)?$", lastline, re.M|re.I)
-									if matchObj: 
-										baselinetime = matchObj.group(1)
+								if baselinestatus == 'dead': baselinestatus =  alloc['ClientStatus'] 
+								statsresults = parse_stats_from_log(alloc['ID'],'baseline')
+								if 'time' in statsresults.keys(): baselinetime = statsresults['time']
+				
+				#take care of sync job status 
+				joblastid = ''
+				joblastallocid = ''
+				for job in jobs:
+					
 					if job['ID'] == sync_job_name:
+						
 						if job['Stop']: syncsched = 'Disabled'
+					
 					if job['ID'].startswith(sync_job_name+'/periodic-'):
-
 						updatestatus = job['Status']
+						joblastid = job['ID']
 						
 						for alloc in allocs:
 							if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
-								updatestatus =  alloc['ClientStatus']
-								if updatestatus == 'complete': updatestatus = 'idle'
+								joblastallocid = alloc['ID'] 
+			
+				if joblastallocid: 
+					n.job.get_job(joblastid) 
+					lastalloc = n.allocation.get_allocation(joblastallocid)
 
-
-
-								
-				table.add_row([jobname,src,dst,baselinestatus,baselinetime,updatestatus,syncsched])
+					statsresults = parse_stats_from_log(joblastallocid,'sync')
+					if statsresults['time']: synctime = statsresults['time']
+					
+					updatestatus =  lastalloc['ClientStatus']
+					if updatestatus == 'complete': updatestatus = 'idle'
+									
+				table.add_row([jobname,src,dst,baselinestatus,baselinetime,updatestatus+'('+syncsched+')',synctime])
 				rowcount += 1
 					
 	

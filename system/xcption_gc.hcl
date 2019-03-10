@@ -1,10 +1,10 @@
-job "{{ sync_job_name }}" {
+job "xcption_gc" {
   datacenters = ["DC1"]
 
-  type = "system"
+  type = "batch"
 
   periodic {
-    cron             = "{{ jobcron }}"
+    cron             = "* * * * *"
     prohibit_overlap = true
   }
   
@@ -12,25 +12,38 @@ job "{{ sync_job_name }}" {
     attribute = "${attr.kernel.name}"
     value     = "linux"
   }
-  
-  group "{{ sync_job_name }}" {
-    count = 1
 
-    task "sync" {
-      driver = "raw_exec"
-	  
-	  resources {
-	    cpu    = 100
-	    memory = 20
-	  }
-      logs {
-        max_files     = 10
-        max_file_size = 10
-      }	  
-      config {
-        command = ""
-        args    = ["sync","-id","{{ xcpindexname }}"]
-      }
+  constraint {
+      operator = "distinct_hosts"
+      value = "true"
+  }
+  
+  group "xcption_gc" {
+    count = 3
+
+    reschedule {
+      attempts  = 0
     }
+    restart {
+      attempts = 0
+      mode     = "fail"
+    }   
+
+    task "xcption_gc" {
+      driver = "raw_exec"
+    
+
+  	  resources {
+  	    cpu    = 100
+  	    memory = 20
+  	  }
+        logs {
+          max_files     = 10
+          max_file_size = 10
+        }	  
+        config {
+          command = "/xcption/system/xcption_gc.sh"
+        }
+      }
   }
 }
