@@ -9,7 +9,7 @@ export SERVERIP=x.x.x.x
 export TERM=xterm-256color
 export DEBIAN_FRONTEND=noninteractive
 export DATACENTER_NAME="DC1"
-export XCPREPO="x.x.x.x:/repor"
+export XCPREPO="10.68.65.57:/xcprepo"
 
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
@@ -31,7 +31,8 @@ apt-get install -y \
     unzip \
     python \
     rsync \
-    git
+    git \
+    nfs-common
 
 
 CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
@@ -140,3 +141,13 @@ EONSU
 cp ${SCRIPT_DIR}/xcp_license /opt/NetApp/xFiles/xcp/license
 cp ${SCRIPT_DIR}/xcp /usr/local/bin
 
+mkdir -p ${SCRIPT_DIR}/xcp_repo
+chmod 770 ${SCRIPT_DIR}/xcp_repo
+
+fstab=/etc/fstab
+if grep -q "xcp_repo" "$fstab"
+then
+	echo "${XCPREPO} ${SCRIPT_DIR}/xcp_repo nfs    defaults,vers=3    0 0" >> $fstab
+	mount ${SCRIPT_DIR}/xcp_repo 
+fi
+   
