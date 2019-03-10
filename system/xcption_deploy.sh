@@ -97,7 +97,7 @@ leave_on_terminate = true
 client {
   enabled       = true
   network_speed = 10
-  servers = ["${LOCAL_IPV4}"]
+  servers = ["${SERVERIP}"]
   options {
     "driver.raw_exec.enable" = "1"
     "gc_max_allocs" = 5000
