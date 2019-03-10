@@ -145,9 +145,12 @@ mkdir -p ${SCRIPT_DIR}/xcp_repo
 chmod 770 ${SCRIPT_DIR}/xcp_repo
 
 fstab=/etc/fstab
+
 if grep -q "xcp_repo" "$fstab"
 then
-	echo "${XCPREPO} ${SCRIPT_DIR}/xcp_repo nfs    defaults,vers=3    0 0" >> $fstab
-	mount ${SCRIPT_DIR}/xcp_repo 
+	echo "${SCRIPT_DIR}/xcp_repo already in fstab" 
+else
+        echo "${XCPREPO} ${SCRIPT_DIR}/xcp_repo nfs  defaults,vers=3    0 0" >> $fstab
+	mount ${SCRIPT_DIR}/xcp_repo
 fi
    
