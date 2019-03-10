@@ -1,7 +1,7 @@
 #!/bin/bash
 
 NOMAD_ALLOC_DIR="/var/lib/nomad/alloc"
-XCP_REPO_MOUNT_POINT="/xcption/xcprepo"
+XCP_REPO_MOUNT_POINT="/root/xcption/system/xcp_repo"
 TMP_REPORT_DIR="${XCP_REPO_MOUNT_POINT}/tmpreports"
 DELETE_AFTER_DAYS=30
 

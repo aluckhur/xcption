@@ -519,7 +519,7 @@ def create_general_status ():
 					lastalloc = n.allocation.get_allocation(joblastallocid)
 
 					statsresults = parse_stats_from_log(joblastallocid,'sync')
-					if statsresults['time']: synctime = statsresults['time']
+					if 'time' in statsresults.keys(): synctime = statsresults['time']
 					
 					updatestatus =  lastalloc['ClientStatus']
 					if updatestatus == 'complete': updatestatus = 'idle'

@@ -1,0 +1,22 @@
+#!/bin/bash
+ssh slave1 wondershaper clear enp0s8
+ssh slave2 wondershaper clear enp0s8
+rm -rf /root/xcption/system/xcp_repo/catalog/*
+rm -rf /root/xcption/system/xcp_repo/tmpreports/*
+
+rm -rf /root/xcption/jobs/*
+
+if [[ $(nomad status) != "No running jobs" ]]; then
+    for job in $(nomad status | awk {'print $1'} || grep /)
+    do  
+        # Skip the header row for jobs.
+        if [ $job != "ID" ]; then
+			echo "killing job $job"
+            nomad stop -purge -detach $job > /dev/null
+        fi  
+    done
+fi
+curl     --request PUT     http://localhost:4646/v1/system/gc
+df | grep /var/lib/nomad/alloc | awk '{system( "umount "$6)}'
+
+nomad run /root/xcption/system/xcption_gc.hcl
