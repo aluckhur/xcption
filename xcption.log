@@ -1,0 +1,548 @@
+2019-03-09 22:02:45,159 - INFO - starting xcption.py
+2019-03-09 22:02:45,165 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-09 22:02:45,167 - INFO - validating src:192.168.100.2:/xcp/src1 and dst:192.168.100.4:/xcp/dst1 are mountable
+2019-03-09 22:02:45,548 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-09 22:02:45,550 - INFO - validating src:192.168.100.2:/xcp/src2 and dst:192.168.100.4:/xcp/dst2 are mountable
+2019-03-09 22:02:45,890 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-09 22:02:45,893 - INFO - validating src:192.168.100.2:/xcp/src3 and dst:192.168.100.4:/xcp/dst3 are mountable
+2019-03-09 22:02:46,260 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-09 22:02:46,264 - INFO - validating src:192.168.100.2:/xcp/src4 and dst:192.168.100.4:/xcp/dst4 are mountable
+2019-03-09 22:02:46,598 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-09 22:02:46,600 - INFO - validating src:192.168.100.2:/xcp/src5 and dst:192.168.100.4:/xcp/dst5 are mountable
+2019-03-09 22:02:46,946 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-09 22:02:46,950 - INFO - validating src:192.168.100.2:/xcp/src6 and dst:192.168.100.4:/xcp/dst6 are mountable
+2019-03-09 22:02:47,295 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-09 22:02:47,297 - INFO - validating src:192.168.100.2:/xcp/src7 and dst:192.168.100.4:/xcp/dst7 are mountable
+2019-03-09 22:02:47,679 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-09 22:02:47,683 - INFO - validating src:192.168.100.2:/xcp/src8 and dst:192.168.100.4:/xcp/dst8 are mountable
+2019-03-09 22:02:48,023 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-09 22:02:48,025 - INFO - validating src:192.168.100.2:/xcp/src9 and dst:192.168.100.4:/xcp/dst9 are mountable
+2019-03-09 22:02:48,375 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-09 22:02:48,376 - INFO - validating src:192.168.100.2:/xcp/src10 and dst:192.168.100.3:/xcp/dst10 are mountable
+2019-03-09 22:02:48,718 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-09 22:02:48,720 - INFO - validating src:192.168.100.2:/xcp/src11 and dst:192.168.100.3:/xcp/dst11 are mountable
+2019-03-09 22:02:49,062 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-09 22:02:49,064 - INFO - validating src:192.168.100.2:/xcp/src12 and dst:192.168.100.3:/xcp/dst12 are mountable
+2019-03-09 22:02:49,398 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-09 22:02:49,400 - INFO - validating src:192.168.100.2:/xcp/src13 and dst:192.168.100.3:/xcp/dst13 are mountable
+2019-03-09 22:02:49,778 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-09 22:02:49,780 - INFO - validating src:192.168.100.2:/xcp/src14 and dst:192.168.100.3:/xcp/dst14 are mountable
+2019-03-09 22:02:50,114 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-09 22:02:50,118 - INFO - validating src:192.168.100.2:/xcp/src15 and dst:192.168.100.3:/xcp/dst15 are mountable
+2019-03-09 22:02:50,471 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-09 22:02:50,473 - INFO - validating src:192.168.100.2:/xcp/src16 and dst:192.168.100.3:/xcp/dst16 are mountable
+2019-03-09 22:02:50,874 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-09 22:02:50,878 - INFO - validating src:192.168.100.2:/xcp/src17 and dst:192.168.100.3:/xcp/dst17 are mountable
+2019-03-09 22:02:51,236 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-09 22:02:51,238 - INFO - validating src:192.168.100.2:/xcp/src18 and dst:192.168.100.3:/xcp/dst18 are mountable
+2019-03-09 22:02:51,612 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-09 22:02:51,616 - INFO - validating src:192.168.100.2:/xcp/src19 and dst:192.168.100.3:/xcp/dst19 are mountable
+2019-03-09 22:02:52,052 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src2
+2019-03-09 22:02:52,052 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src2.hcl
+2019-03-09 22:02:52,053 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src2.hcl
+2019-03-09 22:02:52,053 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src2.hcl
+2019-03-09 22:02:52,053 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src2.hcl
+2019-03-09 22:02:52,053 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src3
+2019-03-09 22:02:52,053 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src3.hcl
+2019-03-09 22:02:52,053 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src3.hcl
+2019-03-09 22:02:52,054 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src3.hcl
+2019-03-09 22:02:52,054 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src3.hcl
+2019-03-09 22:02:52,054 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src1
+2019-03-09 22:02:52,054 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src1.hcl
+2019-03-09 22:02:52,054 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src1.hcl
+2019-03-09 22:02:52,054 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src1.hcl
+2019-03-09 22:02:52,054 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src1.hcl
+2019-03-09 22:02:52,055 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src6
+2019-03-09 22:02:52,055 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src6.hcl
+2019-03-09 22:02:52,055 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src6.hcl
+2019-03-09 22:02:52,055 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src6.hcl
+2019-03-09 22:02:52,055 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src6.hcl
+2019-03-09 22:02:52,055 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src7
+2019-03-09 22:02:52,055 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src7.hcl
+2019-03-09 22:02:52,055 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src7.hcl
+2019-03-09 22:02:52,055 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src7.hcl
+2019-03-09 22:02:52,056 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src7.hcl
+2019-03-09 22:02:52,056 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src4
+2019-03-09 22:02:52,056 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src4.hcl
+2019-03-09 22:02:52,056 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src4.hcl
+2019-03-09 22:02:52,056 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src4.hcl
+2019-03-09 22:02:52,056 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src4.hcl
+2019-03-09 22:02:52,056 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src5
+2019-03-09 22:02:52,056 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src5.hcl
+2019-03-09 22:02:52,057 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src5.hcl
+2019-03-09 22:02:52,057 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src5.hcl
+2019-03-09 22:02:52,057 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src5.hcl
+2019-03-09 22:02:52,057 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src8
+2019-03-09 22:02:52,057 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src8.hcl
+2019-03-09 22:02:52,057 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src8.hcl
+2019-03-09 22:02:52,057 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src8.hcl
+2019-03-09 22:02:52,057 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src8.hcl
+2019-03-09 22:02:52,058 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src9
+2019-03-09 22:02:52,058 - DEBUG - creating baseline job file: /xcption/jobs/job2/baseline_job2_192.168.100.2-_xcp_src9.hcl
+2019-03-09 22:02:52,058 - DEBUG - creating sync job file: /xcption/jobs/job2/sync_job2_192.168.100.2-_xcp_src9.hcl
+2019-03-09 22:02:52,058 - DEBUG - creating scan job file: /xcption/jobs/job2/scan_job2_192.168.100.2-_xcp_src9.hcl
+2019-03-09 22:02:52,058 - DEBUG - creating rescan job file: /xcption/jobs/job2/rescan_job2_192.168.100.2-_xcp_src9.hcl
+2019-03-09 22:02:52,058 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src14
+2019-03-09 22:02:52,058 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src14.hcl
+2019-03-09 22:02:52,058 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src14.hcl
+2019-03-09 22:02:52,058 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src14.hcl
+2019-03-09 22:02:52,059 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src14.hcl
+2019-03-09 22:02:52,059 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src15
+2019-03-09 22:02:52,059 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src15.hcl
+2019-03-09 22:02:52,059 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src15.hcl
+2019-03-09 22:02:52,059 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src15.hcl
+2019-03-09 22:02:52,059 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src15.hcl
+2019-03-09 22:02:52,059 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src16
+2019-03-09 22:02:52,059 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src16.hcl
+2019-03-09 22:02:52,060 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src16.hcl
+2019-03-09 22:02:52,060 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src16.hcl
+2019-03-09 22:02:52,060 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src16.hcl
+2019-03-09 22:02:52,060 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src17
+2019-03-09 22:02:52,060 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src17.hcl
+2019-03-09 22:02:52,060 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src17.hcl
+2019-03-09 22:02:52,060 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src17.hcl
+2019-03-09 22:02:52,060 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src17.hcl
+2019-03-09 22:02:52,061 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src10
+2019-03-09 22:02:52,061 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src10.hcl
+2019-03-09 22:02:52,061 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src10.hcl
+2019-03-09 22:02:52,061 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src10.hcl
+2019-03-09 22:02:52,061 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src10.hcl
+2019-03-09 22:02:52,061 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src11
+2019-03-09 22:02:52,061 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src11.hcl
+2019-03-09 22:02:52,061 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src11.hcl
+2019-03-09 22:02:52,061 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src11.hcl
+2019-03-09 22:02:52,062 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src11.hcl
+2019-03-09 22:02:52,062 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src12
+2019-03-09 22:02:52,062 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src12.hcl
+2019-03-09 22:02:52,062 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src12.hcl
+2019-03-09 22:02:52,062 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src12.hcl
+2019-03-09 22:02:52,062 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src12.hcl
+2019-03-09 22:02:52,062 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src13
+2019-03-09 22:02:52,062 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src13.hcl
+2019-03-09 22:02:52,063 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src13.hcl
+2019-03-09 22:02:52,063 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src13.hcl
+2019-03-09 22:02:52,063 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src13.hcl
+2019-03-09 22:02:52,063 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src18
+2019-03-09 22:02:52,063 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src18.hcl
+2019-03-09 22:02:52,063 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src18.hcl
+2019-03-09 22:02:52,063 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src18.hcl
+2019-03-09 22:02:52,063 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src18.hcl
+2019-03-09 22:02:52,064 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src19
+2019-03-09 22:02:52,064 - DEBUG - creating baseline job file: /xcption/jobs/job1/baseline_job1_192.168.100.2-_xcp_src19.hcl
+2019-03-09 22:02:52,064 - DEBUG - creating sync job file: /xcption/jobs/job1/sync_job1_192.168.100.2-_xcp_src19.hcl
+2019-03-09 22:02:52,064 - DEBUG - creating scan job file: /xcption/jobs/job1/scan_job1_192.168.100.2-_xcp_src19.hcl
+2019-03-09 22:02:52,064 - DEBUG - creating rescan job file: /xcption/jobs/job1/rescan_job1_192.168.100.2-_xcp_src19.hcl
+2019-03-09 22:02:56,296 - INFO - starting xcption.py
+2019-03-09 22:02:56,301 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-09 22:02:56,301 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-09 22:02:56,301 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-09 22:02:56,301 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-09 22:02:56,302 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-09 22:02:56,304 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,305 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src2 HTTP/1.1" 404 37
+2019-03-09 22:02:56,306 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src2
+2019-03-09 22:02:56,330 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src2/plan HTTP/1.1" 200 240
+2019-03-09 22:02:56,333 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src2 HTTP/1.1" 200 119
+2019-03-09 22:02:56,335 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src2 HTTP/1.1" 200 877
+2019-03-09 22:02:56,336 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,340 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src2/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,345 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src3 HTTP/1.1" 404 37
+2019-03-09 22:02:56,346 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src3
+2019-03-09 22:02:56,373 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src3/plan HTTP/1.1" 200 239
+2019-03-09 22:02:56,376 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src3 HTTP/1.1" 200 119
+2019-03-09 22:02:56,378 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src3 HTTP/1.1" 200 877
+2019-03-09 22:02:56,379 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,385 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src3/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,387 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 404 37
+2019-03-09 22:02:56,388 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src1
+2019-03-09 22:02:56,414 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src1/plan HTTP/1.1" 200 240
+2019-03-09 22:02:56,419 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 119
+2019-03-09 22:02:56,422 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 875
+2019-03-09 22:02:56,424 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,427 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src1/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,431 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src6 HTTP/1.1" 404 37
+2019-03-09 22:02:56,431 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src6
+2019-03-09 22:02:56,468 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src6/plan HTTP/1.1" 200 714
+2019-03-09 22:02:56,471 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src6 HTTP/1.1" 200 119
+2019-03-09 22:02:56,473 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src6 HTTP/1.1" 200 875
+2019-03-09 22:02:56,475 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,479 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src6/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,482 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src7 HTTP/1.1" 404 37
+2019-03-09 22:02:56,482 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src7
+2019-03-09 22:02:56,520 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src7/plan HTTP/1.1" 200 715
+2019-03-09 22:02:56,524 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src7 HTTP/1.1" 200 119
+2019-03-09 22:02:56,527 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src7 HTTP/1.1" 200 875
+2019-03-09 22:02:56,529 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,536 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src7/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,539 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src4 HTTP/1.1" 404 37
+2019-03-09 22:02:56,540 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src4
+2019-03-09 22:02:56,570 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src4/plan HTTP/1.1" 200 715
+2019-03-09 22:02:56,574 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src4 HTTP/1.1" 200 119
+2019-03-09 22:02:56,577 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src4 HTTP/1.1" 200 875
+2019-03-09 22:02:56,578 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,581 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src4/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,584 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src5 HTTP/1.1" 404 37
+2019-03-09 22:02:56,584 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src5
+2019-03-09 22:02:56,610 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src5/plan HTTP/1.1" 200 714
+2019-03-09 22:02:56,613 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src5 HTTP/1.1" 200 119
+2019-03-09 22:02:56,615 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src5 HTTP/1.1" 200 874
+2019-03-09 22:02:56,617 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,620 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src5/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,624 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src8 HTTP/1.1" 404 37
+2019-03-09 22:02:56,625 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src8
+2019-03-09 22:02:56,651 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src8/plan HTTP/1.1" 200 713
+2019-03-09 22:02:56,657 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src8 HTTP/1.1" 200 119
+2019-03-09 22:02:56,666 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src8 HTTP/1.1" 200 876
+2019-03-09 22:02:56,667 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,671 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src8/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,674 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src9 HTTP/1.1" 404 37
+2019-03-09 22:02:56,675 - INFO - starting/updating job:baseline_job2_192.168.100.2-_xcp_src9
+2019-03-09 22:02:56,732 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src9/plan HTTP/1.1" 200 714
+2019-03-09 22:02:56,750 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src9 HTTP/1.1" 200 119
+2019-03-09 22:02:56,754 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job2_192.168.100.2-_xcp_src9 HTTP/1.1" 200 875
+2019-03-09 22:02:56,757 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,762 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job2_192.168.100.2-_xcp_src9/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,764 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src14 HTTP/1.1" 404 37
+2019-03-09 22:02:56,765 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src14
+2019-03-09 22:02:56,811 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src14/plan HTTP/1.1" 200 714
+2019-03-09 22:02:56,815 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src14 HTTP/1.1" 200 119
+2019-03-09 22:02:56,818 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src14 HTTP/1.1" 200 878
+2019-03-09 22:02:56,820 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,823 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src14/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,827 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src15 HTTP/1.1" 404 37
+2019-03-09 22:02:56,828 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src15
+2019-03-09 22:02:56,891 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src15/plan HTTP/1.1" 200 715
+2019-03-09 22:02:56,895 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src15 HTTP/1.1" 200 119
+2019-03-09 22:02:56,899 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src15 HTTP/1.1" 200 878
+2019-03-09 22:02:56,902 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:56,914 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src15/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:56,918 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src16 HTTP/1.1" 404 37
+2019-03-09 22:02:56,919 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src16
+2019-03-09 22:02:56,966 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src16/plan HTTP/1.1" 200 714
+2019-03-09 22:02:56,981 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src16 HTTP/1.1" 200 119
+2019-03-09 22:02:56,999 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src16 HTTP/1.1" 200 877
+2019-03-09 22:02:57,001 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,013 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src16/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:57,017 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src17 HTTP/1.1" 404 37
+2019-03-09 22:02:57,018 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src17
+2019-03-09 22:02:57,060 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src17/plan HTTP/1.1" 200 713
+2019-03-09 22:02:57,064 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src17 HTTP/1.1" 200 119
+2019-03-09 22:02:57,067 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src17 HTTP/1.1" 200 877
+2019-03-09 22:02:57,070 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,084 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src17/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:57,087 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src10 HTTP/1.1" 404 37
+2019-03-09 22:02:57,089 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src10
+2019-03-09 22:02:57,134 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src10/plan HTTP/1.1" 200 715
+2019-03-09 22:02:57,143 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src10 HTTP/1.1" 200 119
+2019-03-09 22:02:57,150 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src10 HTTP/1.1" 200 877
+2019-03-09 22:02:57,153 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,170 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src10/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:57,174 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src11 HTTP/1.1" 404 37
+2019-03-09 22:02:57,174 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src11
+2019-03-09 22:02:57,235 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src11/plan HTTP/1.1" 200 716
+2019-03-09 22:02:57,251 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src11 HTTP/1.1" 200 119
+2019-03-09 22:02:57,257 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src11 HTTP/1.1" 200 878
+2019-03-09 22:02:57,261 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,269 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src11/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:57,276 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src12 HTTP/1.1" 404 37
+2019-03-09 22:02:57,277 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src12
+2019-03-09 22:02:57,340 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src12/plan HTTP/1.1" 200 715
+2019-03-09 22:02:57,349 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src12 HTTP/1.1" 200 119
+2019-03-09 22:02:57,354 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src12 HTTP/1.1" 200 878
+2019-03-09 22:02:57,358 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,364 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src12/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:57,373 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src13 HTTP/1.1" 404 37
+2019-03-09 22:02:57,374 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src13
+2019-03-09 22:02:57,422 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src13/plan HTTP/1.1" 200 715
+2019-03-09 22:02:57,456 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src13 HTTP/1.1" 200 119
+2019-03-09 22:02:57,460 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src13 HTTP/1.1" 200 877
+2019-03-09 22:02:57,463 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,475 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src13/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:57,479 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src18 HTTP/1.1" 404 37
+2019-03-09 22:02:57,480 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src18
+2019-03-09 22:02:57,523 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src18/plan HTTP/1.1" 200 713
+2019-03-09 22:02:57,531 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src18 HTTP/1.1" 200 119
+2019-03-09 22:02:57,536 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src18 HTTP/1.1" 200 877
+2019-03-09 22:02:57,538 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,547 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src18/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:02:57,554 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src19 HTTP/1.1" 404 37
+2019-03-09 22:02:57,555 - INFO - starting/updating job:baseline_job1_192.168.100.2-_xcp_src19
+2019-03-09 22:02:57,608 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src19/plan HTTP/1.1" 200 715
+2019-03-09 22:02:57,615 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src19 HTTP/1.1" 200 119
+2019-03-09 22:02:57,621 - DEBUG - http://localhost:4646 "GET /v1/job/baseline_job1_192.168.100.2-_xcp_src19 HTTP/1.1" 200 878
+2019-03-09 22:02:57,625 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:02:57,638 - DEBUG - http://localhost:4646 "POST /v1/job/baseline_job1_192.168.100.2-_xcp_src19/periodic/force HTTP/1.1" 200 98
+2019-03-09 22:03:00,801 - INFO - starting xcption.py
+2019-03-09 22:03:00,810 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-09 22:03:00,810 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-09 22:03:00,810 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-09 22:03:00,810 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-09 22:03:00,810 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-09 22:03:00,810 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-09 22:03:00,811 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-09 22:03:00,812 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-09 22:03:00,812 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-09 22:03:00,812 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-09 22:03:00,812 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-09 22:03:00,812 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-09 22:03:00,815 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-09 22:03:00,818 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src2 HTTP/1.1" 404 37
+2019-03-09 22:03:00,819 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src2
+2019-03-09 22:03:00,894 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src2/plan HTTP/1.1" 200 726
+2019-03-09 22:03:00,914 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src2 HTTP/1.1" 200 119
+2019-03-09 22:03:00,918 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src2 HTTP/1.1" 200 857
+2019-03-09 22:03:00,923 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src3 HTTP/1.1" 404 37
+2019-03-09 22:03:00,924 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src3
+2019-03-09 22:03:00,977 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src3/plan HTTP/1.1" 200 725
+2019-03-09 22:03:00,983 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src3 HTTP/1.1" 200 119
+2019-03-09 22:03:00,988 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src3 HTTP/1.1" 200 854
+2019-03-09 22:03:00,992 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 404 37
+2019-03-09 22:03:00,993 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src1
+2019-03-09 22:03:01,050 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src1/plan HTTP/1.1" 200 724
+2019-03-09 22:03:01,059 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 119
+2019-03-09 22:03:01,063 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src1 HTTP/1.1" 200 856
+2019-03-09 22:03:01,067 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src6 HTTP/1.1" 404 37
+2019-03-09 22:03:01,068 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src6
+2019-03-09 22:03:01,106 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src6/plan HTTP/1.1" 200 724
+2019-03-09 22:03:01,119 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src6 HTTP/1.1" 200 119
+2019-03-09 22:03:01,122 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src6 HTTP/1.1" 200 854
+2019-03-09 22:03:01,127 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src7 HTTP/1.1" 404 37
+2019-03-09 22:03:01,128 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src7
+2019-03-09 22:03:01,165 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src7/plan HTTP/1.1" 200 726
+2019-03-09 22:03:01,181 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src7 HTTP/1.1" 200 119
+2019-03-09 22:03:01,185 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src7 HTTP/1.1" 200 855
+2019-03-09 22:03:01,188 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src4 HTTP/1.1" 404 37
+2019-03-09 22:03:01,189 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src4
+2019-03-09 22:03:01,228 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src4/plan HTTP/1.1" 200 727
+2019-03-09 22:03:01,253 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src4 HTTP/1.1" 200 119
+2019-03-09 22:03:01,256 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src4 HTTP/1.1" 200 856
+2019-03-09 22:03:01,260 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src5 HTTP/1.1" 404 37
+2019-03-09 22:03:01,261 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src5
+2019-03-09 22:03:01,299 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src5/plan HTTP/1.1" 200 726
+2019-03-09 22:03:01,311 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src5 HTTP/1.1" 200 119
+2019-03-09 22:03:01,314 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src5 HTTP/1.1" 200 855
+2019-03-09 22:03:01,319 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src8 HTTP/1.1" 404 37
+2019-03-09 22:03:01,320 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src8
+2019-03-09 22:03:01,363 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src8/plan HTTP/1.1" 200 725
+2019-03-09 22:03:01,378 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src8 HTTP/1.1" 200 119
+2019-03-09 22:03:01,381 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src8 HTTP/1.1" 200 856
+2019-03-09 22:03:01,384 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src9 HTTP/1.1" 404 37
+2019-03-09 22:03:01,385 - INFO - starting/updating job:sync_job2_192.168.100.2-_xcp_src9
+2019-03-09 22:03:01,422 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src9/plan HTTP/1.1" 200 725
+2019-03-09 22:03:01,427 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job2_192.168.100.2-_xcp_src9 HTTP/1.1" 200 119
+2019-03-09 22:03:01,429 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job2_192.168.100.2-_xcp_src9 HTTP/1.1" 200 856
+2019-03-09 22:03:01,431 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src14 HTTP/1.1" 404 37
+2019-03-09 22:03:01,432 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src14
+2019-03-09 22:03:01,497 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src14/plan HTTP/1.1" 200 726
+2019-03-09 22:03:01,500 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src14 HTTP/1.1" 200 119
+2019-03-09 22:03:01,502 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src14 HTTP/1.1" 200 858
+2019-03-09 22:03:01,504 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src15 HTTP/1.1" 404 37
+2019-03-09 22:03:01,505 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src15
+2019-03-09 22:03:01,532 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src15/plan HTTP/1.1" 200 726
+2019-03-09 22:03:01,535 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src15 HTTP/1.1" 200 119
+2019-03-09 22:03:01,537 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src15 HTTP/1.1" 200 856
+2019-03-09 22:03:01,539 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src16 HTTP/1.1" 404 37
+2019-03-09 22:03:01,540 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src16
+2019-03-09 22:03:01,566 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src16/plan HTTP/1.1" 200 725
+2019-03-09 22:03:01,569 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src16 HTTP/1.1" 200 119
+2019-03-09 22:03:01,571 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src16 HTTP/1.1" 200 857
+2019-03-09 22:03:01,573 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src17 HTTP/1.1" 404 37
+2019-03-09 22:03:01,574 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src17
+2019-03-09 22:03:01,631 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src17/plan HTTP/1.1" 200 723
+2019-03-09 22:03:01,635 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src17 HTTP/1.1" 200 119
+2019-03-09 22:03:01,637 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src17 HTTP/1.1" 200 859
+2019-03-09 22:03:01,639 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src10 HTTP/1.1" 404 37
+2019-03-09 22:03:01,640 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src10
+2019-03-09 22:03:01,671 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src10/plan HTTP/1.1" 200 726
+2019-03-09 22:03:01,676 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src10 HTTP/1.1" 200 119
+2019-03-09 22:03:01,678 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src10 HTTP/1.1" 200 858
+2019-03-09 22:03:01,680 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src11 HTTP/1.1" 404 37
+2019-03-09 22:03:01,681 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src11
+2019-03-09 22:03:01,708 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src11/plan HTTP/1.1" 200 725
+2019-03-09 22:03:01,712 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src11 HTTP/1.1" 200 119
+2019-03-09 22:03:01,714 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src11 HTTP/1.1" 200 856
+2019-03-09 22:03:01,717 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src12 HTTP/1.1" 404 37
+2019-03-09 22:03:01,718 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src12
+2019-03-09 22:03:01,793 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src12/plan HTTP/1.1" 200 726
+2019-03-09 22:03:01,796 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src12 HTTP/1.1" 200 119
+2019-03-09 22:03:01,799 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src12 HTTP/1.1" 200 858
+2019-03-09 22:03:01,801 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src13 HTTP/1.1" 404 37
+2019-03-09 22:03:01,802 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src13
+2019-03-09 22:03:01,861 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src13/plan HTTP/1.1" 200 726
+2019-03-09 22:03:01,876 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src13 HTTP/1.1" 200 119
+2019-03-09 22:03:01,879 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src13 HTTP/1.1" 200 858
+2019-03-09 22:03:01,882 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src18 HTTP/1.1" 404 37
+2019-03-09 22:03:01,883 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src18
+2019-03-09 22:03:01,914 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src18/plan HTTP/1.1" 200 727
+2019-03-09 22:03:01,918 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src18 HTTP/1.1" 200 119
+2019-03-09 22:03:01,927 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src18 HTTP/1.1" 200 859
+2019-03-09 22:03:01,937 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src19 HTTP/1.1" 404 37
+2019-03-09 22:03:01,939 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src19
+2019-03-09 22:03:01,982 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src19/plan HTTP/1.1" 200 727
+2019-03-09 22:03:01,988 - DEBUG - http://localhost:4646 "POST /v1/job/sync_job1_192.168.100.2-_xcp_src19 HTTP/1.1" 200 119
+2019-03-09 22:03:01,990 - DEBUG - http://localhost:4646 "GET /v1/job/sync_job1_192.168.100.2-_xcp_src19 HTTP/1.1" 200 857
+2019-03-10 05:56:04,535 - INFO - starting xcption.py
+2019-03-10 05:56:04,545 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-10 05:56:04,545 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-10 05:56:04,546 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-10 05:56:04,547 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-10 05:56:04,547 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-10 05:56:04,547 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-10 05:56:04,547 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-10 05:56:04,547 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-10 05:56:04,547 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-10 05:56:04,547 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-10 05:56:04,550 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 05:56:04,609 - DEBUG - http://localhost:4646 "GET /v1/jobs HTTP/1.1" 200 None
+2019-03-10 05:56:04,690 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 05:56:04,991 - DEBUG - http://localhost:4646 "GET /v1/allocations HTTP/1.1" 200 None
+2019-03-10 05:56:21,897 - INFO - starting xcption.py
+2019-03-10 05:56:21,902 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-10 05:56:21,903 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-10 05:56:21,904 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-10 05:56:21,904 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-10 05:56:21,904 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-10 05:56:21,904 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-10 05:56:21,904 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-10 05:56:21,906 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 05:56:21,934 - DEBUG - http://localhost:4646 "GET /v1/jobs HTTP/1.1" 200 None
+2019-03-10 05:56:21,982 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 05:56:22,056 - DEBUG - http://localhost:4646 "GET /v1/allocations HTTP/1.1" 200 None
+2019-03-10 06:14:22,439 - INFO - starting xcption.py
+2019-03-10 06:14:22,445 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-10 06:14:22,445 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-10 06:14:22,445 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-10 06:14:22,445 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-10 06:14:22,445 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-10 06:14:22,445 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-10 06:14:22,445 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-10 06:14:22,446 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-10 06:14:22,448 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:22,475 - DEBUG - http://localhost:4646 "GET /v1/jobs HTTP/1.1" 200 None
+2019-03-10 06:14:22,524 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:22,595 - DEBUG - http://localhost:4646 "GET /v1/allocations HTTP/1.1" 200 None
+2019-03-10 06:14:25,125 - INFO - starting xcption.py
+2019-03-10 06:14:25,130 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-10 06:14:25,130 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-10 06:14:25,130 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-10 06:14:25,130 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-10 06:14:25,130 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-10 06:14:25,130 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-10 06:14:25,131 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-10 06:14:25,133 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:25,160 - DEBUG - http://localhost:4646 "GET /v1/jobs HTTP/1.1" 200 None
+2019-03-10 06:14:25,201 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:25,266 - DEBUG - http://localhost:4646 "GET /v1/allocations HTTP/1.1" 200 None
+2019-03-10 06:14:29,051 - INFO - starting xcption.py
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-10 06:14:29,056 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-10 06:14:29,057 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-10 06:14:29,057 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-10 06:14:29,057 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-10 06:14:29,057 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-10 06:14:29,057 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-10 06:14:29,057 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-10 06:14:29,057 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-10 06:14:29,059 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:29,085 - DEBUG - http://localhost:4646 "GET /v1/jobs HTTP/1.1" 200 None
+2019-03-10 06:14:29,127 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:29,212 - DEBUG - http://localhost:4646 "GET /v1/allocations HTTP/1.1" 200 None
+2019-03-10 06:14:31,789 - INFO - starting xcption.py
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src1 dst:192.168.100.4:/xcp/dst1
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src2 dst:192.168.100.4:/xcp/dst2
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src3 dst:192.168.100.4:/xcp/dst3
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src4 dst:192.168.100.4:/xcp/dst4
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src5 dst:192.168.100.4:/xcp/dst5
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src6 dst:192.168.100.4:/xcp/dst6
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src7 dst:192.168.100.4:/xcp/dst7
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src8 dst:192.168.100.4:/xcp/dst8
+2019-03-10 06:14:31,794 - DEBUG - parsing entry for job:job2 src:192.168.100.2:/xcp/src9 dst:192.168.100.4:/xcp/dst9
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src10 dst:192.168.100.3:/xcp/dst10
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src11 dst:192.168.100.3:/xcp/dst11
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src12 dst:192.168.100.3:/xcp/dst12
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src13 dst:192.168.100.3:/xcp/dst13
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src14 dst:192.168.100.3:/xcp/dst14
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src15 dst:192.168.100.3:/xcp/dst15
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src16 dst:192.168.100.3:/xcp/dst16
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src17 dst:192.168.100.3:/xcp/dst17
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src18 dst:192.168.100.3:/xcp/dst18
+2019-03-10 06:14:31,795 - DEBUG - parsing entry for job:job1 src:192.168.100.2:/xcp/src19 dst:192.168.100.3:/xcp/dst19
+2019-03-10 06:14:31,797 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:31,823 - DEBUG - http://localhost:4646 "GET /v1/jobs HTTP/1.1" 200 None
+2019-03-10 06:14:31,866 - DEBUG - Starting new HTTP connection (1): localhost:4646
+2019-03-10 06:14:31,932 - DEBUG - http://localhost:4646 "GET /v1/allocations HTTP/1.1" 200 None
