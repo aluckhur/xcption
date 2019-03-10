@@ -29,7 +29,6 @@ apt-get install -y \
     rsync \
     git
 
-git clone https://gitlab.com/haim.marko/xcption
 
 CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
 NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
@@ -48,7 +47,7 @@ mkdir -p /var/lib/nomad /etc/nomad.d
 
 if [ "$INSTALLTYPE" = "server" ]; then
 
-  cat << EOCCF >/etc/nomad.d/
+  cat << EOCCF >/etc/nomad.d/server.hcl
 bind_addr = "0.0.0.0"
 region             = "${DATACENTER_NAME}"
 datacenter         = "${DATACENTER_NAME}"
