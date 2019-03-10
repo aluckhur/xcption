@@ -4,8 +4,9 @@
 # on Ubuntu 16.04 Xenial managed by SystemD
 
 set -x
-export INSTALLTYPE=server
-export SERVERIP=x.x.x.x
+#can be server or client 
+export INSTALLTYPE=client
+export SERVERIP=10.68.65.60
 export TERM=xterm-256color
 export DEBIAN_FRONTEND=noninteractive
 export DATACENTER_NAME="DC1"
@@ -83,7 +84,7 @@ advertise {
 EOCCF
 fi
 
-if [ "$INSTALLTYPE" = "agent" ]; then
+if [ "$INSTALLTYPE" = "client" ]; then
 
   cat << EOCCF >/etc/nomad.d/
 bind_addr = "0.0.0.0"
