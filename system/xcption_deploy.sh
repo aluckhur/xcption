@@ -9,6 +9,10 @@ export SERVERIP=x.x.x.x
 export TERM=xterm-256color
 export DEBIAN_FRONTEND=noninteractive
 export DATACENTER_NAME="DC1"
+export XCPREPO="x.x.x.x:/repor"
+
+export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
 
 
 #Bringing the Information
@@ -124,3 +128,15 @@ EONSU
 
 systemctl daemon-reload
 systemctl start nomad
+
+echo "configurting xcp"
+mkdir -p /opt/NetApp/xFiles/xcp
+
+cat <<EONSU >/opt/NetApp/xFiles/xcp/xcp.ini
+[xcp]
+catalog = ${XCPREPO}
+EONSU
+
+cp ${SCRIPT_DIR}/xcp_license /opt/NetApp/xFiles/xcp/license
+cp ${SCRIPT_DIR}/xcp /usr/local/bin
+
