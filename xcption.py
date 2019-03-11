@@ -43,8 +43,8 @@ parser_sync     = subparser.add_parser('sync',     help='start scheule')
 parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
 parser_pause    = subparser.add_parser('pause',    help='disabe next scheuled sync')
 parser_resume   = subparser.add_parser('resume',   help='resume scheduled sync')
-parser_scan     = subparser.add_parser('scan',     help='scan fielsystem')
-parser_rescan   = subparser.add_parser('rescan',   help='rescan fielsystem')
+#parser_scan     = subparser.add_parser('scan',     help='scan fielsystem')
+#parser_rescan   = subparser.add_parser('rescan',   help='rescan fielsystem')
 parser_delete   = subparser.add_parser('delete',   help='delete existing config')
 
 parser_logs = subparser.add_parser('logs',     help='display xcp logs')
@@ -384,6 +384,19 @@ def start_nomad_jobs(action):
 								logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+jobfile+ " for more details") 
 								exit(1)
 
+							#if sync job and baseline was not started disable schedule 
+							if action == 'sync':
+								baselinejob = jobdetails['sync_job_name']
+								try:	
+									baseline = n.job.get_job(baselinejob)
+								except:
+									job = ''
+								
+								if not job:
+									logging.warning("baseline job for:"+nomadjobname+" does not exist, sync schedule will be paused")
+									nomadjobdict["Job"]["Stop"] = True
+
+
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
 								job = n.job.get_job(nomadjobname)
@@ -392,21 +405,13 @@ def start_nomad_jobs(action):
 								exit(1)
 
 
-
-							#force immediate baseline than disable the cron 
+							#force immediate baseline 
 							if action == 'baseline':
 								response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
 								if not response.ok:
 									logging.error("job:"+nomadjobname+" force start failed") 
 									exit(1)
 
-								#nomadjobdict['Job']['Stop'] = True
-								#nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
-								#try:
-								#	job = n.job.get_job(nomadjobname)
-								#except:
-								#	logging.error("job:"+nomadjobname+" disable cron failed failed") 
-								#	exit(1)
 
 					elif action == 'baseline' and job:
 						logging.warning("baseline job already exists and cannot be updated") 
@@ -434,7 +439,7 @@ def parse_stats_from_log (allocid,type):
 		    lines = f.read().splitlines()
 		    lastline = lines[-1]
 	else: 
-		logging.warning("could not find log file for job:"+allocid)																	
+		logging.warning("could not find log file for allocation:"+allocid)																	
 
 	if lastline:
 		matchObj = re.search("\s+(\S*\d+s)(\.)?$", lastline, re.M|re.I)
@@ -480,11 +485,11 @@ def create_general_status ():
 				xcpindexname      = jobdetails['xcpindexname']			
 				jobcron           = jobdetails['cron']
 
-				baselinestatus = 'unknown'
+				baselinestatus = '-'
 				baselinetime   = '-'
 
-				updatestatus   = 'unknow'
-				synctime     = '-'
+				syncstatus   = '- '
+				synctime     = '- '
 				syncsched     = jobcron
 
 				for job in jobs:
@@ -507,7 +512,7 @@ def create_general_status ():
 						if job['Stop']: syncsched = 'Disabled'
 					
 					if job['ID'].startswith(sync_job_name+'/periodic-'):
-						updatestatus = job['Status']
+						syncstatus = job['Status']
 						joblastid = job['ID']
 						
 						for alloc in allocs:
@@ -521,10 +526,10 @@ def create_general_status ():
 					statsresults = parse_stats_from_log(joblastallocid,'sync')
 					if 'time' in statsresults.keys(): synctime = statsresults['time']
 					
-					updatestatus =  lastalloc['ClientStatus']
-					if updatestatus == 'complete': updatestatus = 'idle'
+					syncstatus =  lastalloc['ClientStatus']
+					if syncstatus == 'complete': syncstatus = 'idle'
 									
-				table.add_row([jobname,src,dst,baselinestatus,baselinetime,updatestatus+'('+syncsched+')',synctime])
+				table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus+'('+syncsched+')',synctime])
 				rowcount += 1
 					
 	
@@ -534,6 +539,65 @@ def create_general_status ():
 		print table
 	else:
 		print "no data found"
+
+def update_nomad_job_status(action):
+
+	if action == 'pause': newstate = True
+	if action == 'resume': newstate = False
+
+	root = os.path.dirname(os.path.abspath(__file__))			
+	
+	for jobname in jobsdict:
+		if jobfilter == '' or jobfilter == jobname:
+			jobdir = os.path.join(root, jobsdir,jobname)
+
+			#check if job dir exists
+			if not os.path.exists(jobdir):
+				logging.error("job config directory:" + jobdir + " not exists. please init first") 
+				exit (1)
+					
+			for src in jobsdict[jobname]:
+				if srcfilter == '' or srcfilter == src:
+					jobdetails = jobsdict[jobname][src]
+					
+					dst	          = jobdetails['dst']
+					srcbase       = jobdetails['srcbase']
+					dstbase       = jobdetails['dstbase']
+					nomadjobname  = jobdetails['sync_job_name']
+				
+					job = {}
+					try:	
+						job = n.job.get_job(nomadjobname)
+					except:
+						job = ''
+					
+					if not job:
+						logging.warning("job name:"+nomadjobname+" doesn't exists") 
+					
+					else:
+						jobfile = os.path.join(jobdir,nomadjobname+'.hcl')		
+						nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
+						nomadjobdict = json.loads(nomadjobjson)
+						if action in ['pause','resume']:
+							nomadjobdict["Job"]["Stop"] = newstate
+
+							logging.info("job name:"+nomadjobname+" status changed to:"+action) 
+							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
+							try:
+								job = n.job.get_job(nomadjobname)
+							except:
+								logging.error("job:"+nomadjobname+" update failed") 
+								exit(1)
+						elif action == 'syncnow':
+							if not job["Stop"]: 
+								logging.info("starting syncnow job:"+nomadjobname) 
+								response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
+								if not response.ok:
+									logging.error("job:"+nomadjobname+" syncnow failed") 
+									exit(1)	
+							else:
+								logging.error("cannot syncnow job:"+nomadjobname+" since it is paused") 
+
 
 #####################################################################################################
 ###################                        MAIN                                        ##############
@@ -560,6 +624,8 @@ if args.subparser_name == 'sync':
 if args.subparser_name == 'status' and not srcfilter:
 	create_general_status()
 
+if args.subparser_name in ['pause','resume','syncnow']:
+	update_nomad_job_status(args.subparser_name)
 
 
 
