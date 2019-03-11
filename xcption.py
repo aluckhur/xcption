@@ -386,13 +386,14 @@ def start_nomad_jobs(action):
 
 							#if sync job and baseline was not started disable schedule 
 							if action == 'sync':
-								baselinejob = jobdetails['sync_job_name']
+								baselinejon = {}
+								baselinejob = jobdetails['baseline_job_name']
 								try:	
-									baseline = n.job.get_job(baselinejob)
+									baselinejob = n.job.get_job(baselinejob)
 								except:
-									job = ''
+									baselinejob = ''
 								
-								if not job:
+								if not baselinejob:
 									logging.warning("baseline job for:"+nomadjobname+" does not exist, sync schedule will be paused")
 									nomadjobdict["Job"]["Stop"] = True
 
