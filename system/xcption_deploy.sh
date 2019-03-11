@@ -11,7 +11,7 @@ export TERM=xterm-256color
 export DEBIAN_FRONTEND=noninteractive
 export DATACENTER_NAME="DC1"
 export XCPREPO="10.68.65.67:/xcprepo"
-
+export MAX_NOMAD_ALLOCS=5000
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
 
@@ -71,7 +71,7 @@ client {
   servers = ["${LOCAL_IPV4}"]
   options {
     "driver.raw_exec.enable" = "1"
-    "gc_max_allocs" = 5000
+    "gc_max_allocs" = ${MAX_NOMAD_ALLOCS}
   }
 }
 
@@ -100,7 +100,7 @@ client {
   servers = ["${SERVERIP}"]
   options {
     "driver.raw_exec.enable" = "1"
-    "gc_max_allocs" = 5000
+    "gc_max_allocs" = ${MAX_NOMAD_ALLOCS}
   }
 }
 
