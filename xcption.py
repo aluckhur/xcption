@@ -51,6 +51,7 @@ parser_logs = subparser.add_parser('logs',     help='display xcp logs')
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
 
 parser_init.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_init.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -477,17 +478,19 @@ def parse_stats_from_log (allocid,type):
 
 
 #create general status table 
-def create_general_status ():
+def create_status (reporttype):
 
 	root = os.path.dirname(os.path.abspath(__file__))			
 
 	#get nomad allocations 
 	jobs  = n.jobs.get_jobs()
 	allocs = n.allocations.get_allocations()
+	nodes = n.nodes.get_nodes()
+	nodename = '-'
 	
 	#build the table object
 	table = PrettyTable()
-	table.field_names = ["Job","Source Path", "Dest Path", "Baseline Status", "Baseline Time", "Sync Status", "Last Sync Time"]
+	table.field_names = ["Job","Source Path", "Dest Path", "Baseline Status", "Baseline Time", "Sync Status", "Last Sync Time","Node","Sync #"]
 	rowcount = 0
 	
 	for jobname in jobsdict:
@@ -500,80 +503,89 @@ def create_general_status ():
 				exit (1)
 					
 			for src in jobsdict[jobname]:
-				jobdetails = jobsdict[jobname][src]
-				
-				dst	          = jobdetails['dst']
-				srcbase       = jobdetails['srcbase']
-				dstbase       = jobdetails['dstbase']
-				xcpindexname  = jobdetails['xcpindexname']	
-
-				baseline_job_name = jobdetails['baseline_job_name']
-				sync_job_name     = jobdetails['sync_job_name']
-				scan_job_name     = jobdetails['scan_job_name']
-				rescan_job_name   = jobdetails['rescan_job_name']					
-				xcpindexname      = jobdetails['xcpindexname']			
-				jobcron           = jobdetails['cron']
-
-				baselinestatus = '-'
-				baselinetime   = '-'
-
-				syncstatus   = '- '
-				synctime     = '- '
-				syncsched     = jobcron
-
-				for job in jobs:
-					if job['ID'].startswith(baseline_job_name+'/periodic-'):
-						baselinestatus = job['Status']
-						for alloc in allocs:
-							if alloc['JobID'].startswith(baseline_job_name+'/periodic-'):
-								if baselinestatus == 'dead': baselinestatus =  alloc['ClientStatus'] 
-								statsresults = parse_stats_from_log(alloc['ID'],'baseline')
-								if 'time' in statsresults.keys(): baselinetime = statsresults['time']
-				
-				#take care of sync job status 
-				joblastid = ''
-				joblastallocid = ''
-				joblastdetails = {}
-
-				synccounter = 0
-				
-				for job in jobs:
-					if job['ID'] == sync_job_name:
-						if job['Stop']: syncsched = 'paused'
+				if srcfilter == '' or srcfilter == src:
+					jobdetails = jobsdict[jobname][src]
 					
-					if job['ID'].startswith(sync_job_name+'/periodic-'):
-						syncstatus = job['Status']
-						joblastid = job['ID']
-						joblastdetails = job
+					dst	          = jobdetails['dst']
+					srcbase       = jobdetails['srcbase']
+					dstbase       = jobdetails['dstbase']
+					xcpindexname  = jobdetails['xcpindexname']	
 
-						synccounter+=1
+					baseline_job_name = jobdetails['baseline_job_name']
+					sync_job_name     = jobdetails['sync_job_name']
+					scan_job_name     = jobdetails['scan_job_name']
+					rescan_job_name   = jobdetails['rescan_job_name']					
+					xcpindexname      = jobdetails['xcpindexname']			
+					jobcron           = jobdetails['cron']
+
+					baselinestatus = '-'
+					baselinetime   = '-'
+
+					syncstatus   = '- '
+					synctime     = '- '
+					nodename     = '- '
+					syncsched     = jobcron
+
+					for job in jobs:
+						if job['ID'].startswith(baseline_job_name+'/periodic-'):
+							baselinestatus = job['Status']
+							for alloc in allocs:
+								if alloc['JobID'].startswith(baseline_job_name+'/periodic-'):
+									if baselinestatus == 'dead': baselinestatus =  alloc['ClientStatus'] 
+									statsresults = parse_stats_from_log(alloc['ID'],'baseline')
+									if 'time' in statsresults.keys(): baselinetime = statsresults['time']
+					
+					#take care of sync job status 
+					joblastid = ''
+					joblastallocid = ''
+					joblastdetails = {}
+
+					synccounter = 0
+					
+					for job in jobs:
+						if job['ID'] == sync_job_name:
+							if job['Stop']: syncsched = 'paused'
 						
-						for alloc in allocs:
-							if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
-								joblastallocid = alloc['ID'] 
-			
-				if joblastallocid: 
-					
-					print sync_job_name+" "+joblastallocid+" "+joblastid
-					lastalloc = n.allocation.get_allocation(joblastallocid)
+						if job['ID'].startswith(sync_job_name+'/periodic-'):
+							syncstatus = job['Status']
+							joblastid = job['ID']
+							joblastdetails = job
 
-					statsresults = parse_stats_from_log(joblastallocid,'sync')
-					if 'time' in statsresults.keys(): synctime = statsresults['time']
-					
-					syncstatus =  lastalloc['ClientStatus']
-					if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
-					if syncstatus == 'complete': syncstatus = 'idle'
+							synccounter+=1
+							
+							for alloc in allocs:
+								if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
+									joblastallocid = alloc['ID'] 
+				
+					if joblastallocid: 
+						
+						#print sync_job_name+" "+joblastallocid+" "+joblastid
+						lastalloc = n.allocation.get_allocation(joblastallocid)
+						#pp.pprint(lastalloc)
 
-									
-				table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus+'('+syncsched+')',synctime])
-				rowcount += 1
+						statsresults = parse_stats_from_log(joblastallocid,'sync')
+						if 'time' in statsresults.keys(): synctime = statsresults['time']
+						
+						syncstatus =  lastalloc['ClientStatus']
+						if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
+						if syncstatus == 'complete': syncstatus = 'idle'
+
+						nodeid = ''
+						if 'NodeID' in lastalloc: nodeid = lastalloc['NodeID']
+
+						if nodeid:
+							for node in nodes:
+								if node['ID'] == nodeid: nodename = node['Name']
 					
-	
-	if rowcount > 0:
+					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus+'('+syncsched+')',synctime,nodename,synccounter])
+					rowcount += 1
+					
+	#dispaly general report
+	if rowcount > 0 and reporttype == 'general':
 		table.border = False
 		table.align = 'l'
 		print table
-	else:
+	elif reporttype == 'general':
 		print "no data found"
 
 def update_nomad_job_status(action):
@@ -697,9 +709,11 @@ if args.subparser_name == 'baseline':
 
 if args.subparser_name == 'sync':
 	start_nomad_jobs('sync')
-	
-if args.subparser_name == 'status' and not srcfilter:
-	create_general_status()
+
+if args.subparser_name == 'status' and not args.verbose:
+	create_status('general')
+if args.subparser_name == 'status' and args.verbose:
+	create_status('verbose')
 
 if args.subparser_name in ['pause','resume','syncnow']:
 	update_nomad_job_status(args.subparser_name)
