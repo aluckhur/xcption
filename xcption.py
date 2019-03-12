@@ -338,6 +338,38 @@ def create_nomad_jobs():
 							cpu=cpu					
 						))
 
+def check_baseline_job_status (baselinejobname):
+	baselinejob = {}
+	try:	
+		baselinejob = n.job.get_job(baselinejobname)
+	except:
+		baselinejob = None
+
+	if not baselinejob:
+		logging.debug("baseline job:"+baselinejobname+" does not exist")
+		return('Baseline Not Exists')
+
+	#if job exists validated it been completed
+	if baselinejob:
+		response = requests.get(nomadapiurl+'jobs?prefix='+baselinejobname+'/periodic')	
+		
+		if not response.ok:
+			logging.debug("could not get job:"+baselinejobname+" periodic details") 
+			baselinejob = None
+		else:
+			baselinejob = json.loads(response.content)
+			baselinejobcompleted = 0
+			try:
+				baselinejobcompleted = baselinejob[0]['JobSummary']['Summary'][baselinejobname]['Complete']
+			except:
+				baselinejobcompleted = 0
+			if baselinejobcompleted != 1: 
+				logging.debug("baseline job:"+baselinejobname+" exists but did not completed") 
+				baselinejob = None
+				return('Baseline Is Not Complete')
+	return('Baseline Is Complete')
+
+
 def start_nomad_jobs(action):
 
 	root = os.path.dirname(os.path.abspath(__file__))			
@@ -387,16 +419,13 @@ def start_nomad_jobs(action):
 							#if sync job and baseline was not started disable schedule 
 							if action == 'sync':
 								baselinejon = {}
-								baselinejob = jobdetails['baseline_job_name']
-								try:	
-									baselinejob = n.job.get_job(baselinejob)
-								except:
-									baselinejob = ''
-								
-								if not baselinejob:
-									logging.warning("baseline job for:"+nomadjobname+" does not exist, sync schedule will be paused")
+								baselinejobname = jobdetails['baseline_job_name']
+								baselinestatus = check_baseline_job_status(baselinejobname)
+								if baselinestatus != 'Baseline Is Complete':
+									logging.warning("sync will be paused:"+baselinestatus)
 									nomadjobdict["Job"]["Stop"] = True
-
+								else:
+									logging.debug("baseline is completed:")
 
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
@@ -404,7 +433,6 @@ def start_nomad_jobs(action):
 							except:
 								logging.error("job:"+nomadjobname+" creation failed") 
 								exit(1)
-
 
 							#force immediate baseline 
 							if action == 'baseline':
@@ -424,7 +452,7 @@ def parse_stats_from_log (allocid,type):
 	results = {}
 	#logs file are periodicaly copied to the xcprepo folder using periodic nomad xcption_gc job using system/xcption_gc.sh script 
 	logfileinxcprepo = os.path.join(xcprepopath,'tmpreports','alloc',allocid,'alloc','logs',type+'.stderr.0')
-	logging.debug("log file name path:"+logfileinxcprepo)								
+	logging.debug("log file path:"+logfileinxcprepo)								
 
 	#try to get the log file using api
 	response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+type+'&type=stderr&plain=true')
@@ -438,7 +466,7 @@ def parse_stats_from_log (allocid,type):
 		logging.debug("log for job:"+allocid+" is avaialble in file")								
 		with open(logfileinxcprepo, 'r') as f:
 		    lines = f.read().splitlines()
-		    lastline = lines[-1]
+		    if lines: lastline = lines[-1]
 	else: 
 		logging.warning("could not find log file for allocation:"+allocid)																	
 
@@ -494,7 +522,6 @@ def create_general_status ():
 				syncsched     = jobcron
 
 				for job in jobs:
-					synccounter = 0				
 					if job['ID'].startswith(baseline_job_name+'/periodic-'):
 						baselinestatus = job['Status']
 						for alloc in allocs:
@@ -506,29 +533,37 @@ def create_general_status ():
 				#take care of sync job status 
 				joblastid = ''
 				joblastallocid = ''
+				joblastdetails = {}
+
+				synccounter = 0
+				
 				for job in jobs:
-					
 					if job['ID'] == sync_job_name:
-						
-						if job['Stop']: syncsched = 'Disabled'
+						if job['Stop']: syncsched = 'paused'
 					
 					if job['ID'].startswith(sync_job_name+'/periodic-'):
 						syncstatus = job['Status']
 						joblastid = job['ID']
+						joblastdetails = job
+
+						synccounter+=1
 						
 						for alloc in allocs:
 							if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
 								joblastallocid = alloc['ID'] 
 			
 				if joblastallocid: 
-					n.job.get_job(joblastid) 
+					
+					print sync_job_name+" "+joblastallocid+" "+joblastid
 					lastalloc = n.allocation.get_allocation(joblastallocid)
 
 					statsresults = parse_stats_from_log(joblastallocid,'sync')
 					if 'time' in statsresults.keys(): synctime = statsresults['time']
 					
 					syncstatus =  lastalloc['ClientStatus']
+					if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
 					if syncstatus == 'complete': syncstatus = 'idle'
+
 									
 				table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus+'('+syncsched+')',synctime])
 				rowcount += 1
@@ -565,6 +600,7 @@ def update_nomad_job_status(action):
 					srcbase       = jobdetails['srcbase']
 					dstbase       = jobdetails['dstbase']
 					nomadjobname  = jobdetails['sync_job_name']
+					baselinejobname  = jobdetails['baseline_job_name']
 				
 					job = {}
 					try:	
@@ -576,10 +612,28 @@ def update_nomad_job_status(action):
 						logging.warning("job name:"+nomadjobname+" doesn't exists") 
 					
 					else:
+						baselinestatus = check_baseline_job_status(baselinejobname)
+						
+						syncjobdetails = {}
+						try:
+							syncjobdetails = n.job.get_job(nomadjobname)
+						except:
+							logging.error("cannot get job:"+nomadjobname+" details")
+
 						jobfile = os.path.join(jobdir,nomadjobname+'.hcl')		
+						if not os.path.exists(jobfile): 
+							logging.warning("log file"+jobfile+" for job:"+nomadjobname+" could not be found, please run init again") 
+							exit (1)
+
 						nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
 						nomadjobdict = json.loads(nomadjobjson)
-						if action in ['pause','resume']:
+
+						currentstopstatus = 'pause'
+						if syncjobdetails["Stop"] != True : currentstopstatus = 'resume' 
+							
+						if action == 'resume' and baselinestatus != 'Baseline Is Complete' and currentstopstatus == 'pause':
+							logging.warning("cannot resume job:"+nomadjobname+" status changed to:"+action+"since baseline is not complete") 
+						elif action in ['pause','resume'] and currentstopstatus != action:
 							nomadjobdict["Job"]["Stop"] = newstate
 
 							logging.info("job name:"+nomadjobname+" status changed to:"+action) 
@@ -589,16 +643,38 @@ def update_nomad_job_status(action):
 							except:
 								logging.error("job:"+nomadjobname+" update failed") 
 								exit(1)
+						elif action in ['pause','resume'] and currentstopstatus == action:
+							logging.info("job name:"+nomadjobname+" is already:"+action) 
 						elif action == 'syncnow':
-							if not job["Stop"]: 
+							if baselinestatus != 'Baseline Is Complete':
+								logging.warning("cannot syncnow since baseline status for:"+nomadjobname+' is:'+baselinestatus)
+							else:
 								logging.info("starting syncnow job:"+nomadjobname) 
+								if currentstopstatus == 'pause':									
+									logging.debug("temporary resuming job:"+nomadjobname+" to allow syncnow") 
+									nomadjobdict["Job"]["Stop"] = False
+									nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
+									try:
+										job = n.job.get_job(nomadjobname)
+									except:
+										logging.error("job:"+nomadjobname+" update failed") 
+										exit(1)
+
+								logging.debug("issuing periodic force update on job:"+nomadjobname)
 								response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
 								if not response.ok:
 									logging.error("job:"+nomadjobname+" syncnow failed") 
-									exit(1)	
-							else:
-								logging.error("cannot syncnow job:"+nomadjobname+" since it is paused") 
+									exit(1)		
 
+								if currentstopstatus == 'pause':									
+									logging.debug("returning job:"+nomadjobname+" to pause state") 
+									nomadjobdict["Job"]["Stop"] = True
+									nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
+									try:
+										job = n.job.get_job(nomadjobname)
+									except:
+										logging.error("job:"+nomadjobname+" update failed") 
+										exit(1)
 
 #####################################################################################################
 ###################                        MAIN                                        ##############
@@ -627,7 +703,6 @@ if args.subparser_name == 'status' and not srcfilter:
 
 if args.subparser_name in ['pause','resume','syncnow']:
 	update_nomad_job_status(args.subparser_name)
-
 
 
 
