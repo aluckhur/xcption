@@ -32,8 +32,16 @@ apt-get install -y \
     unzip \
     python \
     rsync \
-    git \
     nfs-common
+
+pip install python-nomad
+pip install jinja2
+pip install csv
+pip install argparse
+pip install logging
+pip install pprint
+pip install requests
+pip install prettytable
 
 
 CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"

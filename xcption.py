@@ -10,6 +10,11 @@ import pprint
 import nomad
 import requests
 import subprocess
+import shutil
+import croniter
+import datetime
+
+
 from prettytable import PrettyTable
 from jinja2 import Environment, FileSystemLoader
 
@@ -25,9 +30,9 @@ ginga2templatedir = 'template' #relative to the script directory
 defaultjobcron = "*/1 * * * *"
 defaultcpu = 100
 defaultmemory = 800
+logfilepath = os.path.join(os.path.dirname(os.path.abspath(__file__)),'xcption.log')
 
 parser = argparse.ArgumentParser()
-#parser.add_argument('-a','--action', choices=['init', 'baseline', 'sync', 'status'], help="action to take during invokation",required=True,type=str)
 
 parser.add_argument('-c','--csvfile', help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser.add_argument('-d','--debug',   help="log debug messages to console", action='store_true')
@@ -37,24 +42,24 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 
 # create the sub commands 
 parser_status   = subparser.add_parser('status',   help='display status')
-parser_init     = subparser.add_parser('init',     help='intialize/update configuration')
+parser_load     = subparser.add_parser('load',     help='load/update configuration from csv file')
 parser_baseline = subparser.add_parser('baseline', help='start baseline')
 parser_sync     = subparser.add_parser('sync',     help='start scheule')
 parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
-parser_pause    = subparser.add_parser('pause',    help='disabe next scheuled sync')
-parser_resume   = subparser.add_parser('resume',   help='resume scheduled sync')
+parser_pause    = subparser.add_parser('pause',    help='disable sync schedule')
+parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
 #parser_scan     = subparser.add_parser('scan',     help='scan fielsystem')
 #parser_rescan   = subparser.add_parser('rescan',   help='rescan fielsystem')
 parser_delete   = subparser.add_parser('delete',   help='delete existing config')
 
-parser_logs = subparser.add_parser('logs',     help='display xcp logs')
+#parser_logs = subparser.add_parser('logs',     help='display xcp logs')
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
 
-parser_init.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
-parser_init.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
 parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -71,6 +76,10 @@ parser_pause.add_argument('-s','--source',help="change the scope of the command 
 parser_resume.add_argument('-j','--job',     help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_resume.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
+parser_delete.add_argument('-j','--job',     help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
+
 args = parser.parse_args()
 
 
@@ -82,7 +91,7 @@ log.setLevel(logging.DEBUG)
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 
 # create file handler which logs even debug messages
-fh = logging.FileHandler('xcption.log')
+fh = logging.FileHandler(logfilepath)
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(formatter)
 log.addHandler(fh)
@@ -154,7 +163,7 @@ def parse_csv(csv_path):
 						logging.error("dst path format is incorrect: " + dst)
 						exit(1)	
 					
-					if args.subparser_name == 'init':
+					if args.subparser_name == 'load':
 						#check if src/dst can be mounted
 						subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
 						logging.info("validating src:" + src + " and dst:" + dst+ " are mountable") 
@@ -463,19 +472,38 @@ def parse_stats_from_log (allocid,type):
 	if response.ok and response.content:
 		logging.debug("log for job:"+allocid+" is avaialble using api")								
 		lastline = response.content.splitlines()[-1]
+		results['content'] = response.content
+
 	elif os.path.isfile(logfileinxcprepo):
 		logging.debug("log for job:"+allocid+" is avaialble in file")								
 		with open(logfileinxcprepo, 'r') as f:
-		    lines = f.read().splitlines()
-		    if lines: lastline = lines[-1]
+			content = f.read()
+			lines = content.splitlines()
+			if lines: 
+				lastline = lines[-1]
+				results['content'] = content
 	else: 
 		logging.warning("could not find log file for allocation:"+allocid)																	
 
 	if lastline:
+		#print lastline
 		matchObj = re.search("\s+(\S*\d+s)(\.)?$", lastline, re.M|re.I)
-		if matchObj: results['time'] = matchObj.group(1)
+		if matchObj: 
+			results['time'] = matchObj.group(1)
 	return results
 
+
+def get_next_cron_time (cron):
+	now = datetime.datetime.now()
+	cront = croniter.croniter(cron, now)
+	nextdate = cront.get_next(datetime.datetime)
+	delta = nextdate-now
+
+	s = delta.seconds
+
+	hours, remainder = divmod(s, 3600)
+	minutes, seconds = divmod(remainder, 60)	
+	return '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
 
 #create general status table 
 def create_status (reporttype):
@@ -490,7 +518,7 @@ def create_status (reporttype):
 	
 	#build the table object
 	table = PrettyTable()
-	table.field_names = ["Job","Source Path", "Dest Path", "Baseline Status", "Baseline Time", "Sync Status", "Last Sync Time","Node","Sync #"]
+	table.field_names = ["Job","Source Path", "Dest Path", "Baseline Status", "Baseline Time", "Sync Status", "Next Sync","Sync Time","Node","Sync #"]
 	rowcount = 0
 	
 	for jobname in jobsdict:
@@ -524,7 +552,8 @@ def create_status (reporttype):
 					syncstatus   = '- '
 					synctime     = '- '
 					nodename     = '- '
-					syncsched     = jobcron
+					syncsched    = get_next_cron_time(jobcron)
+					syncsched    = jobcron
 
 					for job in jobs:
 						if job['ID'].startswith(baseline_job_name+'/periodic-'):
@@ -577,7 +606,7 @@ def create_status (reporttype):
 							for node in nodes:
 								if node['ID'] == nodeid: nodename = node['Name']
 					
-					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus+'('+syncsched+')',synctime,nodename,synccounter])
+					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter,])
 					rowcount += 1
 					
 	#dispaly general report
@@ -688,20 +717,118 @@ def update_nomad_job_status(action):
 										logging.error("job:"+nomadjobname+" update failed") 
 										exit(1)
 
+def query_yes_no(question, default="no"):
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = raw_input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
+
+def delete_job_by_prefix(prefix):
+
+
+	response = requests.get(nomadapiurl+'jobs?prefix='+prefix)	
+	if not response.ok:
+		logging.warning("could not get jobs prefixed by:"+prefix) 
+	else:
+		nomadjobs = json.loads(response.content)
+		for nomadjob in nomadjobs:
+			response = requests.get(nomadapiurl+'job/'+nomadjob['ID']+'/allocations')
+
+			if not response.ok:
+				logging.warning("could not get allocations for:"+nomadjob['ID']) 		
+			else:
+				nomadjoballocation = json.loads(response.content)
+				for nomadjoballocation in nomadjoballocation:
+					allocationlogs = os.path.join(xcprepopath,'tmpreports','alloc',nomadjoballocation['ID'])
+					if os.path.exists(allocationlogs):
+						try:
+							logging.debug('trying to delete temp alloc log directory:'+allocationlogs)
+							rmout = shutil.rmtree(allocationlogs) 
+						except:
+							logging.debug('could not delete temp alloc directory'+allocationlogs)
+							exit(1)
+
+			logging.debug("delete job:"+nomadjob['ID'])
+			response = requests.delete(nomadapiurl+'job/'+nomadjob['ID']+'?purge=true')				
+			if not response.ok:
+				logging.error("can't delete job:"+nomadjob['ID']) 
+				exit(1)
+
+
+def delete_jobs(forceparam):
+
+	root = os.path.dirname(os.path.abspath(__file__))			
+	
+	for jobname in jobsdict:
+		if jobfilter == '' or jobfilter == jobname:
+			jobdir = os.path.join(root, jobsdir,jobname)
+
+			#check if job dir exists
+			if not os.path.exists(jobdir):
+				logging.warning("job config directory:" + jobdir + " not exists. please init first") 
+					
+			for src in jobsdict[jobname]:
+				if srcfilter == '' or srcfilter == src:
+					jobdetails = jobsdict[jobname][src]
+					
+					dst	          = jobdetails['dst']
+					srcbase       = jobdetails['srcbase']
+					dstbase       = jobdetails['dstbase']
+					syncnomadjobname  = jobdetails['sync_job_name']
+					baselinejobname  = jobdetails['baseline_job_name']
+
+					force = forceparam
+					if not force: force = query_yes_no("delete job for source:"+src,'no')
+					if force:
+						logging.info("delete job for source:"+src) 
+						#delete baseline jobs 
+						delete_job_by_prefix(baselinejobname)
+						
+						#delete sync jobs 
+						delete_job_by_prefix(syncnomadjobname)
+
+						#delete xcp repo
+						indexpath = os.path.join(xcprepopath,'catalog','indexes',jobsdict[jobname][src]["xcpindexname"])
+						if os.path.exists(indexpath):
+							logging.debug("delete xcp repo from:"+indexpath)
+							try:
+								rmout = shutil.rmtree(indexpath) 
+							except:
+								logging.error("could not delete xcp repo from:"+indexpath) 
+
+
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
 
 
-#filter by job or relationship
+#filter by job or jobname
 jobfilter = args.job
 if not jobfilter: jobfilter = ''
 
+#filter by job or src
 srcfilter = args.source
 if not srcfilter: srcfilter = ''
 
 parse_csv(args.csvfile)
-if args.subparser_name == 'init':
+if args.subparser_name == 'load':
 	create_nomad_jobs()
 
 if args.subparser_name == 'baseline':
@@ -718,5 +845,6 @@ if args.subparser_name == 'status' and args.verbose:
 if args.subparser_name in ['pause','resume','syncnow']:
 	update_nomad_job_status(args.subparser_name)
 
-
+if args.subparser_name == 'delete':
+	delete_jobs(args.force)
 
