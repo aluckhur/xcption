@@ -137,6 +137,7 @@ WantedBy=multi-user.target
 EONSU
 
 systemctl daemon-reload
+systemctl enable nomad
 systemctl start nomad
 
 echo "configurting xcp"

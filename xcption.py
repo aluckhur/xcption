@@ -450,8 +450,6 @@ def start_nomad_jobs(action):
 								if not response.ok:
 									logging.error("job:"+nomadjobname+" force start failed") 
 									exit(1)
-
-
 					elif action == 'baseline' and job:
 						logging.warning("baseline job already exists and cannot be updated") 
 
@@ -461,27 +459,27 @@ def parse_stats_from_log (allocid,type):
 	#output dict
 	results = {}
 	#logs file are periodicaly copied to the xcprepo folder using periodic nomad xcption_gc job using system/xcption_gc.sh script 
-	logfileinxcprepo = os.path.join(xcprepopath,'tmpreports','alloc',allocid,'alloc','logs',type+'.stderr.0')
-	logging.debug("log file path:"+logfileinxcprepo)								
+	logfileinxcprepo = os.path.join(xcprepopath,'tmpreports','alloc',allocid,'alloc','logs',type+'.stderr.0')							
 
 	#try to get the log file using api
 	response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+type+'&type=stderr&plain=true')
 
 	lastline = ''
 
-	if response.ok and response.content:
+	if response.ok and re.search("\d", response.content, re.M|re.I):
 		logging.debug("log for job:"+allocid+" is avaialble using api")								
 		lastline = response.content.splitlines()[-1]
 		results['content'] = response.content
-
 	elif os.path.isfile(logfileinxcprepo):
-		logging.debug("log for job:"+allocid+" is avaialble in file")								
+		logging.debug("log for job:"+allocid+" is avaialble in file:"+logfileinxcprepo)								
 		with open(logfileinxcprepo, 'r') as f:
 			content = f.read()
 			lines = content.splitlines()
 			if lines: 
 				lastline = lines[-1]
 				results['content'] = content
+
+
 	else: 
 		logging.warning("could not find log file for allocation:"+allocid)																	
 
@@ -511,9 +509,26 @@ def create_status (reporttype):
 	root = os.path.dirname(os.path.abspath(__file__))			
 
 	#get nomad allocations 
-	jobs  = n.jobs.get_jobs()
-	allocs = n.allocations.get_allocations()
-	nodes = n.nodes.get_nodes()
+	jobs = {}
+	allocs = {}
+	nodes = {}
+	
+	try:
+		jobs  = n.jobs.get_jobs()
+	except:
+		logging.error('cannot get nomad job list')
+		exit(1)
+	try:
+		allocs = n.allocations.get_allocations()
+	except:
+		logging.error('cannot get alloc list')
+		exit(1)
+	try:
+		nodes = n.nodes.get_nodes()
+	except:
+		logging.error('cannot get node list')
+		exit(1)
+
 	nodename = '-'
 	
 	#build the table object
@@ -553,7 +568,8 @@ def create_status (reporttype):
 					synctime     = '- '
 					nodename     = '- '
 					syncsched    = get_next_cron_time(jobcron)
-					syncsched    = jobcron
+
+					#syncsched    = jobcron
 
 					for job in jobs:
 						if job['ID'].startswith(baseline_job_name+'/periodic-'):
@@ -588,7 +604,7 @@ def create_status (reporttype):
 				
 					if joblastallocid: 
 						
-						#print sync_job_name+" "+joblastallocid+" "+joblastid
+						logging.debug("sync job name:"+sync_job_name+" allocid:"+joblastallocid+" lastjobid:"+joblastid)
 						lastalloc = n.allocation.get_allocation(joblastallocid)
 						#pp.pprint(lastalloc)
 
@@ -741,8 +757,6 @@ def query_yes_no(question, default="no"):
                              "(or 'y' or 'n').\n")
 
 def delete_job_by_prefix(prefix):
-
-
 	response = requests.get(nomadapiurl+'jobs?prefix='+prefix)	
 	if not response.ok:
 		logging.warning("could not get jobs prefixed by:"+prefix) 
@@ -813,6 +827,61 @@ def delete_jobs(forceparam):
 							except:
 								logging.error("could not delete xcp repo from:"+indexpath) 
 
+def start_nomad_job_from_hcl(hclpath, nomadjobname):
+	if not os.path.exists(hclpath):
+		logging.error("cannot find hcl file:"+hclpath)
+		exit(1)
+
+	logging.debug("reading hcl file:"+hclpath)
+	with open(hclpath, 'r') as f:
+		hclcontent = f.read()
+
+		hclcontent = hclcontent.replace('\n', '').replace('\r', '').replace('\t','')
+		hcljson = {}
+		hcljson['JobHCL'] = hclcontent
+		hcljson['Canonicalize'] = True
+
+		response = requests.post(nomadapiurl+'jobs/parse',json=hcljson)
+		if response.ok:
+			nomadjobdict={}
+			nomadjobdict['Job'] = json.loads(response.content)
+			pp.pprint(nomadjobdict)
+			try:
+			 	nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
+			except:
+			 	logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+hclpath+ " for more details") 
+			 	exit(1)
+			logging.debug("starting job:"+nomadjobname)
+			try:
+				nomadout = n.job.register_job(nomadjobname, nomadjobdict)
+			except:
+				logging.error("job:"+nomadjobname+" creation failed") 
+				exit(1)
+
+#check if nomad is available + run the xcption_gc_system job if not avaialble 
+def check_nomad():
+	response = requests.get(nomadapiurl+'nodes')	
+	if not response.ok:
+		logging.error("could not contact nomad cluster, please make sure this node is part of the cluster")
+		exit(1)
+	else:
+		nodes = json.loads(response.content)
+		for node in nodes:
+			if node['Status'] != 'ready':
+				logging.warning("node:"+node['Name']+' status is:'+node['Status'])
+			else:
+				logging.debug("nomad node status:"+node['Name']+' status:'+node['Status'])
+		response = requests.get(nomadapiurl+'job/xcption_gc_system')
+		if not response.ok:
+			if response.content == "job not found":
+				logging.debug("xcption_gc_system job is not running, starting it now")
+				xcptiongcsystemhcl = os.path.join(os.path.dirname(os.path.realpath(__file__)),'system','xcption_gc_system.hcl')
+				start_nomad_job_from_hcl(xcptiongcsystemhcl,'xcption_gc_system')
+			else:
+				logging.debug("could not contact nomad cluster, please make sure this node is part of the cluster")
+				exit(1)
+		else:
+			logging.debug("xcption_gc_system job is running")
 
 #####################################################################################################
 ###################                        MAIN                                        ##############
@@ -826,6 +895,9 @@ if not jobfilter: jobfilter = ''
 #filter by job or src
 srcfilter = args.source
 if not srcfilter: srcfilter = ''
+
+#check nomad avaialbility
+check_nomad()
 
 parse_csv(args.csvfile)
 if args.subparser_name == 'load':

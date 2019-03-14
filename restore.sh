@@ -31,4 +31,4 @@ fi
 curl     --request PUT     http://localhost:4646/v1/system/gc
 df | grep /var/lib/nomad/alloc | awk '{system( "umount "$6)}'
 
-nomad run /root/xcption/system/xcption_gc.hcl
+nomad run /root/xcption/system/xcption_gc_system.hcl
