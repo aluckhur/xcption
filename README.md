@@ -36,17 +36,17 @@ Updates to the xcp binary can be done by replacing the existing file in the foll
 
 XCPtion uses a CSV format as an input file, The CSV file contains the following columns:
 
-JOB NAME - A name for the JOB, later on actions and output can be filtered by this name
+**JOB NAME** - A name for the JOB, later on actions and output can be filtered by this name
 
-SOURCE PATH - Source NFSv3 path. The source should be mountable as root from all instances in the cluster 
+**SOURCE PATH** - Source NFSv3 path. The source should be mountable as root from all instances in the cluster 
 
-DEST PATH - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster 
+**DEST PATH** - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster 
 
-SYNC SCHED (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)
+**SYNC SCHED** (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)
 
-CPU MHz - The allocated CPU frequency for the job (DEFAULT:3000)
+**CPU MHz** (optional) - The allocated CPU frequency for the job (DEFAULT:3000)
 
-RAM MB - The allocated RAM for the job (DEFAULT:800)
+**RAM MB** (optional) - The allocated RAM for the job (DEFAULT:800)
 
 
 Example for the file:
