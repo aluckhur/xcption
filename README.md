@@ -7,10 +7,10 @@ XCPtion will be able to run and manage multiple XCP jobs paralely in a distribut
 
 ## Where do I get the NAbox?
 
-XCPtion is currently available at [GitLab](https://gitlab.com/haim.marko/xcption)
+XCPtion is currently available at [GitLab Repository](https://gitlab.com/haim.marko/xcption)
 You will need to apply for XCP license from: [XCP License Site](https://xcp.netapp.com/) and download the XCP binary from: [NetApp Support Site](https://mysupport.netapp.com/tools/info/ECMLP2357425I.html?productID=62115&pcfContentID=ECMLP2357425)
 
 ## How to use
 
-XCPtion 
-
+XCPtion can be installed directly on internet connected Ubunto 16.04 or 18.04 versions by pulling the reposoity files using the command:
+giit pull https://gitlab.com/haim.marko/xcption/edit/master/README.md
