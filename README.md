@@ -31,3 +31,34 @@ Following the installation **on all hosts** the xcp license file should be copie
 Updates to the xcp binary can be done by replacing the existing file in the following location **on all hosts**
 `/usr/local/bin/xcp`
 
+## How To Use
+
+XCPtion uses a CSV format as an input file, The CSV file contains the following columns:
+JOB NAME - A name for the JOB, later on actions and output can be filtered by this name
+SOURCE PATH - Source NFSv3 path. The source should be mountable as root from all instances in the cluster 
+DEST PATH - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster 
+SYNC SCHED (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)
+CPU MHz - The allocated CPU frequency for the job (DEFAULT:3000)
+RAM MB - The allocated RAM for the job (DEFAULT:800)
+
+example for the file
+**#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB**
+job2,192.168.100.2:/xcp/src1,192.168.100.4:/xcp/dst1,*/20 * * * *,100,800
+job2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/3 * * * *,100,800
+job2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,* * * * *,100,800
+job2,192.168.100.2:/xcp/src4,192.168.100.4:/xcp/dst4,*/10 * * * *,100,800
+job2,192.168.100.2:/xcp/src5,192.168.100.4:/xcp/dst5,*/15 * * * *,100,800
+job2,192.168.100.2:/xcp/src6,192.168.100.4:/xcp/dst6,*/20 * * * *,100,800
+job2,192.168.100.2:/xcp/src7,192.168.100.4:/xcp/dst7,*/20 * * * *,100,800
+job2,192.168.100.2:/xcp/src8,192.168.100.4:/xcp/dst8,*/20 * * * *,100,800
+job2,192.168.100.2:/xcp/src9,192.168.100.4:/xcp/dst9,*/20 * * * *,100,800
+job1,192.168.100.2:/xcp/src10,192.168.100.3:/xcp/dst10,*/20 * * * *,100,800
+job1,192.168.100.2:/xcp/src11,192.168.100.3:/xcp/dst11,*/20 * * * *,200,800
+job1,192.168.100.2:/xcp/src12,192.168.100.3:/xcp/dst12,*/20 * * * *,100,800
+job1,192.168.100.2:/xcp/src13,192.168.100.3:/xcp/dst13
+job1,192.168.100.2:/xcp/src14,192.168.100.3:/xcp/dst14
+job1,192.168.100.2:/xcp/src15,192.168.100.3:/xcp/dst15
+job1,192.168.100.2:/xcp/src16,192.168.100.3:/xcp/dst16
+
+
+
