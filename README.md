@@ -24,5 +24,10 @@ Deplyment of the next hosts in the cluster should be done using the command (poi
 
 `sudo ./xcption/build/xcption_deploy.sh XCP_REPO=x.x.x.x:/vol/folder MODE=client SERVER=<SERVER_IP_ADDRESS>`
 
+Following the installation **on all hosts** the xcp license file should be copied to the following location:
 
+`/opt/NetApp/xFiles/xcp/license`
+
+Updates to the xcp binary can be done by replacing the existing file in the following location **on all hosts**
+`/usr/local/bin/xcp`
 
