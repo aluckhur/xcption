@@ -18,11 +18,11 @@ XCPtion can be installed directly on internet connected Ubunto 16.04 or 18.04 ve
 
 Deployment on the 1st host in the cluster should be done using the command:
 
-`sudo ./xcption/build/xcption_deploy.sh **server**`
+`sudo ./xcption/build/xcption_deploy.sh server`
 
 Deplyment of the next hosts in the cluster should be done using the command:
 
-`sudo ./xcption/build/xcption_deploy.sh **client <SERVER_IP_ADDRESS>**`
+`sudo ./xcption/build/xcption_deploy.sh client <SERVER_IP_ADDRESS>`
 
 
 
