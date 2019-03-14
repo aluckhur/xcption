@@ -105,7 +105,7 @@ optional arguments:
 
 Example:
 ```
-root@master:~/xcption# sudo ./xcption.py -c example/job.csv load -j job1
+user@master:~/xcption# sudo ./xcption.py -c example/job.csv load -j job1
 2019-03-14 15:04:07,646 - INFO - validating src:192.168.100.2:/xcp/src10 and dst:192.168.100.3:/xcp/dst10 are mountable
 2019-03-14 15:04:07,986 - INFO - validating src:192.168.100.2:/xcp/src11 and dst:192.168.100.3:/xcp/dst11 are mountable
 2019-03-14 15:04:08,343 - INFO - validating src:192.168.100.2:/xcp/src12 and dst:192.168.100.3:/xcp/dst12 are mountable
