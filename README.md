@@ -46,7 +46,7 @@ positional arguments:
     status              display status
     load                load/update configuration from csv file
     baseline            start baseline
-    sync                start scheule
+    sync                initiate sync updates (scheuled)
     syncnow             initiate sync now
     pause               disable sync schedule
     resume              resume sync schedule
