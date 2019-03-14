@@ -34,7 +34,34 @@ Updates to the xcp binary can be done by replacing the existing file in the foll
 
 ## How To Use
 
-XCPtion uses a CSV format as an input file, The CSV file contains the following columns:
+The interaction is done using the following CLI python command (need root access)
+
+```
+usage: xcption.py [-h] -c CSVFILE [-d]
+                  {status,load,baseline,sync,syncnow,pause,resume,delete} ...
+
+positional arguments:
+  {status,load,baseline,sync,syncnow,pause,resume,delete}
+                        sub commands that can be used
+    status              display status
+    load                load/update configuration from csv file
+    baseline            start baseline
+    sync                start scheule
+    syncnow             initiate sync now
+    pause               disable sync schedule
+    resume              resume sync schedule
+    delete              delete existing config
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CSVFILE, --csvfile CSVFILE
+                        input CSV file with the following columns: Job
+                        Name,SRC Path,DST Path,Schedule,CPU,Memory
+  -d, --debug           log debug messages to console
+
+```
+
+All sub commands requires a CSV input file (-c/--csvfile) with the following columns: 
 
 **JOB NAME** - A name for the JOB, later on actions and output can be filtered by this name
 
@@ -68,6 +95,8 @@ job2,192.168.100.2:/xcp/src4,192.168.100.4:/xcp/dst4,*/10 * * * *,2323,22800
 job2,192.168.100.2:/xcp/src5,192.168.100.4:/xcp/dst5,*/15 * * * *,100,22800
 
 job2,192.168.100.2:/xcp/src6,192.168.100.4:/xcp/dst6,*/20 * * * *,100,24400
+
+Loading the CSV file and validating it's content:
 
 
 
