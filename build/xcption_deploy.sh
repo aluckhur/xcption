@@ -4,6 +4,15 @@
 # on Ubuntu 16.04 Xenial managed by SystemD
 
 set -x
+
+if [ $# -lt 2 ]
+then
+    echo "usage: xcption_deploy.sh XCP_REPO=x.x.x.x:/xcp_repo MODE=server"
+    echo "or:"
+    echo "usage: xcption_deploy.sh XCP_REPO=x.x.x.x:/xcp_repo MODE=client SERVER=<SERVERIP>"
+fi
+echo "The follwing arguments been provided:" "$@"
+
 #can be server or client 
 export INSTALLTYPE=client
 export SERVERIP=10.68.65.60
@@ -163,4 +172,6 @@ else
   echo "${XCPREPO} ${SCRIPT_DIR}/xcp_repo nfs  defaults,vers=3 0 0" >> $fstab
   mount ${SCRIPT_DIR}/xcp_repo
 fi
+
+
    
