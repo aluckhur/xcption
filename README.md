@@ -31,6 +31,7 @@ Following the installation **on all hosts** the xcp license file should be copie
 Updates to the xcp binary can be done by replacing the existing file in the following location **on all hosts**
 `/usr/local/bin/xcp`
 
+
 ## How To Use
 
 XCPtion uses a CSV format as an input file, The CSV file contains the following columns:
@@ -41,8 +42,9 @@ SYNC SCHED (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/wor
 CPU MHz - The allocated CPU frequency for the job (DEFAULT:3000)
 RAM MB - The allocated RAM for the job (DEFAULT:800)
 
-example for the file
-**#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB**
+Example for the file:
+
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
 job2,192.168.100.2:/xcp/src1,192.168.100.4:/xcp/dst1,*/20 * * * *,100,800
 job2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/3 * * * *,100,800
 job2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,* * * * *,100,800
