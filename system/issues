@@ -1,2 +1,3 @@
 get allocation per job instead of scanning all alocations
 load jobs fron nomad instead of CSV on all ations but load 
+add next run info to 

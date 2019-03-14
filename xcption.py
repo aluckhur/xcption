@@ -27,8 +27,8 @@ xcprepopath = os.path.join(os.path.dirname(os.path.realpath(__file__)),'system',
 nomadpath = '/usr/local/bin/nomad'
 jobsdir = 'jobs' #relative to the script directory 
 ginga2templatedir = 'template' #relative to the script directory 
-defaultjobcron = "*/1 * * * *"
-defaultcpu = 100
+defaultjobcron = "0 0 * * * *"
+defaultcpu = 3000
 defaultmemory = 800
 logfilepath = os.path.join(os.path.dirname(os.path.abspath(__file__)),'xcption.log')
 
@@ -44,7 +44,7 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 parser_status   = subparser.add_parser('status',   help='display status')
 parser_load     = subparser.add_parser('load',     help='load/update configuration from csv file')
 parser_baseline = subparser.add_parser('baseline', help='start baseline')
-parser_sync     = subparser.add_parser('sync',     help='start scheule')
+parser_sync     = subparser.add_parser('sync',     help='initiate sync updates (scheuled)')
 parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
 parser_pause    = subparser.add_parser('pause',    help='disable sync schedule')
 parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
@@ -133,7 +133,8 @@ def parse_csv(csv_path):
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		line_count = 0
 		for row in csv_reader:
-			if line_count == 0 or re.search("^\s*\#",row[0]):
+			line = ' '.join(row)
+			if line_count == 0 or re.search("^\s*\#",line) or re.search("^\s*$",line):
 				line_count += 1
 			else:
 				jobname = row[0]
@@ -141,8 +142,7 @@ def parse_csv(csv_path):
 				dst     = row[2]
 
 				if (jobfilter == '' or jobfilter == jobname) and (srcfilter == '' or srcfilter == src):
-
-					
+	
 					cron    = ''
 					if 3 < len(row): cron    = row[3] 
 					if cron == '':   cron    = defaultjobcron 

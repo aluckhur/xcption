@@ -1,4 +1,4 @@
-job,soruce,destination,sync scheule,cpu (mHz),memory(MB)
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
 job2,192.168.100.2:/xcp/src1,192.168.100.4:/xcp/dst1,*/20 * * * *,100,800
 job2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/3 * * * *,100,800
 job2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,* * * * *,100,800
@@ -15,6 +15,4 @@ job1,192.168.100.2:/xcp/src13,192.168.100.3:/xcp/dst13
 job1,192.168.100.2:/xcp/src14,192.168.100.3:/xcp/dst14
 job1,192.168.100.2:/xcp/src15,192.168.100.3:/xcp/dst15
 job1,192.168.100.2:/xcp/src16,192.168.100.3:/xcp/dst16
-job1,192.168.100.2:/xcp/src17,192.168.100.3:/xcp/dst17
-job1,192.168.100.2:/xcp/src18,192.168.100.3:/xcp/dst18
-job1,192.168.100.2:/xcp/src19,192.168.100.3:/xcp/dst19
+
