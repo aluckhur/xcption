@@ -127,6 +127,7 @@ def getnomadjobdetails (nomadjobname):
 		assert not job 
 	return job
 
+#parse input csv file
 def parse_csv(csv_path):
 	with open(csv_path) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
@@ -228,6 +229,38 @@ def parse_csv(csv_path):
 					dstdict[dst] = 1
 					line_count += 1
 
+# start nomad job from hcl file
+def start_nomad_job_from_hcl(hclpath, nomadjobname):
+	if not os.path.exists(hclpath):
+		logging.error("cannot find hcl file:"+hclpath)
+		exit(1)
+
+	logging.debug("reading hcl file:"+hclpath)
+	with open(hclpath, 'r') as f:
+		hclcontent = f.read()
+
+		hclcontent = hclcontent.replace('\n', '').replace('\r', '').replace('\t','')
+		hcljson = {}
+		hcljson['JobHCL'] = hclcontent
+		hcljson['Canonicalize'] = True
+
+		response = requests.post(nomadapiurl+'jobs/parse',json=hcljson)
+		if response.ok:
+			nomadjobdict={}
+			nomadjobdict['Job'] = json.loads(response.content)
+			try:
+			 	nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
+			except:
+			 	logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+hclpath+ " for more details") 
+			 	exit(1)
+			logging.debug("starting job:"+nomadjobname)
+			try:
+				nomadout = n.job.register_job(nomadjobname, nomadjobdict)
+			except:
+				logging.error("job:"+nomadjobname+" creation failed") 
+				exit(1)
+
+#create nomad hcl files
 def create_nomad_jobs():
 	root = os.path.dirname(os.path.abspath(__file__))
 	#loading job ginga2 templates 
@@ -379,7 +412,7 @@ def check_baseline_job_status (baselinejobname):
 				return('Baseline Is Not Complete')
 	return('Baseline Is Complete')
 
-
+#start nomand job
 def start_nomad_jobs(action):
 
 	root = os.path.dirname(os.path.abspath(__file__))			
@@ -490,7 +523,7 @@ def parse_stats_from_log (allocid,type):
 			results['time'] = matchObj.group(1)
 	return results
 
-
+#get the next cron run in human readable 
 def get_next_cron_time (cron):
 	now = datetime.datetime.now()
 	cront = croniter.croniter(cron, now)
@@ -586,10 +619,12 @@ def create_status (reporttype):
 					joblastdetails = {}
 
 					synccounter = 0
+					syncjobfound = False
 					
 					for job in jobs:
 						if job['ID'] == sync_job_name:
 							if job['Stop']: syncsched = 'paused'
+							syncjobfound = True 
 						
 						if job['ID'].startswith(sync_job_name+'/periodic-'):
 							syncstatus = job['Status']
@@ -601,6 +636,8 @@ def create_status (reporttype):
 							for alloc in allocs:
 								if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
 									joblastallocid = alloc['ID'] 
+
+					if not syncjobfound: syncsched = '-'
 				
 					if joblastallocid: 
 						
@@ -633,6 +670,7 @@ def create_status (reporttype):
 	elif reporttype == 'general':
 		print "no data found"
 
+#update nomad job status (patus,resume)
 def update_nomad_job_status(action):
 
 	if action == 'pause': newstate = True
@@ -733,6 +771,7 @@ def update_nomad_job_status(action):
 										logging.error("job:"+nomadjobname+" update failed") 
 										exit(1)
 
+#query user for yes no question
 def query_yes_no(question, default="no"):
     valid = {"yes": True, "y": True, "ye": True,
              "no": False, "n": False}
@@ -756,6 +795,7 @@ def query_yes_no(question, default="no"):
             sys.stdout.write("Please respond with 'yes' or 'no' "
                              "(or 'y' or 'n').\n")
 
+#delete nomad job by prefix
 def delete_job_by_prefix(prefix):
 	response = requests.get(nomadapiurl+'jobs?prefix='+prefix)	
 	if not response.ok:
@@ -785,7 +825,7 @@ def delete_job_by_prefix(prefix):
 				logging.error("can't delete job:"+nomadjob['ID']) 
 				exit(1)
 
-
+#delete jobs 
 def delete_jobs(forceparam):
 
 	root = os.path.dirname(os.path.abspath(__file__))			
@@ -826,37 +866,6 @@ def delete_jobs(forceparam):
 								rmout = shutil.rmtree(indexpath) 
 							except:
 								logging.error("could not delete xcp repo from:"+indexpath) 
-
-def start_nomad_job_from_hcl(hclpath, nomadjobname):
-	if not os.path.exists(hclpath):
-		logging.error("cannot find hcl file:"+hclpath)
-		exit(1)
-
-	logging.debug("reading hcl file:"+hclpath)
-	with open(hclpath, 'r') as f:
-		hclcontent = f.read()
-
-		hclcontent = hclcontent.replace('\n', '').replace('\r', '').replace('\t','')
-		hcljson = {}
-		hcljson['JobHCL'] = hclcontent
-		hcljson['Canonicalize'] = True
-
-		response = requests.post(nomadapiurl+'jobs/parse',json=hcljson)
-		if response.ok:
-			nomadjobdict={}
-			nomadjobdict['Job'] = json.loads(response.content)
-			pp.pprint(nomadjobdict)
-			try:
-			 	nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
-			except:
-			 	logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+hclpath+ " for more details") 
-			 	exit(1)
-			logging.debug("starting job:"+nomadjobname)
-			try:
-				nomadout = n.job.register_job(nomadjobname, nomadjobdict)
-			except:
-				logging.error("job:"+nomadjobname+" creation failed") 
-				exit(1)
 
 #check if nomad is available + run the xcption_gc_system job if not avaialble 
 def check_nomad():
