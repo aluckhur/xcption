@@ -6,6 +6,7 @@
 #can be server or client 
 
 export TERM=xterm-256color
+export DATACENTER_NAME=DC1
 export DEBIAN_FRONTEND=noninteractive
 export MAX_NOMAD_ALLOCS=5000
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
