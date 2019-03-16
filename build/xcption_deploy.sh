@@ -3,25 +3,59 @@
 # This script is intendent to install both Consul and Nomad clients
 # on Ubuntu 16.04 Xenial managed by SystemD
 
-set -x
-
-if [ $# -lt 2 ]
-then
-    echo "usage: xcption_deploy.sh XCP_REPO=x.x.x.x:/xcp_repo MODE=server"
-    echo "or:"
-    echo "usage: xcption_deploy.sh XCP_REPO=x.x.x.x:/xcp_repo MODE=client SERVER=<SERVERIP>"
-fi
-echo "The follwing arguments been provided:" "$@"
-
 #can be server or client 
-export INSTALLTYPE=client
-export SERVERIP=10.68.65.60
+
 export TERM=xterm-256color
 export DEBIAN_FRONTEND=noninteractive
-export DATACENTER_NAME="DC1"
-export XCPREPO="10.68.65.67:/xcprepo"
 export MAX_NOMAD_ALLOCS=5000
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
+
+if [ "$EUID" -ne 0 ];then 
+  echo "This script should run using sudo or root"
+  exit 1
+fi
+
+
+while getopts “r:t:s:” opt; do
+  case $opt in
+    r) XCPREPO=$OPTARG ;;
+    t) INSTALLTYPE=$OPTARG ;;
+    s) SERVERIP=$OPTARG ;;
+    \?)   echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t server" 1>&2
+          echo "or:" 1>&2
+          echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t client -s <SERVERIP>" 1>&2
+          exit 1
+  esac
+done 
+
+if [ "$INSTALLTYPE" == "client" -o "$INSTALLTYPE" == "server" ]; then
+  echo Installation type: $INSTALLTYPE
+else
+  echo "-t should be server or client"
+  echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t server" 1>&2
+  echo "or:" 1>&2
+  echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t client -s <SERVERIP>" 1>&2
+  exit 1
+fi
+
+echo "Repo path: $XCPREPO Mount Point will be:${REPO_MOUNT_POINT}"
+
+if [ "$INSTALLTYPE" == "client" -a -z "$SERVERIP" ]; then
+  echo "Server IP should be provided when installtion type is client"
+  echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t server" 1>&2
+  echo "or:" 1>&2
+  echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t client -s <SERVERIP>" 1>&2
+else
+  echo Server IP address: $SERVERIP 
+fi
+
+
+
+exit 1
+
+set -x
+
 
 
 
@@ -51,6 +85,7 @@ pip install logging
 pip install pprint
 pip install requests
 pip install prettytable
+pip install croniter
 
 
 CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
@@ -167,9 +202,9 @@ fstab=/etc/fstab
 
 if grep -q "xcp_repo" "$fstab"
 then
-	echo "${SCRIPT_DIR}/xcp_repo already in fstab" 
+	echo "${REPO_MOUNT_POINT} already in fstab" 
 else
-  echo "${XCPREPO} ${SCRIPT_DIR}/xcp_repo nfs  defaults,vers=3 0 0" >> $fstab
+  echo "${XCPREPO} ${REPO_MOUNT_POINT} nfs  defaults,vers=3 0 0" >> $fstab
   mount ${SCRIPT_DIR}/xcp_repo
 fi
 
