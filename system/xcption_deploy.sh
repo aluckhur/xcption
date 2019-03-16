@@ -84,7 +84,8 @@ apt-get install -y \
     unzip \
     python \
     rsync \
-    nfs-common
+    nfs-common \
+    python-pip
 
 pip install python-nomad
 pip install jinja2
@@ -218,7 +219,7 @@ if grep -q "${XCPREPO}" "/etc/fstab"
 then
 	echo "${REPO_MOUNT_POINT} already in fstab" 
 else
-  echo "${XCPREPO} ${REPO_MOUNT_POINT} nfs  defaults,vers=3 0 0" >> $fstab
+  echo "${XCPREPO} ${REPO_MOUNT_POINT} nfs  defaults,vers=3 0 0" >> /etc/fstab
 fi
 
 mount ${REPO_MOUNT_POINT}
