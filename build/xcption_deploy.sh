@@ -10,12 +10,13 @@ export DEBIAN_FRONTEND=noninteractive
 export MAX_NOMAD_ALLOCS=5000
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
+export OS_RELEASE=`lsb_release -d`
+
 
 if [ "$EUID" -ne 0 ];then 
   echo "This script should run using sudo or root"
   exit 1
 fi
-
 
 while getopts “r:t:s:” opt; do
   case $opt in
@@ -46,10 +47,20 @@ if [ "$INSTALLTYPE" == "client" -a -z "$SERVERIP" ]; then
   echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t server" 1>&2
   echo "or:" 1>&2
   echo "usage: xcption_deploy.sh -r x.x.x.x:/xcp_repo -t client -s <SERVERIP>" 1>&2
-else
+  exit 1
+fi
+
+if [ "$INSTALLTYPE" == "client" ]; then
   echo Server IP address: $SERVERIP 
 fi
 
+
+if [[ $OS_RELEASE == *"buntu"* ]]; then 
+  echo OS $OS_RELEASE
+else
+  echo "This script is desgnated to run on Ubunto only"
+  exit 1
+fi
 
 
 exit 1
