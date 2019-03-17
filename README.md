@@ -14,15 +14,17 @@ You will need to apply for XCP license from: [XCP License Site](https://xcp.neta
 
 XCPtion can be installed directly on internet connected Ubunto 16.04 or 18.04 versions by pulling the reposoity files using the command:
 
+*ALL instances should be pulled to the same path on all of the servers !!!*
+
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
 Deployment on the 1st host in the cluster should be done using the command:
 
-`sudo ./xcption/build/xcption_deploy.sh XCP_REPO=x.x.x.x:/vol/folder MODE=server`
+`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
 
 Deplyment of the next hosts in the cluster should be done using the command (pointing to the server IP address):
 
-`sudo ./xcption/build/xcption_deploy.sh XCP_REPO=x.x.x.x:/vol/folder MODE=client SERVER=<SERVER_IP_ADDRESS>`
+`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server -s <Server IP>`
 
 Following the installation **on all hosts** the xcp license file should be copied to the following location:
 
