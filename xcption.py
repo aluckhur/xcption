@@ -575,7 +575,7 @@ def create_status (reporttype):
 
 			#check if job dir exists
 			if not os.path.exists(jobdir):
-				logging.error("job config directory:" + jobdir + " not exists. please init first") 
+				logging.error("job config directory:" + jobdir + " not exists. please load first") 
 				exit (1)
 					
 			for src in jobsdict[jobname]:
@@ -643,14 +643,14 @@ def create_status (reporttype):
 						
 						logging.debug("sync job name:"+sync_job_name+" allocid:"+joblastallocid+" lastjobid:"+joblastid)
 						lastalloc = n.allocation.get_allocation(joblastallocid)
-						#pp.pprint(lastalloc)
 
 						statsresults = parse_stats_from_log(joblastallocid,'sync')
 						if 'time' in statsresults.keys(): synctime = statsresults['time']
 						
 						syncstatus =  lastalloc['ClientStatus']
 						if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
-						if syncstatus == 'complete': syncstatus = 'idle'
+						if syncstatus == 'complete': 
+							syncstatus = 'idle'
 
 						nodeid = ''
 						if 'NodeID' in lastalloc: nodeid = lastalloc['NodeID']
@@ -884,7 +884,37 @@ def check_nomad():
 		if not response.ok:
 			if response.content == "job not found":
 				logging.debug("xcption_gc_system job is not running, starting it now")
-				xcptiongcsystemhcl = os.path.join(os.path.dirname(os.path.realpath(__file__)),'system','xcption_gc_system.hcl')
+
+				root = os.path.dirname(os.path.abspath(__file__))
+				#loading job ginga2 templates 
+				templates_dir = os.path.join(root, ginga2templatedir)
+				env = Environment(loader=FileSystemLoader(templates_dir) )
+				
+
+				try:
+					gc_template = env.get_template('xcption_gc_system.txt')
+				except:
+					logging.error("could not find template file: " + os.path.join(templates_dir,'xcption_gc_system.txt'))
+					exit(1)
+				
+				#creating the jobs directory
+				xcptiongcsystemhcldir = os.path.join(os.path.dirname(os.path.realpath(__file__)),jobsdir)
+				if not os.path.isdir(xcptiongcsystemhcldir):
+					try:
+						os.mkdir(xcptiongcsystemhcldir)
+					except:
+						logging.error("could not create directoy:" + xcptiongcsystemhcldir)
+						exit (1)
+				xcptiongcsystemhcl = os.path.join(os.path.dirname(os.path.realpath(__file__)),jobsdir,'xcption_gc_system.hcl')
+				xcptiongcsystemsh = os.path.join(os.path.dirname(os.path.realpath(__file__)),'system','xcption_gc_system.sh')
+
+				#creating gc job 
+				logging.debug("creating gc job file: " + xcptiongcsystemhcl)				
+				with open(xcptiongcsystemhcl, 'w') as fh:
+					fh.write(gc_template.render(
+						xcption_gc_system_sh_path=xcptiongcsystemsh
+					))				
+
 				start_nomad_job_from_hcl(xcptiongcsystemhcl,'xcption_gc_system')
 			else:
 				logging.debug("could not contact nomad cluster, please make sure this node is part of the cluster")
