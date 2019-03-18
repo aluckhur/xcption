@@ -491,6 +491,8 @@ def parse_stats_from_log (allocid,type):
 
 	#output dict
 	results = {}
+	results['content'] = ''
+
 	#logs file are periodicaly copied to the xcprepo folder using periodic nomad xcption_gc job using system/xcption_gc.sh script 
 	logfileinxcprepo = os.path.join(xcprepopath,'tmpreports','alloc',allocid,'alloc','logs',type+'.stderr.0')							
 
@@ -498,6 +500,7 @@ def parse_stats_from_log (allocid,type):
 	response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+type+'&type=stderr&plain=true')
 
 	lastline = ''
+
 
 	if response.ok and re.search("\d", response.content, re.M|re.I):
 		logging.debug("log for job:"+allocid+" is avaialble using api")								
@@ -511,8 +514,6 @@ def parse_stats_from_log (allocid,type):
 			if lines: 
 				lastline = lines[-1]
 				results['content'] = content
-
-
 	else: 
 		logging.warning("could not find log file for allocation:"+allocid)																	
 
@@ -540,6 +541,8 @@ def get_next_cron_time (cron):
 def create_status (reporttype):
 
 	root = os.path.dirname(os.path.abspath(__file__))			
+
+	tmpreportsdir = os.path.join(xcprepopath,'tmpreports')							
 
 	#get nomad allocations 
 	jobs = {}
@@ -602,7 +605,8 @@ def create_status (reporttype):
 					nodename     = '- '
 					syncsched    = get_next_cron_time(jobcron)
 
-					#syncsched    = jobcron
+					baselinefound = False
+					tmpreportsfile = os.path.join(tmpreportsdir,baseline_job_name)
 
 					for job in jobs:
 						if job['ID'].startswith(baseline_job_name+'/periodic-'):
@@ -611,7 +615,23 @@ def create_status (reporttype):
 								if alloc['JobID'].startswith(baseline_job_name+'/periodic-'):
 									if baselinestatus == 'dead': baselinestatus =  alloc['ClientStatus'] 
 									statsresults = parse_stats_from_log(alloc['ID'],'baseline')
-									if 'time' in statsresults.keys(): baselinetime = statsresults['time']
+									if 'time' in statsresults.keys(): 
+										baselinetime = statsresults['time']
+									
+									#save baseline state to read in case of GC
+									baselinefound = True 
+									if not os.path.isdir(tmpreportsdir):
+										os.mkdir(tmpreportsdir)
+									f = open(tmpreportsfile, "w")
+									f.write("TIME:"+baselinetime+ " BASELINE_STATUS:"+baselinestatus+"\n")
+									f.write(statsresults['content'])
+
+					#incase of periodic baseline been GC'd 
+					if not baselinefound:
+						if os.path.isfile(tmpreportsfile):
+							f = open(tmpreportsfile, "r")
+							statsresults['content'] = f.read()
+							print statsresults['content']
 					
 					#take care of sync job status 
 					joblastid = ''
@@ -633,9 +653,10 @@ def create_status (reporttype):
 
 							synccounter+=1
 							
-							for alloc in allocs:
-								if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
-									joblastallocid = alloc['ID'] 
+					for alloc in allocs:
+						#if alloc['JobID'].startswith(sync_job_name+'/periodic-'):
+						if alloc['JobID'] == joblastid:
+							joblastallocid = alloc['ID'] 
 
 					if not syncjobfound: syncsched = '-'
 				
@@ -658,7 +679,14 @@ def create_status (reporttype):
 						if nodeid:
 							for node in nodes:
 								if node['ID'] == nodeid: nodename = node['Name']
-					
+					if reporttype == 'verbose':
+						print("JOB Name:"+jobname)
+						print("SRC:"+src)
+						print("DST:"+dst)
+						print("Last Sync Log:")
+						print(statsresults['content'])
+						print("=================================================================================")
+
 					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter,])
 					rowcount += 1
 					
@@ -670,7 +698,7 @@ def create_status (reporttype):
 	elif reporttype == 'general':
 		print "no data found"
 
-#update nomad job status (patus,resume)
+#update nomad job status (pause,resume)
 def update_nomad_job_status(action):
 
 	if action == 'pause': newstate = True
