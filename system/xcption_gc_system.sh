@@ -19,3 +19,4 @@ do
 	sleep $SLEEP_BETWEEN_RUNS
 done
 #nomad status | grep xcption_gc/periodic | head --lines=-1 | grep dead | awk '{system("nomad job stop -purge "$1)}'
+/usr/sbin/xcption.py -c nomadcache nomad
