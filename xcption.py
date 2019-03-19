@@ -999,19 +999,25 @@ def parse_nomad_jobs_to_files ():
 
 	for job in jobs:
 		jobdir = os.path.join(tmpreportsdir,'job_'+job['ID'])	
-		if job['Periodic'] == True:
+
+		if len(job['ID'].split('/')) == 1:
 			if not os.path.isdir(jobdir):
 				logging.debug("creating dir:"+jobdir)
 				try:
+					logging.debug("creating directory:"+jobdir)
 					os.mkdir(jobdir)
 				except:
 					logging.error("cannot create dir:"+jobdir)
 					exit(1)
 		else:
-			jobdir = tmpreportsdir
+			#because the sub jobs contains the job name
+			jobdir = os.path.join(tmpreportsdir,'job_'+job['ID'].split('/')[0])
 
-		 
-		jobjsonfile = os.path.join(jobdir,'job_'+job['ID']+'.json')
+		jobjsonfile = os.path.join(jobdir,'job_'+job['ID']+'.json')		
+		
+		if len(job['ID'].split('/')) > 1:
+			jobjsonfile = os.path.join(jobdir,job['ID'].split('/')[1])
+
 		try:
 			with open(jobjsonfile, 'w') as fp:
 			    json.dump(job, fp)
@@ -1020,8 +1026,10 @@ def parse_nomad_jobs_to_files ():
 			logging.error("cannot create file:"+jobjsonfile)
 			exit(1)
 
+		logging.info("cahcing job:"+job['ID'])
+
 		for alloc in allocs:		
-			if alloc['JobID'].startswith(job['ID']):
+			if alloc['JobID'] == job['ID']:
 				allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')				
 				try:
 					with open(allocjsonfile, 'w') as fp:
@@ -1031,7 +1039,23 @@ def parse_nomad_jobs_to_files ():
 					logging.error("cannot create file:"+allocjsonfile)
 					exit(1)
 
+				task = 'sync'
+				if 'baseline' in alloc['TaskStates'].keys(): task='baseline'
 
+				#try to get the log file using api
+				response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+'&type=stderr&plain=true')
+				if response.ok and re.search("\d", response.content, re.M|re.I):
+					logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
+					alloclogfile = os.path.join(jobdir,'log_'+alloc['ID']+'.log')
+					try:
+						with open(alloclogfile, 'w') as fp:
+						    json.dump(response.content, fp)
+						    logging.debug("dumping log to log file:"+alloclogfile)		
+					except:
+						logging.error("cannot create file:"+alloclogfile)
+						exit(1)
+
+				logging.info("cahcing alloc:"+alloc['ID'])
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################

@@ -14,6 +14,9 @@ export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
 export OS_RELEASE=`lsb_release -d`
 
 
+ln -s ${SCRIPT_DIR}/../xcption.py /usr/sbin/xcption.py
+
+
 if [ "$EUID" -ne 0 ];then 
   echo "This script should run using sudo or root"
   exit 1

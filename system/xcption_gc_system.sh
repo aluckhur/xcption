@@ -3,7 +3,7 @@
 set -x
 
 NOMAD_ALLOC_DIR="/var/lib/nomad/alloc"
-XCP_REPO_MOUNT_POINT="/root/xcption/system/xcp_repo"
+XCP_REPO_MOUNT_POINT=`cat /etc/fstab | grep xcp_repo | awk '{print($2)}'`
 TMP_REPORT_DIR="${XCP_REPO_MOUNT_POINT}/tmpreports"
 DELETE_AFTER_DAYS=30
 SLEEP_BETWEEN_RUNS=10
