@@ -51,6 +51,7 @@ parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
 #parser_scan     = subparser.add_parser('scan',     help='scan fielsystem')
 #parser_rescan   = subparser.add_parser('rescan',   help='rescan fielsystem')
 parser_delete   = subparser.add_parser('delete',   help='delete existing config')
+parser_nomad    = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
 
 #parser_logs = subparser.add_parser('logs',     help='display xcp logs')
 
@@ -129,6 +130,11 @@ def getnomadjobdetails (nomadjobname):
 
 #parse input csv file
 def parse_csv(csv_path):
+
+	if not os.path.exists(csv_path):
+		logging.error("cannot find csv file:"+csv_path)
+		exit(1)
+
 	with open(csv_path) as csv_file:
 		csv_reader = csv.reader(csv_file, delimiter=',')
 		line_count = 0
@@ -137,6 +143,7 @@ def parse_csv(csv_path):
 			if line_count == 0 or re.search("^\s*\#",line) or re.search("^\s*$",line):
 				line_count += 1
 			else:
+				logging.debug("parsing csv line:"+line)
 				jobname = row[0]
 				src     = row[1]
 				dst     = row[2]
@@ -224,6 +231,8 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["cron"]   = cron
 					jobsdict[jobname][src]["cpu"]    = cpu
 					jobsdict[jobname][src]["memory"] = memory
+
+					logging.debug("parsed the following relation:"+src+":"+dst)
 
 					
 					dstdict[dst] = 1
@@ -486,6 +495,7 @@ def start_nomad_jobs(action):
 					elif action == 'baseline' and job:
 						logging.warning("baseline job already exists and cannot be updated") 
 
+
 #parse stats from xcp logs, logs can be retrived from api or file in the repo
 def parse_stats_from_log (allocid,type):
 
@@ -608,6 +618,8 @@ def create_status (reporttype):
 					baselinefound = False
 					tmpreportsfile = os.path.join(tmpreportsdir,baseline_job_name)
 
+					statsresults ={}
+
 					for job in jobs:
 						if job['ID'].startswith(baseline_job_name+'/periodic-'):
 							baselinestatus = job['Status']
@@ -618,7 +630,7 @@ def create_status (reporttype):
 									if 'time' in statsresults.keys(): 
 										baselinetime = statsresults['time']
 									
-									#save baseline state to read in case of GC
+									#save baseline state to disk in case of GC
 									baselinefound = True 
 									if not os.path.isdir(tmpreportsdir):
 										os.mkdir(tmpreportsdir)
@@ -631,7 +643,6 @@ def create_status (reporttype):
 						if os.path.isfile(tmpreportsfile):
 							f = open(tmpreportsfile, "r")
 							statsresults['content'] = f.read()
-							print statsresults['content']
 					
 					#take care of sync job status 
 					joblastid = ''
@@ -683,11 +694,17 @@ def create_status (reporttype):
 						print("JOB Name:"+jobname)
 						print("SRC:"+src)
 						print("DST:"+dst)
-						print("Last Sync Log:")
+						print("BASELINE STATUS:"+baselinestatus)
+						print("BASELINE TIME:"+baselinetime)
+						print("SYNC STATUS:"+syncstatus)
+						print("SYNC NEXT SCHEDULE:"+syncsched)
+						print("SYNC LAST TIME:"+syncsched)
+						print("LAST SYNC NODE:"+nodename)
+						print("SYNC COUNTER:"+synccounter)
 						print(statsresults['content'])
 						print("=================================================================================")
 
-					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter,])
+					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter])
 					rowcount += 1
 					
 	#dispaly general report
@@ -950,21 +967,94 @@ def check_nomad():
 		else:
 			logging.debug("xcption_gc_system job is running")
 
+#used to parse nomad jobs to files, will be used as a cache in case of nomad GC removed ended jobs 
+def parse_nomad_jobs_to_files ():
+	root = os.path.dirname(os.path.abspath(__file__))			
+
+	tmpreportsdir = os.path.join(xcprepopath,'nomadcache')							
+
+	#get nomad allocations 
+	jobs = {}
+	allocs = {}
+	nodes = {}
+	
+	try:
+		jobs  = n.jobs.get_jobs()
+	except:
+		logging.error('cannot get nomad job list')
+		exit(1)
+	try:
+		allocs = n.allocations.get_allocations()
+	except:
+		logging.error('cannot get alloc list')
+		exit(1)
+	try:
+		nodes = n.nodes.get_nodes()
+	except:
+		logging.error('cannot get node list')
+		exit(1)
+
+	if not os.path.isdir(tmpreportsdir):
+		os.mkdir(tmpreportsdir)
+
+	for job in jobs:
+		jobdir = os.path.join(tmpreportsdir,'job_'+job['ID'])	
+		if job['Periodic'] == True:
+			if not os.path.isdir(jobdir):
+				logging.debug("creating dir:"+jobdir)
+				try:
+					os.mkdir(jobdir)
+				except:
+					logging.error("cannot create dir:"+jobdir)
+					exit(1)
+		else:
+			jobdir = tmpreportsdir
+
+		 
+		jobjsonfile = os.path.join(jobdir,'job_'+job['ID']+'.json')
+		try:
+			with open(jobjsonfile, 'w') as fp:
+			    json.dump(job, fp)
+			    logging.debug("dumping job   to json file:"+jobjsonfile)		
+		except:
+			logging.error("cannot create file:"+jobjsonfile)
+			exit(1)
+
+		for alloc in allocs:		
+			if alloc['JobID'].startswith(job['ID']):
+				allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')				
+				try:
+					with open(allocjsonfile, 'w') as fp:
+					    json.dump(alloc, fp)
+					    logging.debug("dumping alloc to json file:"+allocjsonfile)		
+				except:
+					logging.error("cannot create file:"+allocjsonfile)
+					exit(1)
+
+
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
 
 
 #filter by job or jobname
-jobfilter = args.job
-if not jobfilter: jobfilter = ''
+jobfilter = ''
+if hasattr(args, 'job'): 
+	if args.job != None:
+		jobfilter = args.job
 
 #filter by job or src
-srcfilter = args.source
-if not srcfilter: srcfilter = ''
+srcfilter = ''
+if hasattr(args, 'source'): 
+	if args.source != None:
+		srcfilter = args.source
 
 #check nomad avaialbility
 check_nomad()
+
+if args.subparser_name == 'nomad':
+	parse_nomad_jobs_to_files()
+	exit (0)
 
 parse_csv(args.csvfile)
 if args.subparser_name == 'load':
@@ -972,9 +1062,13 @@ if args.subparser_name == 'load':
 
 if args.subparser_name == 'baseline':
 	start_nomad_jobs('baseline')
+	#run status to pull the logs for the baseline and save it in the repo 
+	create_status('null')	
 
 if args.subparser_name == 'sync':
 	start_nomad_jobs('sync')
+	#run status to pull the logs for the baseline and save it in the repo 
+	create_status('null')	
 
 if args.subparser_name == 'status' and not args.verbose:
 	create_status('general')
@@ -983,7 +1077,10 @@ if args.subparser_name == 'status' and args.verbose:
 
 if args.subparser_name in ['pause','resume','syncnow']:
 	update_nomad_job_status(args.subparser_name)
+	#run status to pull the logs for the baseline and save it in the repo 
+	create_status('null')		
 
 if args.subparser_name == 'delete':
 	delete_jobs(args.force)
-
+	#run status to pull the logs for the baseline and save it in the repo 
+	create_status('null')	

@@ -3,6 +3,7 @@ ssh slave1 wondershaper clear enp0s8
 ssh slave2 wondershaper clear enp0s8
 rm -rf /root/xcption/system/xcp_repo/catalog/*
 rm -rf /root/xcption/system/xcp_repo/tmpreports/*
+rm -rf /root/xcption/system/xcp_repo/nomadcache/*
 
 rm -rf /root/xcption/jobs/*
 rm -rf /mnt/slave1/xcp/*
