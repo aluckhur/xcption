@@ -4,7 +4,7 @@ set -x
 
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 XCP_REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
-SLEEP_BETWEEN_RUNS=10
+SLEEP_BETWEEN_RUNS=60
 
 while true
 do
