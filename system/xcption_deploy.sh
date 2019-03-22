@@ -14,9 +14,6 @@ export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
 export OS_RELEASE=`lsb_release -d`
 
 
-ln -s ${SCRIPT_DIR}/../xcption.py /usr/sbin/xcption.py
-
-
 if [ "$EUID" -ne 0 ];then 
   echo "This script should run using sudo or root"
   exit 1
@@ -68,9 +65,6 @@ fi
 echo "Repo path: $XCPREPO Mount Point will be:${REPO_MOUNT_POINT}"
 
 set -x
-
-
-
 
 #Bringing the Information
 echo "Determining local IP address"
@@ -217,9 +211,9 @@ fi
 mkdir -p ${SCRIPT_DIR}/xcp_repo
 chmod 770 ${SCRIPT_DIR}/xcp_repo
 
-if grep -q "${XCPREPO}" "/etc/fstab"
+if grep -q "${REPO_MOUNT_POINT}" "/etc/fstab"
 then
-	echo "${REPO_MOUNT_POINT} already in fstab" 
+  echo "${REPO_MOUNT_POINT} already in fstab" 
 else
   echo "${XCPREPO} ${REPO_MOUNT_POINT} nfs  defaults,vers=3 0 0" >> /etc/fstab
 fi

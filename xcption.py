@@ -41,7 +41,7 @@ jobsdir = os.path.join(root,'jobs')
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
 #log file location
-logfilepath = os.path.join(root,'xcption.log')
+logfilepath = os.path.join(root,'log','xcption.log')
 
 #default nomad job properties 
 defaultjobcron = "0 0 * * * *" #nightly @ midnight
@@ -1187,6 +1187,13 @@ def parse_nomad_jobs_to_files ():
 ###################                        MAIN                                        ##############
 #####################################################################################################
 
+
+if not os.path.isdir(cachedir):
+	try:
+		os.mkdir(cachedir)
+	except:
+		logging.error("could not create cache directoy:" + cachedir)
+		exit (1)
 
 #filter by job or jobname
 jobfilter = ''

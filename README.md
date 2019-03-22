@@ -39,7 +39,7 @@ Updates to the xcp binary can be done by replacing the existing file in the foll
 The interaction is done using the following CLI python command (need root access)
 
 ```
-usage: xcption.py [-h] -c CSVFILE [-d]
+usage: xcption.py [-h] [-d]
                   {status,load,baseline,sync,syncnow,pause,resume,delete} ...
 
 positional arguments:
@@ -56,20 +56,17 @@ positional arguments:
 
 optional arguments:
   -h, --help            show this help message and exit
-  -c CSVFILE, --csvfile CSVFILE
-                        input CSV file with the following columns: Job
-                        Name,SRC Path,DST Path,Schedule,CPU,Memory
   -d, --debug           log debug messages to console
 
 ```
 
-All sub commands requires a CSV input file (-c/--csvfile) with the following columns: 
+To start using xcption a CSV file with the jobs should be created with the following columns:
 
 **JOB NAME** - A name for the JOB, later on actions and output can be filtered by this name
 
-**SOURCE PATH** - Source NFSv3 path. The source should be mountable as root from all instances in the cluster 
+**SOURCE PATH** - Source NFSv3 path. The source should be mountable as root from all instances in the cluster
 
-**DEST PATH** - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster 
+**DEST PATH** - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster
 
 **SYNC SCHED** (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)
 
@@ -90,14 +87,18 @@ job2,192.168.100.2:/xcp/src5,192.168.100.4:/xcp/dst5,*/15 * * * *,100,22800
 
 job2,192.168.100.2:/xcp/src6,192.168.100.4:/xcp/dst6,*/20 * * * *,100,24400
 
-
 **Following the creation of the csv file, the file should be loaded and validted using the command:**
 
+To load and validate the CSV file the load command should be used: 
+
 ```
-usage: xcption.py load [-h] [-j jobname] [-s srcpath]
+usage: xcption.py load [-h] -c CSVFILE [-j jobname] [-s srcpath]
 
 optional arguments:
   -h, --help            show this help message and exit
+  -c CSVFILE, --csvfile CSVFILE
+                        input CSV file with the following columns: Job
+                        Name,SRC Path,DST Path,Schedule,CPU,Memory
   -j jobname, --job jobname
                         change the scope of the command to specific job
   -s srcpath, --source srcpath
@@ -105,9 +106,10 @@ optional arguments:
 ```
 
 
+
 Example:
 ```
-user@master:~/xcption# sudo ./xcption.py -c example/job.csv load -j job1
+user@master:~/xcption# sudo ./xcption.py load -c example/job.csv -j job1
 2019-03-14 15:04:07,646 - INFO - validating src:192.168.100.2:/xcp/src10 and dst:192.168.100.3:/xcp/dst10 are mountable
 2019-03-14 15:04:07,986 - INFO - validating src:192.168.100.2:/xcp/src11 and dst:192.168.100.3:/xcp/dst11 are mountable
 2019-03-14 15:04:08,343 - INFO - validating src:192.168.100.2:/xcp/src12 and dst:192.168.100.3:/xcp/dst12 are mountable
@@ -142,14 +144,14 @@ optional arguments:
 
 Example:
 ```
-user@master:~/xcption# s@master:~/xcption# sudo ./xcption.py -c example/job.csv sync -s 192.168.100.2:/xcp/src10
+user@master:~/xcption# ./xcption.py sync -s 192.168.100.2:/xcp/src10
 2019-03-14 15:07:18,663 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src10
 ```
 
 **to see the job status use the status command**
 
 ```
-user@master:~/xcption# sudo ./xcption.py -c example/job.csv status
+user@master:~/xcption# sudo ./xcption.py status
  Job   Source Path               Dest Path                 Baseline Status  Baseline Time  Sync Status  Next Sync  Sync Time  Node    Sync #
  job2  192.168.100.2:/xcp/src2   192.168.100.4:/xcp/dst2   complete         2s             idle         00:00:33   0s         slave1  37
  job2  192.168.100.2:/xcp/src3   192.168.100.4:/xcp/dst3   complete         2s             idle         00:00:33   0s         master  109
