@@ -76,7 +76,7 @@ parser_status.add_argument('-j','--job',help="change the scope of the command to
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
 
-parser_load.add_argument('-c','--csv',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
+parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
@@ -735,7 +735,7 @@ def create_status (reporttype):
 										jobdata = json.load(f)
 										syncstatus = jobdata['Status']
 										joblastdetails = jobdata
-										synccounter+=1
+								synccounter+=1
 							if file.startswith("alloc_"):
 								syncalloccachefile = os.path.join(synccachedir,file)
 								with open(syncalloccachefile) as f:
@@ -769,7 +769,7 @@ def create_status (reporttype):
 							for node in nodes:
 								if node['ID'] == nodeid: nodename = node['Name']
 
-					# if reporttype == 'verbose':
+					if reporttype == 'verbose':
 					# 	print("JOB Name:"+jobname)
 					# 	print("SRC:"+src)
 					# 	print("DST:"+dst)
@@ -780,7 +780,7 @@ def create_status (reporttype):
 					# 	print("SYNC LAST TIME:"+syncsched)
 					# 	print("LAST SYNC NODE:"+nodename)
 					# 	print("SYNC COUNTER:"+synccounter)
-					# 	print(statsresults['content'])
+					 	print(statsresults['content'])
 					# 	print("=================================================================================")
 
 					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter])

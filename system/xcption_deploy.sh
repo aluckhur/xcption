@@ -8,7 +8,7 @@
 export TERM=xterm-256color
 export DATACENTER_NAME=DC1
 export DEBIAN_FRONTEND=noninteractive
-export MAX_NOMAD_ALLOCS=5000
+#export MAX_NOMAD_ALLOCS=5000
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
 export OS_RELEASE=`lsb_release -d`
@@ -137,7 +137,6 @@ client {
   servers = ["${LOCAL_IPV4}"]
   options {
     "driver.raw_exec.enable" = "1"
-    "gc_max_allocs" = ${MAX_NOMAD_ALLOCS}
   }
 }
 
@@ -166,7 +165,6 @@ client {
   servers = ["${SERVERIP}"]
   options {
     "driver.raw_exec.enable" = "1"
-    "gc_max_allocs" = ${MAX_NOMAD_ALLOCS}
   }
 }
 
