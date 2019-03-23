@@ -16,7 +16,7 @@ import datetime
 import time
 import copy
 
-
+from hurry.filesize import size
 from prettytable import PrettyTable
 from jinja2 import Environment, FileSystemLoader
 
@@ -30,6 +30,8 @@ xcppath = '/usr/local/bin/xcp'
 root = os.path.dirname(os.path.abspath(__file__))
 #xcp repo and cache dir loaction 
 xcprepopath = os.path.join(root,'system','xcp_repo')
+#xcp indexes path 
+xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 #cache dir for current state 
 cachedir = os.path.join(xcprepopath,'nomadcache')
 #file containing loaded jobs 
@@ -601,6 +603,19 @@ def get_next_cron_time (cron):
 	minutes, seconds = divmod(remainder, 60)	
 	return '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
 
+def sec_to_time(sec):
+	sec = int(round(sec,0))
+	days = int(round(sec // 86400,0))
+	sec -= 86400*days
+
+	hrs = int(round(sec // 3600,0))
+	sec -= 3600*hrs
+
+	mins = int(round(sec // 60,0))
+	sec -= 60*mins
+
+	return str(days)+'d:'+str(hrs)+'h:'+str(mins)+'m:'+str(int(round(sec,0)))+'s'
+
 #create general status
 def create_status (reporttype):
 
@@ -673,6 +688,12 @@ def create_status (reporttype):
 
 					statsresults ={}
 
+					#building verbose details table for the job
+					verbosetable = PrettyTable()
+					verbosetable.field_names = ['Phase','File Count','Data Copied','Started','Duration','Status']
+					verbosedetails = {}
+
+
 					if not os.path.exists(baselinecachedir): 
 						logging.debug('cannot find job cache dir:'+baselinecachedir)
 					else:			
@@ -700,6 +721,54 @@ def create_status (reporttype):
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
+
+					#adding baseline details to verbose table 
+					if reporttype == 'verbose':
+					 	print "JOB Name:"+jobname
+						print "SRC:"+src
+						print "DST:"+dst
+						print "SYNC CRON:"+jobcron
+					 	print "NEXT SYNC:"+syncsched
+						
+						baselinestatsdir = os.path.join(xcpindexespath,xcpindexname,'reports')
+						baselinestatsjsonfile = ''
+						try:			
+							for file in os.listdir(baselinestatsdir):
+								if file.endswith('.stats.json'):
+									baselinestatsjsonfile = os.path.join(baselinestatsdir,file)
+									with open(baselinestatsjsonfile, 'r') as f:
+										baselinestats = json.load(f)
+										verbosedetails['baseline']=baselinestats
+						except:
+							logging.debug('cannot find baseline job stats file:'+baselinestatsdir)
+
+						phase   = 'baseline'
+						try:
+							count   = verbosedetails['baseline']['stats']['count']
+						except:
+							count = '-'
+						try:
+							sizehuman = size(verbosedetails['baseline']['stats']['dataCopied'])+'B'
+						except:
+							sizehuman = '-'
+						
+						try:
+							started = verbosedetails['baseline']['date']
+						except:
+							started = '-'
+
+						try:
+							duration = sec_to_time(verbosedetails['baseline']['stats']['duration'])
+						except:
+							duration = '-'
+						
+						verbosetable.border = False
+						verbosetable.align = 'l'
+						verbosetable.add_row([phase,count,sizehuman,started,duration,baselinestatus])						
+
+						print verbosetable
+						print ""
+						print ""
 
 					#gather sync related info
 					joblastdetails = {}
@@ -770,6 +839,10 @@ def create_status (reporttype):
 								if node['ID'] == nodeid: nodename = node['Name']
 
 					if reporttype == 'verbose':
+						lastsyncstatsjsonfile = os.path.join(xcpindexespath,xcpindexname,'last-sync.stats.json')
+						if not os.path.exists(lastsyncstatsjsonfile):
+							lastsyncstatsjsonfile = ''
+
 					# 	print("JOB Name:"+jobname)
 					# 	print("SRC:"+src)
 					# 	print("DST:"+dst)
@@ -780,7 +853,7 @@ def create_status (reporttype):
 					# 	print("SYNC LAST TIME:"+syncsched)
 					# 	print("LAST SYNC NODE:"+nodename)
 					# 	print("SYNC COUNTER:"+synccounter)
-					 	print(statsresults['content'])
+					# 	print(statsresults['content'])
 					# 	print("=================================================================================")
 
 					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter])
