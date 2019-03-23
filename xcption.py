@@ -688,12 +688,6 @@ def create_status (reporttype):
 
 					statsresults ={}
 
-					#building verbose details table for the job
-					verbosetable = PrettyTable()
-					verbosetable.field_names = ['Phase','File Count','Data Copied','Started','Duration','Status']
-					verbosedetails = {}
-
-
 					if not os.path.exists(baselinecachedir): 
 						logging.debug('cannot find job cache dir:'+baselinecachedir)
 					else:			
@@ -722,53 +716,6 @@ def create_status (reporttype):
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
 
-					#adding baseline details to verbose table 
-					if reporttype == 'verbose':
-					 	print "JOB Name:"+jobname
-						print "SRC:"+src
-						print "DST:"+dst
-						print "SYNC CRON:"+jobcron
-					 	print "NEXT SYNC:"+syncsched
-						
-						baselinestatsdir = os.path.join(xcpindexespath,xcpindexname,'reports')
-						baselinestatsjsonfile = ''
-						try:			
-							for file in os.listdir(baselinestatsdir):
-								if file.endswith('.stats.json'):
-									baselinestatsjsonfile = os.path.join(baselinestatsdir,file)
-									with open(baselinestatsjsonfile, 'r') as f:
-										baselinestats = json.load(f)
-										verbosedetails['baseline']=baselinestats
-						except:
-							logging.debug('cannot find baseline job stats file:'+baselinestatsdir)
-
-						phase   = 'baseline'
-						try:
-							count   = verbosedetails['baseline']['stats']['count']
-						except:
-							count = '-'
-						try:
-							sizehuman = size(verbosedetails['baseline']['stats']['dataCopied'])+'B'
-						except:
-							sizehuman = '-'
-						
-						try:
-							started = verbosedetails['baseline']['date']
-						except:
-							started = '-'
-
-						try:
-							duration = sec_to_time(verbosedetails['baseline']['stats']['duration'])
-						except:
-							duration = '-'
-						
-						verbosetable.border = False
-						verbosetable.align = 'l'
-						verbosetable.add_row([phase,count,sizehuman,started,duration,baselinestatus])						
-
-						print verbosetable
-						print ""
-						print ""
 
 					#gather sync related info
 					joblastdetails = {}
@@ -805,6 +752,7 @@ def create_status (reporttype):
 										syncstatus = jobdata['Status']
 										joblastdetails = jobdata
 								synccounter+=1
+
 							if file.startswith("alloc_"):
 								syncalloccachefile = os.path.join(synccachedir,file)
 								with open(syncalloccachefile) as f:
@@ -813,12 +761,6 @@ def create_status (reporttype):
 									if allocdata['CreateTime'] > allocperiodiccounter:
 										allocperiodiccounter = allocdata['CreateTime'] 
 										alloclastdetails = allocdata
-							# if file.startswith("log_"):
-							# 	synclogcachefile = os.path.join(synccachedir,file)
-							# 	logging.debug('loading cached info log file:'+synclogcachefile)
-							# 	statsresults = parse_stats_from_log('file',synclogcachefile)
-							# 	if 'time' in statsresults.keys(): 
-							# 		baselinetime = statsresults['time']					
 					if not syncjobfound: syncsched = '-'
 			
 					if alloclastdetails: 
@@ -838,23 +780,76 @@ def create_status (reporttype):
 							for node in nodes:
 								if node['ID'] == nodeid: nodename = node['Name']
 
-					if reporttype == 'verbose':
-						lastsyncstatsjsonfile = os.path.join(xcpindexespath,xcpindexname,'last-sync.stats.json')
-						if not os.path.exists(lastsyncstatsjsonfile):
-							lastsyncstatsjsonfile = ''
+					#building verbose details table for the job
+					verbosetable = PrettyTable()
+					verbosetable.field_names = ['Phase','File Count','Data Copied','Started','Duration','Status']
+					verbosedetails = []
 
-					# 	print("JOB Name:"+jobname)
-					# 	print("SRC:"+src)
-					# 	print("DST:"+dst)
-					# 	print("BASELINE STATUS:"+baselinestatus)
-					# 	print("BASELINE TIME:"+baselinetime)
-					# 	print("SYNC STATUS:"+syncstatus)
-					# 	print("SYNC NEXT SCHEDULE:"+syncsched)
-					# 	print("SYNC LAST TIME:"+syncsched)
-					# 	print("LAST SYNC NODE:"+nodename)
-					# 	print("SYNC COUNTER:"+synccounter)
-					# 	print(statsresults['content'])
-					# 	print("=================================================================================")
+					#printing verbose information 
+					if reporttype == 'verbose':
+					 	print "JOB Name:"+jobname
+						print "SRC:"+src
+						print "DST:"+dst
+						print "SYNC CRON:"+jobcron
+					 	print "NEXT SYNC:"+syncsched
+						
+						baselinestatsdir = os.path.join(xcpindexespath,xcpindexname,'reports')
+						baselinestatsjsonfile = ''
+						try:			
+							for file in os.listdir(baselinestatsdir):
+								if file.endswith('.stats.json'):
+									baselinestatsjsonfile = os.path.join(baselinestatsdir,file)
+									with open(baselinestatsjsonfile, 'r') as f:
+										baselinestats = json.load(f)
+										verbosedetails.append(baselinestats)
+						except:
+							logging.debug('cannot find baseline job stats file:'+baselinestatsdir)
+
+						syncstatsdir = os.path.join(xcpindexespath,xcpindexname,'sync','reports')
+						#try:
+						os.chdir(syncstatsdir)
+						syncfiles = filter(os.path.isfile, os.listdir(syncstatsdir))
+						syncfiles = [os.path.join(syncstatsdir, f) for f in syncfiles] # add path to each file
+						syncfiles.sort(key=lambda x: os.path.getmtime(x))						
+						for file in syncfiles:
+							if file.endswith('.stats.json'):
+								syncstatsjsonfile = os.path.join(syncstatsdir,file)
+								if os.path.getsize(file) > 0:
+									with open(syncstatsjsonfile, 'r') as f:
+										syncstats = json.load(f)
+										verbosedetails.append(syncstats)
+						#except:
+						#	logging.debug('cannot find sync job stats files in dir:'+syncstatsdir)
+
+						for phase in verbosedetails:
+							try:
+								count   = verbosedetails[phase]['stats']['count']
+							except:
+								count = '-'
+							try:
+								sizehuman = size(verbosedetails[phase]['stats']['dataCopied'])+'B'
+							except:
+								sizehuman = '-'
+							
+							try:
+								started = verbosedetails[phase]['date']
+							except:
+								started = '-'
+
+							try:
+								duration = sec_to_time(verbosedetails[phase]['stats']['duration'])
+							except:
+								duration = '-'
+							
+							if phase != 'baseline': phase = 'sync'
+							verbosetable.add_row([phase,count,sizehuman,started,duration,baselinestatus])						
+
+						#print the table 
+						verbosetable.border = False
+						verbosetable.align = 'l'
+						print verbosetable
+						print ""
+						print ""							
 
 					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter])
 					rowcount += 1
