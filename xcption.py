@@ -588,6 +588,34 @@ def parse_stats_from_log (type,name,task='none'):
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) scanned", lastline, re.M|re.I)
+		if matchObj: 
+			results['scanned'] = matchObj.group(1)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) copied", lastline, re.M|re.I)
+		if matchObj: 
+			results['copied'] = matchObj.group(1)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) indexed", lastline, re.M|re.I)
+		if matchObj: 
+			results['indexed'] = matchObj.group(1)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) gone", lastline, re.M|re.I)
+		if matchObj: 
+			results['gone'] = matchObj.group(1)	
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) modification", lastline, re.M|re.I)
+		if matchObj: 
+			results['modification'] = matchObj.group(1)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) errors", lastline, re.M|re.I)
+		if matchObj: 
+			results['errors'] = matchObj.group(1)
+
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) file.gone", lastline, re.M|re.I)
+		if matchObj: 
+			results['filegone'] = matchObj.group(1)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
+		if matchObj: 
+			results['dirgone'] = matchObj.group(1)			
+		matchObj = re.search("out \(([-+]?[0-9]*\.?[0-9]+ MiB\/s)", lastline, re.M|re.I)
+		if matchObj: 
+			results['bw'] = matchObj.group(1)			
 	return results
 
 #get the next cron run in human readable 
@@ -687,6 +715,11 @@ def create_status (reporttype):
 					baselinecachedir = os.path.join(cachedir,'job_'+baseline_job_name)
 
 					statsresults ={}
+					
+					#baseline objects 
+					baselinejob={}
+					baselinealloc={}
+					basleinelog={}
 
 					if not os.path.exists(baselinecachedir): 
 						logging.debug('cannot find job cache dir:'+baselinecachedir)
@@ -699,6 +732,7 @@ def create_status (reporttype):
 									logging.debug('loading cached info periodic file:'+baselinecachefile)
 									jobdata = json.load(f)
 									baselinejobstatus = jobdata['Status']
+									baselinejob = jobdata
 							if file.startswith("alloc_"):
 								baselinealloccachefile = os.path.join(baselinecachedir,file)
 								with open(baselinealloccachefile) as f:
@@ -706,12 +740,14 @@ def create_status (reporttype):
 									allocdata = json.load(f)
 									baselinestatus =  allocdata['ClientStatus']
 									baselinefound  = True
+									baselinealloc = allocdata
 							if file.startswith("log_"):
 								baselinelogcachefile = os.path.join(baselinecachedir,file)
 								logging.debug('loading cached info log file:'+baselinelogcachefile)
 								statsresults = parse_stats_from_log('file',baselinelogcachefile)
 								if 'time' in statsresults.keys(): 
 									baselinetime = statsresults['time']
+									baselinelog = statsresults
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
@@ -720,6 +756,8 @@ def create_status (reporttype):
 					#gather sync related info
 					joblastdetails = {}
 					alloclastdetails = {}
+
+					syncjobsstructure = {}
 
 					syncperiodiccounter = 0
 					allocperiodiccounter = 0
@@ -741,17 +779,24 @@ def create_status (reporttype):
 									logging.debug('loading cached info job file:'+synccachefile)
 									jobdata = json.load(f)
 									if jobdata['Stop']: syncsched = 'paused'
+									if not syncjobsstructure.has_key('job'):
+										syncjobsstructure['job'] = {}
+									syncjobsstructure['job'] = jobdata
 
 							if file.startswith("periodic-"):
-								if file.split('-')[1] > syncperiodiccounter:
-									syncperiodiccounter = file.split('-')[1]
-									synccachefile = os.path.join(synccachedir,file)
-									with open(synccachefile) as f:
-										logging.debug('loading cached info periodic file:'+synccachefile)
-										jobdata = json.load(f)
+								synccachefile = os.path.join(synccachedir,file)
+								with open(synccachefile) as f:
+									logging.debug('loading cached info periodic file:'+synccachefile)
+									jobdata = json.load(f)
+									if file.split('-')[1] > syncperiodiccounter:										
 										syncstatus = jobdata['Status']
 										joblastdetails = jobdata
-								synccounter+=1
+										syncperiodiccounter = file.split('-')[1]
+									if not syncjobsstructure.has_key('periodics'):
+										syncjobsstructure['periodics'] = {}
+									syncjobsstructure['periodics'][jobdata['ID']] = {}											
+									syncjobsstructure['periodics'][jobdata['ID']] = jobdata
+									synccounter+=1
 
 							if file.startswith("alloc_"):
 								syncalloccachefile = os.path.join(synccachedir,file)
@@ -761,6 +806,23 @@ def create_status (reporttype):
 									if allocdata['CreateTime'] > allocperiodiccounter:
 										allocperiodiccounter = allocdata['CreateTime'] 
 										alloclastdetails = allocdata
+									if not syncjobsstructure.has_key('allocs'):
+										syncjobsstructure['allocs'] = {}										
+									syncjobsstructure['allocs'][allocdata['ID']] = {}
+									syncjobsstructure['allocs'][allocdata['ID']] = allocdata
+
+							if file.startswith("log_"):
+								synclogcachefile = os.path.join(synccachedir,file)
+								logallocid = file.replace('log_','').replace('.log','')
+								logging.debug('loading cached info log file:'+synclogcachefile)
+								statsresults = parse_stats_from_log('file',synclogcachefile)
+								if 'time' in statsresults.keys(): 
+									synctime = statsresults['time']
+								if not syncjobsstructure.has_key('logs'):
+									syncjobsstructure['logs'] = {}
+								syncjobsstructure['logs'][logallocid] = {}										
+								syncjobsstructure['logs'][logallocid] = statsresults
+
 					if not syncjobfound: syncsched = '-'
 			
 					if alloclastdetails: 
@@ -769,6 +831,7 @@ def create_status (reporttype):
 						synclogcachefile = os.path.join(synccachedir,'log_'+alloclastdetails['ID']+'.log')
 						statsresults = parse_stats_from_log('file',synclogcachefile)
 						if 'time' in statsresults.keys(): synctime = statsresults['time']
+						if 'lastline' in statsresults.keys(): synclastline = statsresults['lastline']
 						
 						syncstatus =  alloclastdetails['ClientStatus']
 						if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
@@ -780,79 +843,227 @@ def create_status (reporttype):
 							for node in nodes:
 								if node['ID'] == nodeid: nodename = node['Name']
 
-					#building verbose details table for the job
-					verbosetable = PrettyTable()
-					verbosetable.field_names = ['Phase','File Count','Data Copied','Started','Duration','Status']
-					verbosedetails = []
+					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter])
+					rowcount += 1
 
-					#printing verbose information 
+
+					#printing verbose information
 					if reporttype == 'verbose':
+						#building verbose details table for the job
+						verbosetable = PrettyTable()
+						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Status']
+
+						#print general information 
 					 	print "JOB Name:"+jobname
 						print "SRC:"+src
 						print "DST:"+dst
 						print "SYNC CRON:"+jobcron
 					 	print "NEXT SYNC:"+syncsched
-						
-						baselinestatsdir = os.path.join(xcpindexespath,xcpindexname,'reports')
-						baselinestatsjsonfile = ''
-						try:			
-							for file in os.listdir(baselinestatsdir):
-								if file.endswith('.stats.json'):
-									baselinestatsjsonfile = os.path.join(baselinestatsdir,file)
-									with open(baselinestatsjsonfile, 'r') as f:
-										baselinestats = json.load(f)
-										verbosedetails.append(baselinestats)
-						except:
-							logging.debug('cannot find baseline job stats file:'+baselinestatsdir)
 
-						syncstatsdir = os.path.join(xcpindexespath,xcpindexname,'sync','reports')
-						#try:
-						os.chdir(syncstatsdir)
-						syncfiles = filter(os.path.isfile, os.listdir(syncstatsdir))
-						syncfiles = [os.path.join(syncstatsdir, f) for f in syncfiles] # add path to each file
-						syncfiles.sort(key=lambda x: os.path.getmtime(x))						
-						for file in syncfiles:
-							if file.endswith('.stats.json'):
-								syncstatsjsonfile = os.path.join(syncstatsdir,file)
-								if os.path.getsize(file) > 0:
-									with open(syncstatsjsonfile, 'r') as f:
-										syncstats = json.load(f)
-										verbosedetails.append(syncstats)
-						#except:
-						#	logging.debug('cannot find sync job stats files in dir:'+syncstatsdir)
+					 	#for baseline 
+					 	if baselinejob and baselinealloc:
+			 				task = 'baseline'
+				 			try:
+				 				starttime = baselinealloc['TaskStates']['baseline']['StartedAt']
+				 				starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]
+				 			except:
+				 				starttime = '-'
 
-						for phase in verbosedetails:
-							try:
-								count   = verbosedetails[phase]['stats']['count']
-							except:
-								count = '-'
-							try:
-								sizehuman = size(verbosedetails[phase]['stats']['dataCopied'])+'B'
-							except:
-								sizehuman = '-'
-							
-							try:
-								started = verbosedetails[phase]['date']
-							except:
-								started = '-'
+				 			try:
+				 				endtime = baselinealloc['TaskStates']['baseline']['FinishedAt']
+				 				endtime = endtime.split('T')[0]+' '+endtime.split('T')[1].split('.')[0]
+				 			except:
+				 				endtime = '-'
 
-							try:
-								duration = sec_to_time(verbosedetails[phase]['stats']['duration'])
-							except:
-								duration = '-'
-							
-							if phase != 'baseline': phase = 'sync'
-							verbosetable.add_row([phase,count,sizehuman,started,duration,baselinestatus])						
+				 			try:
+				 				duration = baselinelog['time']
+				 			except:
+				 				duration = '-'
 
+				 			try:
+				 				scanned = baselinelog['scanned']
+				 			except:
+				 				scanned = '0'
+				 				
+				 			try:
+				 				copied = baselinelog['copied']
+				 			except:
+				 				copied = '0'
+
+				 			try:
+				 				deleted = baselinelog['gone']
+				 			except:
+				 				deleted = '0'
+
+				 			try:
+				 				modified = baselinelog['modified']
+				 			except:
+				 				modified = '0'						 										 				
+
+				 			try:
+				 				errors = baselinelog['errors']
+				 			except:
+				 				errors = '0'	
+
+				 			try:
+					 			syncstatus =  baselinealloc['ClientStatus']
+								if baselinejob['Status'] in ['pending','running']: syncstatus =  baselinejob['Status']
+							except:
+								syncstatus = '-'
+
+				 			verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,syncstatus])
+
+
+
+					 	#for each periodic 
+					 	counter = 1
+					 	if 'periodics' in syncjobsstructure.keys():
+						 	for periodic in sorted(syncjobsstructure['periodics'].keys()):
+						 		currentperiodic = syncjobsstructure['periodics'][periodic]
+						 		for allocid in syncjobsstructure['allocs']:
+						 			if syncjobsstructure['allocs'][allocid]['JobID'] == periodic:
+						 				currentalloc = syncjobsstructure['allocs'][allocid]
+						 				currentlog = {}
+						 				if allocid in syncjobsstructure['logs'].keys():
+						 					currentlog = syncjobsstructure['logs'][allocid]
+
+						 				task = 'sync' + str(counter)
+						 				counter+=1
+
+							 			try:
+							 				starttime = currentalloc['TaskStates']['sync']['StartedAt']
+							 				starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]
+							 			except:
+							 				starttime = '-'
+
+							 			try:
+							 				endtime = currentalloc['TaskStates']['sync']['FinishedAt']
+							 				endtime = endtime.split('T')[0]+' '+endtime.split('T')[1].split('.')[0]
+							 			except:
+							 				endtime = '-'
+
+							 			try:
+							 				duration = currentlog['time']
+							 			except:
+							 				duration = '-'
+
+							 			try:
+							 				scanned = currentlog['scanned']
+							 			except:
+							 				scanned = '0'
+							 				
+							 			try:
+							 				copied = currentlog['copied']
+							 			except:
+							 				copied = '0'
+
+							 			try:
+							 				deleted = currentlog['gone']
+							 			except:
+							 				deleted = '0'
+
+							 			try:
+							 				modified = currentlog['modified']
+							 			except:
+							 				modified = '0'						 										 				
+
+							 			try:
+							 				errors = currentlog['errors']
+							 			except:
+							 				errors = '0'	
+
+							 			try:
+								 			syncstatus =  currentalloc['ClientStatus']
+											if currentperiodic['Status'] in ['pending','running']: syncstatus =  currentperiodic['Status']
+										except:
+											syncstatus = '-'
+
+							 			verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,syncstatus])
+					 			
 						#print the table 
 						verbosetable.border = False
 						verbosetable.align = 'l'
 						print verbosetable
 						print ""
-						print ""							
+						print ""	
 
-					table.add_row([jobname,src,dst,baselinestatus,baselinetime,syncstatus,syncsched,synctime,nodename,synccounter])
-					rowcount += 1
+
+					# verbosedetails = []
+
+					# #printing verbose information 
+					# if reporttype == 'verbose':
+					#  	print "JOB Name:"+jobname
+					# 	print "SRC:"+src
+					# 	print "DST:"+dst
+					# 	print "SYNC CRON:"+jobcron
+					#  	print "NEXT SYNC:"+syncsched
+						
+					# 	baselinestatsdir = os.path.join(xcpindexespath,xcpindexname,'reports')
+					# 	baselinestatsjsonfile = ''
+					# 	try:			
+					# 		for file in os.listdir(baselinestatsdir):
+					# 			if file.endswith('.stats.json'):
+					# 				baselinestatsjsonfile = os.path.join(baselinestatsdir,file)
+					# 				with open(baselinestatsjsonfile, 'r') as f:
+					# 					baselinestats = json.load(f)
+					# 					verbosedetails.append(baselinestats)
+					# 	except:
+					# 		logging.debug('cannot find baseline job stats file:'+baselinestatsdir)
+
+					# 	syncstatsdir = os.path.join(xcpindexespath,xcpindexname,'sync','reports')
+					# 	#try:
+					# 	os.chdir(syncstatsdir)
+					# 	syncfiles = filter(os.path.isfile, os.listdir(syncstatsdir))
+					# 	syncfiles = [os.path.join(syncstatsdir, f) for f in syncfiles] # add path to each file
+					# 	syncfiles.sort(key=lambda x: os.path.getmtime(x))						
+					# 	for file in syncfiles:
+					# 		if file.endswith('.stats.json'):
+					# 			syncstatsjsonfile = os.path.join(syncstatsdir,file)
+					# 			if os.path.getsize(file) > 0:
+					# 				with open(syncstatsjsonfile, 'r') as f:
+					# 					syncstats = json.load(f)
+					# 					verbosedetails.append(syncstats)
+					# 	#except:
+					# 	#	logging.debug('cannot find sync job stats files in dir:'+syncstatsdir)
+
+
+					# 	counter = 0
+					# 	for phase in verbosedetails:
+					# 		try:
+					# 			count   = phase['stats']['count']
+					# 		except:
+					# 			count = '-'
+					# 		try:
+					# 			sizehuman = size(phase['stats']['dataCopied'])+'B'
+					# 		except:
+					# 			sizehuman = '-'
+							
+					# 		try:
+					# 			started = phase['date']
+					# 		except:
+					# 			started = '-'
+
+					# 		try:
+					# 			duration = sec_to_time(phase['stats']['duration'])
+					# 		except:
+					# 			duration = '-'
+
+					# 		#pp.pprint(phase)
+					# 		#print(phase['summary'])
+					# 		task = 'sync'
+					# 		if counter == 0: task = 'baseline'
+					# 		counter += 1
+
+					# 		if syncstatus == 'failed':
+					# 			try:
+					# 				syncstatus = syncstatus+'('+syncjobsstructure['logs'][alloclastdetails['ID']]['lastline']+')'
+					# 			except:
+					# 				syncstatus = syncstatus							
+						
+					# 		verbosetable.add_row([task,count,sizehuman,started,duration,baselinestatus,error])						
+
+						
+
 					
 	#dispaly general report
 	if rowcount > 0 and reporttype == 'general':
