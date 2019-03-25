@@ -72,11 +72,11 @@ parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
 parser_delete   = subparser.add_parser('delete',   help='delete existing config')
 parser_nomad    = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
 
-#parser_logs = subparser.add_parser('logs',     help='display xcp logs')
-
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
+parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (basline,sync#)", required=False,type=str,metavar='phase')
+parser_status.add_argument('-l','--logs',help="display xcp logs", required=False,action='store_true')
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -94,10 +94,10 @@ parser_syncnow.add_argument('-s','--source',help="change the scope of the comman
 parser_pause.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_pause.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
-parser_resume.add_argument('-j','--job',     help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_resume.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_resume.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
-parser_delete.add_argument('-j','--job',     help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
 
@@ -645,7 +645,7 @@ def sec_to_time(sec):
 	return str(days)+'d:'+str(hrs)+'h:'+str(mins)+'m:'+str(int(round(sec,0)))+'s'
 
 #create general status
-def create_status (reporttype):
+def create_status (reporttype,displaylogs=False):
 
 	#get nomad allocations 
 	jobs = {}
@@ -851,10 +851,10 @@ def create_status (reporttype):
 					if reporttype == 'verbose':
 						#building verbose details table for the job
 						verbosetable = PrettyTable()
-						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Status']
+						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Node','Status',]
 
 						#print general information 
-					 	print "JOB Name:"+jobname
+					 	print "JOB:"+jobname
 						print "SRC:"+src
 						print "DST:"+dst
 						print "SYNC CRON:"+jobcron
@@ -903,17 +903,37 @@ def create_status (reporttype):
 				 			try:
 				 				errors = baselinelog['errors']
 				 			except:
-				 				errors = '0'	
+				 				errors = '0'
+
+							try:
+								nodeid = baselinealloc['NodeID']
+								if nodeid:
+									for node in nodes:
+										if node['ID'] == nodeid: nodename = node['Name']
+							except:
+								nodeid = ''
 
 				 			try:
-					 			syncstatus =  baselinealloc['ClientStatus']
-								if baselinejob['Status'] in ['pending','running']: syncstatus =  baselinejob['Status']
+					 			baselinestatus =  baselinealloc['ClientStatus']
+								if baselinejob['Status'] in ['pending','running']: baselinestatus =  baselinejob['Status']
 							except:
-								syncstatus = '-'
+								baselinestatus = '-'
 
-				 			verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,syncstatus])
-
-
+							if not phasefilter or phasefilter == task:
+				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,nodename,baselinestatus])
+				 				if displaylogs:
+									verbosetable.border = False
+									verbosetable.align = 'l'
+									print verbosetable
+									print ""
+									if 'content' in baselinelog:
+										print baselinelog['content']
+									else:
+										print "log is not avaialble"
+									print ""
+									print ""
+									verbosetable = PrettyTable()
+									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Node','Status',]
 
 					 	#for each periodic 
 					 	counter = 1
@@ -972,14 +992,36 @@ def create_status (reporttype):
 							 			except:
 							 				errors = '0'	
 
+										try:
+											nodeid = baselinealloc['NodeID']
+											if nodeid:
+												for node in nodes:
+													if node['ID'] == nodeid: nodename = node['Name']
+										except:
+											nodeid = ''
+
 							 			try:
 								 			syncstatus =  currentalloc['ClientStatus']
 											if currentperiodic['Status'] in ['pending','running']: syncstatus =  currentperiodic['Status']
 										except:
 											syncstatus = '-'
+										
+										if not phasefilter or phasefilter == task:
+						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,nodename,syncstatus])
+							 				if displaylogs:
+												verbosetable.border = False
+												verbosetable.align = 'l'
+												print verbosetable
+												print ""
+												if 'content' in currentlog:
+													print currentlog['content']
+												else:
+													print "log is not avaialble"
+												print ""
+												print ""
+												verbosetable = PrettyTable()
+												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Node','Status',]
 
-							 			verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,syncstatus])
-					 			
 						#print the table 
 						verbosetable.border = False
 						verbosetable.align = 'l'
@@ -1486,6 +1528,12 @@ if hasattr(args, 'source'):
 	if args.source != None:
 		srcfilter = args.source
 
+#filter by phase (relevant to status)
+phasefilter = ''
+if hasattr(args,'phase'):
+	if args.phase != None:
+		phasefilter = args.phase
+
 #check nomad avaialbility
 check_nomad()
 
@@ -1512,7 +1560,7 @@ if args.subparser_name == 'status' and not args.verbose:
 	create_status('general')
 if args.subparser_name == 'status' and args.verbose:
 	parse_nomad_jobs_to_files()
-	create_status('verbose')
+	create_status('verbose',args.logs)
 
 if args.subparser_name in ['pause','resume','syncnow']:
 	update_nomad_job_status(args.subparser_name)
