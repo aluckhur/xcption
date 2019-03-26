@@ -62,8 +62,8 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 # create the sub commands 
 parser_status   = subparser.add_parser('status',   help='display status')
 parser_load     = subparser.add_parser('load',     help='load/update configuration from csv file')
-parser_baseline = subparser.add_parser('baseline', help='start baseline')
-parser_sync     = subparser.add_parser('sync',     help='initiate sync updates (scheuled)')
+parser_baseline = subparser.add_parser('baseline', help='start baseline (xcp copy)')
+parser_sync     = subparser.add_parser('sync',     help='start schedule updates (xcp sync)')
 parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
 parser_pause    = subparser.add_parser('pause',    help='disable sync schedule')
 parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
