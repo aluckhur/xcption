@@ -22,9 +22,9 @@ Deployment on the 1st host in the cluster should be done using the command:
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
 
-Deplyment of the next hosts in the cluster should be done using the command (pointing to the server IP address):
+Deployment of the next hosts in the cluster should be done using the command (pointing to the server IP address):
 
-`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server -s <Server IP>`
+`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t client -s <Server IP>`
 
 Following the installation **on all hosts** the xcp license file should be copied to the following location:
 
@@ -77,13 +77,14 @@ To start using xcption a CSV file with the jobs should be created with the follo
 
 Example for the file:
 
+```
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
 test1,192.168.100.2:/xcp/src1,192.168.100.3:/xcp/dst1,*/3 * * * *,100,800
 test2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/4 * * * *,100,800
 test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
+```
 
-
-**Following the creation of the csv file, the file should be loaded and validted using the command:**
+**Following the creation of the csv file, the file should be loaded and validated using the command:**
 
 To load and validate the CSV file the load command should be used: 
 
@@ -116,7 +117,7 @@ sudo user@master:~/xcption# ./xcption.py load -c example/test.csv
 ```
 
 
-**to scheule the incremantal updates (xcp sync) the sync command should be used**
+**to schedule the incremantal updates (xcp sync) the `sync` command should be used**
 
 ```
 usage: xcption.py sync [-h] [-j jobname] [-s srcpath]
@@ -136,7 +137,7 @@ user@master:~/xcption# sudo ./xcption.py sync -s 192.168.100.2:/xcp/src10
 2019-03-14 15:07:18,663 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src10
 ```
 
-**to see the job status use the status command**
+**to see the job status use the `status` command**
 
 ```
 user@master:~/xcption# sudo ./xcption.py status
