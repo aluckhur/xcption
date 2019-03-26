@@ -43,7 +43,15 @@ jobsdir = os.path.join(xcprepopath,'jobs')
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
 #log file location
-logfilepath = os.path.join(root,'log','xcption.log')
+logdirpath = os.path.join(root,'log') 
+logfilepath = os.path.join(logdirpath,'xcption.log')
+#creating the logs directory
+if not os.path.isdir(logdirpath):
+	try:
+		os.mkdir(logdirpath)
+	except:
+		logging.error("could not create log directoy:" + logdirpath)
+		exit (1)
 
 #default nomad job properties 
 defaultjobcron = "0 0 * * * *" #nightly @ midnight
