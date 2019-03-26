@@ -13,6 +13,19 @@ export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && p
 export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
 export OS_RELEASE=`lsb_release -d`
 
+#validate which installation utility exists in the system
+export APT=`command -v apt`
+export YUM=`command -v yum`
+
+if [ -n "$APT" ]; then
+    apt update
+    INST_APP="apt"
+elif [ -n "$yum" ]; then
+    INST_APP="yum"
+else
+    echo "Error: no path to apt or yum" >&2;
+    exit 1;
+fi
 
 if [ "$EUID" -ne 0 ];then 
   echo "This script should run using sudo or root"
@@ -55,12 +68,12 @@ if [ "$INSTALLTYPE" == "client" ]; then
 fi
 
 
-if [[ $OS_RELEASE == *"buntu"* ]]; then 
-  echo OS $OS_RELEASE
-else
-  echo "This script is desgnated to run on Ubunto only"
-  exit 1
-fi
+#if [[ $OS_RELEASE == *"buntu"* ]]; then 
+#  echo OS $OS_RELEASE
+#else
+#  echo "This script is desgnated to run on Ubunto only"
+#  exit 1
+#fi
 
 echo "Repo path: $XCPREPO Mount Point will be:${REPO_MOUNT_POINT}"
 
@@ -72,8 +85,7 @@ LOCAL_IPV4=$(hostname --ip-address)
 echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement"
 
 
-apt-get update
-apt-get install -y \
+$INST_APP install -y \
     apt-transport-https \
     ca-certificates \
     curl \
