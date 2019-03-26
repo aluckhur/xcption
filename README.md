@@ -88,7 +88,7 @@ test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
 
 **Following the creation of the csv file, the file should be loaded and validated using the command:**
 
-To load and validate the CSV file the load command should be used: 
+To load and validate the CSV file the `load` command should be used: 
 
 ```
 usage: xcption.py load [-h] -c CSVFILE [-j jobname] [-s srcpath]
