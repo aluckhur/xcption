@@ -11,7 +11,7 @@ export DEBIAN_FRONTEND=noninteractive
 #export MAX_NOMAD_ALLOCS=5000
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
-export OS_RELEASE=`lsb_release -d`
+#export OS_RELEASE=`lsb_release -d`
 
 #validate which installation utility exists in the system
 export APT=`command -v apt`
@@ -20,7 +20,7 @@ export YUM=`command -v yum`
 if [ -n "$APT" ]; then
     apt update
     INST_APP="apt"
-elif [ -n "$yum" ]; then
+elif [ -n "$YUM" ]; then
     INST_APP="yum"
 else
     echo "Error: no path to apt or yum" >&2;
