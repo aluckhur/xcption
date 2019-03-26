@@ -1,7 +1,7 @@
 #!/bin/bash
 #
-# This script is intendent to install both Consul and Nomad clients
-# on Ubuntu 16.04 Xenial managed by SystemD
+# This script is intendent to install xcption and Nomad 
+# on Ubuntu 16.04 Xenial/CentOS/RH managed by SystemD
 
 #can be server or client 
 
