@@ -18,7 +18,8 @@ XCPtion can be installed directly on internet connected Ubunto/CentOS/RedHat ser
 
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
-Before starting the implementation NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
+Before starting the setup, NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
+
 Deployment on the 1st host in the cluster should be done using the command:
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
