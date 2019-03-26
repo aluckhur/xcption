@@ -204,6 +204,20 @@ if [ -f ${SCRIPT_DIR}/license ]; then
   cp ${SCRIPT_DIR}/license /opt/NetApp/xFiles/xcp/license
 fi 
 
+cat <<EONSU > /etc/sysctl.conf
+net.core.rmem_default = 1342177
+net.core.rmem_max = 16777216
+net.core.wmem_default = 1342177
+net.core.wmem_max = 16777216
+net.ipv4.tcp_rmem = 4096 1342177 16777216
+net.ipv4.tcp_wmem = 4096 1342177 16777216
+net.core.netdev_max_backlog = 300000
+net.ipv4.tcp_fin_timeout = 10
+EONSU
+
+sysctl -p
+
+
 if [ -f ${SCRIPT_DIR}/xcp ]; then
   echo "Coping ${SCRIPT_DIR}/xcp to /usr/local/bin"
   cp ${SCRIPT_DIR}/xcp /usr/local/bin
