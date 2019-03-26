@@ -12,7 +12,7 @@ You will need to apply for XCP license from: [XCP License Site](https://xcp.neta
 
 ## Installation
 
-XCPtion can be installed directly on internet connected Ubunto 16.04 or 18.04 server by pulling the reposoity files using the command:
+XCPtion can be installed directly on internet connected Ubunto/CentOS/RedHat server by pulling the reposoity files using the command:
 
 *ALL instances should be pulled to the same path on all of the servers !!!*
 
