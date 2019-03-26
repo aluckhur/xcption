@@ -39,7 +39,7 @@ jobdictjson = os.path.join(cachedir,'jobs.json')
 #path to nomad bin 
 nomadpath = '/usr/local/bin/nomad'
 #location for the jobs dir
-jobsdir = os.path.join(root,'jobs') 
+jobsdir = os.path.join(xcprepopath,'jobs') 
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
 #log file location

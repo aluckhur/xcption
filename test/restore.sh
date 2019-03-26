@@ -6,7 +6,7 @@ rm -rf /root/xcption/system/xcp_repo/stats/*
 rm -rf /root/xcption/system/xcp_repo/tmpreports/*
 rm -rf /root/xcption/system/xcp_repo/nomadcache/*
 
-rm -rf /root/xcption/jobs/*
+rm -rf /root/xcption/system/xcp_repo/jobs
 rm -rf /mnt/slave1/*
 rm -rf /mnt/slave2/*
 
