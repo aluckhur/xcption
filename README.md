@@ -24,7 +24,7 @@ Deployment on the 1st host in the cluster should be done using the command:
 
 Deployment of the next hosts in the cluster should be done using the command (pointing to the server IP address):
 
-`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server -s <Server IP>`
+`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t client -s <Server IP>`
 
 Following the installation **on all hosts** the xcp license file should be copied to the following location:
 
