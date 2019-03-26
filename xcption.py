@@ -3,6 +3,7 @@ import csv
 import argparse
 import re
 import logging
+import logging.handlers
 import sys
 import os
 import json
@@ -121,7 +122,9 @@ formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
 formatterdebug = logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s - %(message)s')
 
 # create file handler which logs even debug messages
-fh = logging.FileHandler(logfilepath)
+#fh = logging.FileHandler(logfilepath)
+fh = logging.handlers.RotatingFileHandler(
+              logfilepath, maxBytes=1048576, backupCount=5)
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(formatterdebug)
 log.addHandler(fh)
