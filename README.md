@@ -18,6 +18,8 @@ XCPtion can be installed directly on internet connected Ubunto 16.04 or 18.04 se
 
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
+Before starting the implementation NFS acessed capacity with root access should be prepared for the XCP repository and should be exported to all servers that are going to be used for the cluster. The size is dependend in the amount of files (good practice will be to allocated ~50G for the repository)
+
 Deployment on the 1st host in the cluster should be done using the command:
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
