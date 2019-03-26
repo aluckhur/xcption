@@ -21,6 +21,7 @@ if [ -n "$APT" ]; then
     apt update
     INST_APP="apt"
 elif [ -n "$YUM" ]; then
+    yum -y update
     INST_APP="yum"
 else
     echo "Error: no path to apt or yum" >&2;
@@ -84,6 +85,9 @@ echo "Determining local IP address"
 LOCAL_IPV4=$(hostname --ip-address)
 echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement"
 
+if ["$INST_ALL" == "yum" ]; then
+	yum install -y epel-release
+fi
 
 $INST_APP install -y \
     apt-transport-https \
@@ -95,7 +99,7 @@ $INST_APP install -y \
     python \
     rsync \
     nfs-common \
-    python-pip
+    python-pip 
 
 pip install python-nomad
 pip install jinja2
