@@ -115,6 +115,28 @@ sudo user@master:~/xcption# ./xcption.py load -c example/test.csv
 2019-03-25 07:02:05,121 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src3
 
 ```
+**To run the baseline (xcp copy) the `baseline` command should be used**
+
+
+```
+usage: xcption.py baseline [-h] [-j jobname] [-s srcpath]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+```
+
+
+Example:
+```
+user@master:~/xcption# sudo ./xcption.py baseline 
+2019-03-26 21:18:13,519 - INFO - starting/updating job:baseline_test1_192.168.100.2-_xcp_src1
+2019-03-26 21:18:13,578 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src2
+2019-03-26 21:18:13,627 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src3
+```
 
 
 **To schedule the incremantal updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
