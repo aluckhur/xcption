@@ -18,9 +18,9 @@ XCPtion can be installed directly on internet connected Ubunto/CentOS/RedHat ser
 
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
-Before starting the implementation NFS acessed capacity with root access should be prepared for the XCP repository and should be exported to all servers that are going to be used for the cluster. The size is dependend in the amount of files (good practice will be to allocate ~50G for the repository)
+Before starting the setup, NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
-Deployment on the 1st host in the cluster should be done using the command:
+Deployment on the 1st host in the cluster should be done using the command (-r should point to the preconfigured repository)
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
 
@@ -86,9 +86,7 @@ test2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/4 * * * *,100,800
 test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
 ```
 
-**Following the creation of the csv file, the file should be loaded and validated using the command:**
-
-To load and validate the CSV file the `load` command should be used: 
+**Following the creation of the csv file, the file should be loaded and validated using the `load` command:**
 
 ```
 usage: xcption.py load [-h] -c CSVFILE [-j jobname] [-s srcpath]
@@ -117,9 +115,31 @@ sudo user@master:~/xcption# ./xcption.py load -c example/test.csv
 2019-03-25 07:02:05,121 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src3
 
 ```
+**To run the baseline (xcp copy) the `baseline` command should be used**
 
 
-**to schedule the incremantal updates (xcp sync) the `sync` command should be used**
+```
+usage: xcption.py baseline [-h] [-j jobname] [-s srcpath]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+```
+
+
+Example:
+```
+user@master:~/xcption# sudo ./xcption.py baseline 
+2019-03-26 21:18:13,519 - INFO - starting/updating job:baseline_test1_192.168.100.2-_xcp_src1
+2019-03-26 21:18:13,578 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src2
+2019-03-26 21:18:13,627 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src3
+```
+
+
+**To schedule the incremantal updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
 
 ```
 usage: xcption.py sync [-h] [-j jobname] [-s srcpath]
@@ -139,7 +159,7 @@ user@master:~/xcption# sudo ./xcption.py sync -s 192.168.100.2:/xcp/src10
 2019-03-14 15:07:18,663 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src10
 ```
 
-**to see the job status use the `status` command**
+**To see the job status use the `status` command**
 
 ```
 user@master:~/xcption# sudo ./xcption.py status
@@ -187,7 +207,7 @@ NEXT SYNC:00:02:21
 
 ```
 
-xcp logs for specific phase of a job
+*To see xcp logs for specific phase of a job use th -p <phase> flag**
 
 ```
 user@master:~/xcption# sudo ./xcption.py status -v -s 192.168.100.2:/xcp/src2 -l -p sync11
@@ -213,6 +233,5 @@ xcp: sync '192.168.100.2-_xcp_src2-192.168.100.4-_xcp_dst2': Starting search pas
 xcp: sync phase 2: Rereading the 1 modified/in-progress directory...
 xcp: rd '192.168.100.4:/xcp/dst2' fileid 514531: WARNING: nfs3 READDIRPLUS '192.168.100.4:/xcp/dst2' cookie 0 maxcount 65536: nfs3 error 70: stale filehandle
 xcp: ERROR: nfs3 READDIRPLUS '192.168.100.4:/xcp/dst2' cookie 0 maxcount 65536: nfs3 error 70: stale filehandle
-
 
 ```
