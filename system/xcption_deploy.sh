@@ -111,6 +111,7 @@ pip install requests
 pip install prettytable
 pip install croniter
 pip install hurry.filesize
+pip install graphyte
 
 
 CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
