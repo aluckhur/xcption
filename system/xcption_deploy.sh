@@ -13,21 +13,6 @@ export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && p
 export REPO_MOUNT_POINT=${SCRIPT_DIR}/xcp_repo
 #export OS_RELEASE=`lsb_release -d`
 
-#validate which installation utility exists in the system
-export APT=`command -v apt`
-export YUM=`command -v yum`
-
-if [ -n "$APT" ]; then
-    apt -y update
-    INST_APP="apt"
-elif [ -n "$YUM" ]; then
-    yum -y update
-    INST_APP="yum"
-else
-    echo "Error: no path to apt or yum" >&2;
-    exit 1;
-fi
-
 if [ "$EUID" -ne 0 ];then 
   echo "This script should run using sudo or root"
   exit 1
@@ -68,13 +53,21 @@ if [ "$INSTALLTYPE" == "client" ]; then
   echo Server IP address: $SERVERIP 
 fi
 
+#validate which installation utility exists in the system
+export APT=`command -v apt`
+export YUM=`command -v yum`
 
-#if [[ $OS_RELEASE == *"buntu"* ]]; then 
-#  echo OS $OS_RELEASE
-#else
-#  echo "This script is desgnated to run on Ubunto only"
-#  exit 1
-#fi
+if [ -n "$APT" ]; then
+    apt -y update
+    INST_APP="apt"
+elif [ -n "$YUM" ]; then
+    yum -y update
+    INST_APP="yum"
+else
+    echo "Error: no path to apt or yum" >&2;
+    exit 1;
+fi
+
 
 echo "Repo path: $XCPREPO Mount Point will be:${REPO_MOUNT_POINT}"
 
@@ -114,17 +107,23 @@ pip install hurry.filesize
 pip install graphyte
 
 
-CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
-NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
+if [ -f ${SCRIPT_DIR}/nomad.zip ]; then
+	unzip ${SCRIPT_DIR}/nomad.zip
+	chmod +x nomad
+	mv -f nomad /usr/local/bin/nomad
+else
+	CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
+	NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
 
-cd /tmp/
+	cd /tmp/
 
-echo "Fetching Nomad version ${NOMAD_VERSION} ..."
-curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
-echo "Installing Nomad version ${NOMAD_VERSION} ..."
-unzip nomad.zip
-chmod +x nomad
-mv nomad /usr/local/bin/nomad
+	echo "Fetching Nomad version ${NOMAD_VERSION} ..."
+	curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
+	echo "Installing Nomad version ${NOMAD_VERSION} ..."
+	unzip nomad.zip
+	chmod +x nomad
+	mv -f nomad /usr/local/bin/nomad
+fi
 
 echo "Configuring Nomad"
 mkdir -p /var/lib/nomad /etc/nomad.d
@@ -235,9 +234,10 @@ EONSU
 sysctl -p
 
 
-if [ -f ${SCRIPT_DIR}/xcp ]; then
-  echo "Coping ${SCRIPT_DIR}/xcp to /usr/local/bin"
-  cp ${SCRIPT_DIR}/xcp /usr/local/bin
+if [ -f ${SCRIPT_DIR}/xcp.zip ]; then
+        unzip ${SCRIPT_DIR}/xcp.zip
+        chmod +x xcp
+        mv -f xcp /usr/local/bin/xcp
 fi
 
 mkdir -p ${SCRIPT_DIR}/xcp_repo
