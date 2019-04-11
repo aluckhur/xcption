@@ -1,0 +1,3 @@
+fsd=fsd1,anchor=!fanchor,depth=!dirdep,width=!dirwid,files=!numfiles,size=!filesize
+fwd=fwd1,fsd=fsd1,rdpct=!filrdpct,xfersize=!fxfersize,fileselect=random,fileio=random,threads=!thrds
+rd=rd1,fwd=fwd1,fwdrate=max,format=yes,elapsed=!etime,interval=!itime,foroperations=(read,write,delete,rmdir,mkdir) 
