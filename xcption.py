@@ -1499,8 +1499,8 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 		exit(1)	
 
 
-	if (depth < 0 or depth > 10):
-		logging.error("depth should be between 0 to 10, provided size is:"+str(depth))
+	if (depth < 1 or depth > 12):
+		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
 		exit(1)	
 
 	#prepare things for csv creation
@@ -1528,13 +1528,14 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 			filecount = o[2]
 
 			currentdepth = path.count(os.path.sep)
+			if path == './': currentdepth = 0
+
 			#print path,depth,currentdepth
 			nfssrcpath = src+path.lstrip('.')
 			nfsdstpath = dst+path.lstrip('.')
 
 			dstpath = tempmountpointdst+path.lstrip('.')
 
-			#if (os.path.exi)
 
 			if filecount > 0 and (currentdepth < depth-1 or (currentdepth == depth-1 and dircount > 0)):
 				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
@@ -1552,16 +1553,18 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 					else:
 						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
 
-			#create xcption job 
-			if (currentdepth < depth-1 and dircount == 0) or currentdepth == depth-1:
-				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ "will be configured as xcp job")
-				#append data to csv 
-				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
-
 			#check if destination directory exists/contains files
 			if dircount > 20:
 				logging.warning("the amount of directories under: "+nfssrcpath+" is above 20, this will create extensive amount of xcption jobs")
 				warning=True  
+
+			#create xcption job entry
+			print depth,currentdepth,dircount,nfssrcpath,path
+			if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
+				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ "will be configured as xcp job")
+				#append data to csv 
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
+
 
 		if warning:
 			if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
@@ -1579,31 +1582,32 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 				unmountdir(tempmountpointsrc)
 				unmountdir(tempmountpointdst)
 				exit(1)		
+			if depth > 1:
+				depthrsync = '/*'
+				for x in xrange(depth):
+					depthrsync += '/*'
+				print depthrsync
+				rsynccmd = 'rsync -av --stats --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
+				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
+				logging.info("rsync command to sync directory structure for the required depth will be:")
+				logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
+				logging.info(rsynccmd)
+				if query_yes_no("do you want to run rsync ?", default="no"): 
+					end=False 
+					logging.info("=================================================================")
+					logging.info("========================Starting rsync===========================")
+					logging.info("=================================================================")
+					#run rsync and check if failed 
+					if os.system(rsynccmd):
+						logging.error("rsync failed")
+						unmountdir(tempmountpointsrc)
+						unmountdir(tempmountpointdst)
+						exit(1)
+					logging.info("=================================================================")
+					logging.info("===================rsync ended successfully======================")
+					logging.info("=================================================================")
 
-			depthrsync = '/*'
-			for x in xrange(depth):
-				depthrsync += '/*'
-			print depthrsync
-			rsynccmd = 'rsync -av --stats --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
-			logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
-			logging.info("rsync command to sync directory structure for the required depth will be:")
-			logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
-			logging.info(rsynccmd)
-			if query_yes_no("do you want to run rsync ?", default="no"): end=False 
-			if not end:
-				logging.info("=================================================================")
-				logging.info("===================Starting Rsync================================")
-				logging.info("=================================================================")
-				if os.system(rsynccmd):
-					logging.error("rsync failed")
-					unmountdir(tempmountpointsrc)
-					unmountdir(tempmountpointdst)
-					exit(1)
-				logging.info("=================================================================")
-				logging.info("===================Rsync ended successfully======================")
-				logging.info("=================================================================")
-
-				logging.info("csv file:"+csvfile+ "is ready to be loaded into xcption")
+				logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
 
 	except KeyboardInterrupt:
 		print ""

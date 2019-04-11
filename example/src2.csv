@@ -1,9 +1,0 @@
-#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-job11296,192.168.100.2:/xcp/src2/dir1/dir1.3,192.168.100.2:/xcp/dst2/dir1/dir1.3,0 0 * * * *,3000,800
-job11296,192.168.100.2:/xcp/src2/dir1/dir1.2,192.168.100.2:/xcp/dst2/dir1/dir1.2,0 0 * * * *,3000,800
-job11296,192.168.100.2:/xcp/src2/dir1/dir1.1,192.168.100.2:/xcp/dst2/dir1/dir1.1,0 0 * * * *,3000,800
-job11296,192.168.100.2:/xcp/src2/dir2/dir2.4,192.168.100.2:/xcp/dst2/dir2/dir2.4,0 0 * * * *,3000,800
-job11296,192.168.100.2:/xcp/src2/dir2/dir2.1,192.168.100.2:/xcp/dst2/dir2/dir2.1,0 0 * * * *,3000,800
-job11296,192.168.100.2:/xcp/src2/dir2/dir2.2,192.168.100.2:/xcp/dst2/dir2/dir2.2,0 0 * * * *,3000,800
-job11296,192.168.100.2:/xcp/src2/dir2/dir2.3,192.168.100.2:/xcp/dst2/dir2/dir2.3,0 0 * * * *,3000,800
-job11296,192.168.100.2:/xcp/src2/dirtest,192.168.100.2:/xcp/dst2/dirtest,0 0 * * * *,3000,800
