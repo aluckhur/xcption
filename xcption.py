@@ -69,7 +69,8 @@ parser.add_argument('-d','--debug',   help="log debug messages to console", acti
 subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
 
 # create the sub commands 
-parser_status   = subparser.add_parser('status',   help='display status')
+parser_status   = subparser.add_parser('status',   help='display status')	
+parser_assess   = subparser.add_parser('assess',   help='assess fielsystem and create csv file')
 parser_load     = subparser.add_parser('load',     help='load/update configuration from csv file')
 parser_baseline = subparser.add_parser('baseline', help='start baseline (xcp copy)')
 parser_sync     = subparser.add_parser('sync',     help='start schedule updates (xcp sync)')
@@ -86,6 +87,12 @@ parser_status.add_argument('-s','--source',help="change the scope of the command
 parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
 parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (basline,sync#)", required=False,type=str,metavar='phase')
 parser_status.add_argument('-l','--logs',help="display xcp logs", required=False,action='store_true')
+
+parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_assess.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
+parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 0-10",required=True,type=int)
+parser_assess.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
+parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -1038,84 +1045,7 @@ def create_status (reporttype,displaylogs=False):
 						verbosetable.align = 'l'
 						print verbosetable
 						print ""
-						print ""	
-
-
-					# verbosedetails = []
-
-					# #printing verbose information 
-					# if reporttype == 'verbose':
-					#  	print "JOB Name:"+jobname
-					# 	print "SRC:"+src
-					# 	print "DST:"+dst
-					# 	print "SYNC CRON:"+jobcron
-					#  	print "NEXT SYNC:"+syncsched
-						
-					# 	baselinestatsdir = os.path.join(xcpindexespath,xcpindexname,'reports')
-					# 	baselinestatsjsonfile = ''
-					# 	try:			
-					# 		for file in os.listdir(baselinestatsdir):
-					# 			if file.endswith('.stats.json'):
-					# 				baselinestatsjsonfile = os.path.join(baselinestatsdir,file)
-					# 				with open(baselinestatsjsonfile, 'r') as f:
-					# 					baselinestats = json.load(f)
-					# 					verbosedetails.append(baselinestats)
-					# 	except:
-					# 		logging.debug('cannot find baseline job stats file:'+baselinestatsdir)
-
-					# 	syncstatsdir = os.path.join(xcpindexespath,xcpindexname,'sync','reports')
-					# 	#try:
-					# 	os.chdir(syncstatsdir)
-					# 	syncfiles = filter(os.path.isfile, os.listdir(syncstatsdir))
-					# 	syncfiles = [os.path.join(syncstatsdir, f) for f in syncfiles] # add path to each file
-					# 	syncfiles.sort(key=lambda x: os.path.getmtime(x))						
-					# 	for file in syncfiles:
-					# 		if file.endswith('.stats.json'):
-					# 			syncstatsjsonfile = os.path.join(syncstatsdir,file)
-					# 			if os.path.getsize(file) > 0:
-					# 				with open(syncstatsjsonfile, 'r') as f:
-					# 					syncstats = json.load(f)
-					# 					verbosedetails.append(syncstats)
-					# 	#except:
-					# 	#	logging.debug('cannot find sync job stats files in dir:'+syncstatsdir)
-
-
-					# 	counter = 0
-					# 	for phase in verbosedetails:
-					# 		try:
-					# 			count   = phase['stats']['count']
-					# 		except:
-					# 			count = '-'
-					# 		try:
-					# 			sizehuman = size(phase['stats']['dataCopied'])+'B'
-					# 		except:
-					# 			sizehuman = '-'
-							
-					# 		try:
-					# 			started = phase['date']
-					# 		except:
-					# 			started = '-'
-
-					# 		try:
-					# 			duration = sec_to_time(phase['stats']['duration'])
-					# 		except:
-					# 			duration = '-'
-
-					# 		#pp.pprint(phase)
-					# 		#print(phase['summary'])
-					# 		task = 'sync'
-					# 		if counter == 0: task = 'baseline'
-					# 		counter += 1
-
-					# 		if syncstatus == 'failed':
-					# 			try:
-					# 				syncstatus = syncstatus+'('+syncjobsstructure['logs'][alloclastdetails['ID']]['lastline']+')'
-					# 			except:
-					# 				syncstatus = syncstatus							
-						
-					# 		verbosetable.add_row([task,count,sizehuman,started,duration,baselinestatus,error])						
-
-						
+						print ""
 
 					
 	#dispaly general report
@@ -1501,20 +1431,204 @@ def parse_nomad_jobs_to_files ():
 
 				logging.debug("caching alloc:"+alloc['ID'])
 
-	#running nomad garbage collection
-	# logging.debug("running nomad garbage collector")	
-	# response = requests.put(nomadapiurl+'system/gc')
-	# if response.ok:	
-	# 	logging.debug("nomad garbage collector complete successfully")	
-	# else:
-	# 	logging.debug("nomad garbage collector did not complete successfully "+response.content)	
-
 	#removing the lock file 
 	try:
 		logging.debug("removing lock file:"+lockfile)
 		os.remove(lockfile)
 	except:
 		logging.debug("cannot remove lock file:"+lockfile)
+
+
+#walk throuth a dir upto certain depth in the directory tree 
+def list_dirs(startpath,depth):
+    num_sep = startpath.count(os.path.sep)
+    for root, dirs, files in os.walk(startpath):
+    	dir = root.lstrip(startpath)
+    	dir = './'+dir
+    	yield dir,len(dirs),len(files),dirs
+        
+        num_sep_this = root.count(os.path.sep)
+        if num_sep + depth <= num_sep_this:
+            del dirs[:]
+
+def unmountdir(dir):
+	if subprocess.call( [ 'umount', dir ], stderr=subprocess.STDOUT):
+		logging.error("cannot unmount:"+dir)
+		exit(1)
+
+	try:
+		os.rmdir(dir)
+	except:
+		logging.error("cannot delete temp mount point:"+dir)
+		exit(1)
+
+#assessment of filesystem and creation of csv file out of it 
+def assess_fs(csvfile,src,dst,depth,jobname):
+	logging.debug("trying to assess src:" + src + " dst:" + dst) 
+
+	if not re.search("\S+\:\/\S+", src):
+		logging.error("source format is incorrect: " + src) 
+		exit(1)	
+	if not re.search("\S+\:\/\S+", dst):
+		logging.error("destination format is incorrect: " + dst)
+		exit(1)	
+
+	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
+	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
+
+	logging.debug("temporary mounts for assement will be:"+tempmountpointsrc+" and "+tempmountpointdst)
+
+	#check if src/dst can be mounted
+	subprocess.call( [ 'mkdir', '-p',tempmountpointsrc ] )
+	subprocess.call( [ 'mkdir', '-p',tempmountpointdst ] )
+
+	logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
+
+	#clearing possiable previous mounts 
+	DEVNULL = open(os.devnull, 'wb')
+	subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
+	subprocess.call( [ 'umount', tempmountpointdst ], stdout=DEVNULL, stderr=DEVNULL)
+
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, tempmountpointsrc ],stderr=subprocess.STDOUT):
+		logging.error("cannot mount src using nfs: " + src)
+		exit(1)					
+	
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, tempmountpointdst ],stderr=subprocess.STDOUT):
+		logging.error("cannot mount dst using nfs: " + dst)
+		subprocess.call( [ 'umount', tempmountpointsrc ],stderr=subprocess.STDOUT)
+		exit(1)	
+
+
+	if (depth < 0 or depth > 10):
+		logging.error("depth should be between 0 to 10, provided size is:"+str(depth))
+		exit(1)	
+
+	#prepare things for csv creation
+	if jobname == '': jobname = 'job'+str(os.getpid())
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB"]
+	csv_data = []
+
+	if os.path.isfile(csvfile):
+		logging.warning("csv file:"+csvfile+" already exists")
+		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
+
+	#will be true if warning identified 
+	warning = False 
+
+	#will set to true if Ctrl-C been pressed during os.walk
+	end = False
+
+
+
+	srcdirstructure = list_dirs(tempmountpointsrc,depth-1)
+	try:
+		for o in srcdirstructure:
+			path = o[0]
+			dircount = o[1]
+			filecount = o[2]
+
+			currentdepth = path.count(os.path.sep)
+			#print path,depth,currentdepth
+			nfssrcpath = src+path.lstrip('.')
+			nfsdstpath = dst+path.lstrip('.')
+
+			dstpath = tempmountpointdst+path.lstrip('.')
+
+			#if (os.path.exi)
+
+			if filecount > 0 and (currentdepth < depth-1 or (currentdepth == depth-1 and dircount > 0)):
+				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
+	
+				warning=True 
+			else:
+				if os.path.exists(dstpath):
+					dstdirfiles = os.listdir(dstpath)
+
+					if len(dstdirfiles) > 0:
+						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
+						unmountdir(tempmountpointsrc)
+						unmountdir(tempmountpointdst)
+						exit(1)
+					else:
+						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
+
+				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ "will be configured as xcp job")
+				#append data to csv 
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
+
+			#check if destination directory exists/contains files
+			if dircount > 20:
+				logging.warning("the amount of directories under: "+nfssrcpath+" is above 20, this will create extensive amount of xcption jobs")
+				warning=True  
+
+		if warning:
+			if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
+		
+		if not end:
+			try:
+			    with open(csvfile, 'w') as c:
+			        writer = csv.DictWriter(c, fieldnames=csv_columns)
+			        writer.writeheader()
+			        for data in csv_data:
+			            writer.writerow(data)
+			        logging.info("job csv file:"+csvfile+" created")
+			except IOError:
+				logging.error("could not write data to csv file:"+csvfile)
+				unmountdir(tempmountpointsrc)
+				unmountdir(tempmountpointdst)
+				exit(1)		
+
+			depthrsync = '/*'
+			for x in xrange(depth):
+				depthrsync += '/*'
+			print depthrsync
+			rsynccmd = 'rsync -av --stats --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
+			logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
+			logging.info("rsync command to sync directory structure for the required depth will be:")
+			logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
+			logging.info(rsynccmd)
+			if query_yes_no("do you want to run rsync ?", default="no"): end=False 
+			if not end:
+				logging.info("=================================================================")
+				logging.info("===================Starting Rsync================================")
+				logging.info("=================================================================")
+				if os.system(rsynccmd):
+					logging.error("rsync failed")
+					unmountdir(tempmountpointsrc)
+					unmountdir(tempmountpointdst)
+					exit(1)
+				logging.info("=================================================================")
+				logging.info("===================Rsync ended successfully======================")
+				logging.info("=================================================================")
+
+	except KeyboardInterrupt:
+		print ""
+		print "aborted"
+		end = True	
+
+	end = True 	
+	if end:
+		if subprocess.call( [ 'umount', tempmountpointsrc ], stderr=subprocess.STDOUT):
+			logging.error("cannot unmount src:" + src +" mounted on:"+tempmountpointsrc)
+			exit(1)
+
+		if subprocess.call( [ 'umount', tempmountpointdst ], stderr=subprocess.STDOUT):
+			logging.error("cannot unmount dst:" + dst +" mounted on:"+tempmountpointdst)
+			exit (1)
+
+		try:
+			os.rmdir(tempmountpointsrc)
+		except:
+			logging.error("cannot delete temp mount point:"+tempmountpointsrc)
+			exit(1)
+
+		try:
+			os.rmdir(tempmountpointdst)
+		except:
+			logging.error("cannot delete temp mount point:"+tempmountpointdst)
+			exit(1)
+
+
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
@@ -1552,6 +1666,8 @@ if args.subparser_name == 'nomad':
 	parse_nomad_jobs_to_files()
 	exit (0)
 
+if args.subparser_name == 'assess':
+	assess_fs(args.csvfile,args.source,args.destination,args.depth,jobfilter)	
 
 if args.subparser_name == 'load':
 	parse_csv(args.csvfile)
