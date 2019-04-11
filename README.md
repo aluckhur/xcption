@@ -45,9 +45,10 @@ usage: xcption.py [-h] [-d]
                   {status,load,baseline,sync,syncnow,pause,resume,delete} ...
 
 positional arguments:
-  {status,load,baseline,sync,syncnow,pause,resume,delete}
+  {status,asess,load,baseline,sync,syncnow,pause,resume,delete}
                         sub commands that can be used
     status              display status
+    assess              assess fielsystem and create csv file
     load                load/update configuration from csv file
     baseline            start baseline (xcp copy)
     sync                start schedule updates (xcp sync)
@@ -61,8 +62,13 @@ optional arguments:
   -d, --debug           log debug messages to console
 
 ```
+#There are 2 options to start using xcption. 
+1.  manual csv creation 
+2.  assessment of existing export and creation of CSV file and job directory structure automaticaly 
 
-To start using xcption a CSV file with the jobs should be created with the following columns:
+**manual CSV creation**
+
+a CSV file with the jobs should be created with the following columns:
 
 **JOB NAME** - A name for the JOB, later on actions and output can be filtered by this name
 
