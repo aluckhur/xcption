@@ -944,9 +944,9 @@ def create_status (reporttype,displaylogs=False):
 									verbosetable.align = 'l'
 									print verbosetable
 									print ""
-									if 'content' in baselinelog:
+									try:
 										print baselinelog['content']
-									else:
+									except:
 										print "log is not avaialble"
 									print ""
 									print ""
@@ -1031,9 +1031,9 @@ def create_status (reporttype,displaylogs=False):
 												verbosetable.align = 'l'
 												print verbosetable
 												print ""
-												if 'content' in currentlog:
+												try:
 													print currentlog['content']
-												else:
+												except:
 													print "log is not avaialble"
 												print ""
 												print ""
@@ -1394,7 +1394,7 @@ def parse_nomad_jobs_to_files ():
 		try:
 			with open(jobjsonfile, 'w') as fp:
 			    json.dump(job, fp)
-			    logging.debug("dumping job   to json file:"+jobjsonfile)		
+			    logging.debug("dumping job to json file:"+jobjsonfile)		
 		except:
 			logging.error("cannot create file:"+jobjsonfile)
 			exit(1)
@@ -1552,6 +1552,8 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 					else:
 						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
 
+			#create xcption job 
+			if (currentdepth < depth-1 and dircount == 0) or currentdepth == depth-1:
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ "will be configured as xcp job")
 				#append data to csv 
 				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
@@ -1601,6 +1603,8 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 				logging.info("===================Rsync ended successfully======================")
 				logging.info("=================================================================")
 
+				logging.info("csv file:"+csvfile+ "is ready to be loaded into xcption")
+
 	except KeyboardInterrupt:
 		print ""
 		print "aborted"
@@ -1608,25 +1612,9 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 
 	end = True 	
 	if end:
-		if subprocess.call( [ 'umount', tempmountpointsrc ], stderr=subprocess.STDOUT):
-			logging.error("cannot unmount src:" + src +" mounted on:"+tempmountpointsrc)
-			exit(1)
+		unmountdir(tempmountpointsrc)
+		unmountdir(tempmountpointdst)
 
-		if subprocess.call( [ 'umount', tempmountpointdst ], stderr=subprocess.STDOUT):
-			logging.error("cannot unmount dst:" + dst +" mounted on:"+tempmountpointdst)
-			exit (1)
-
-		try:
-			os.rmdir(tempmountpointsrc)
-		except:
-			logging.error("cannot delete temp mount point:"+tempmountpointsrc)
-			exit(1)
-
-		try:
-			os.rmdir(tempmountpointdst)
-		except:
-			logging.error("cannot delete temp mount point:"+tempmountpointdst)
-			exit(1)
 
 
 #####################################################################################################
