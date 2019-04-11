@@ -62,11 +62,12 @@ optional arguments:
   -d, --debug           log debug messages to console
 
 ```
-There are 2 options to start using xcption. 
+#There are 2 options to start using xcption. 
 1.  manual csv creation 
 2.  assessment of existing export and creation of CSV file and job directory structure automaticaly 
 
 **manual CSV creation**
+
 a CSV file with the jobs should be created with the following columns:
 
 **JOB NAME** - A name for the JOB, later on actions and output can be filtered by this name
