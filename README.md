@@ -123,6 +123,7 @@ optional arguments:
 
 Example of running asses for the above filesystem:
 
+```
 user@master:~/xcption$ sudo ./xcption.py assess -s 192.168.100.2:/xcp/src -d 192.168.100.2:/xcp/dst -l 2 -c example/src.csv -j src_job
 2019-04-12 10:26:12,044 - INFO - destination dir: 192.168.100.2:/xcp/dst/ for source dir: 192.168.100.2:/xcp/src/ already exists but empty
 2019-04-12 10:26:12,049 - INFO - job csv file:example/src.csv created
@@ -169,6 +170,7 @@ total size is 0  speedup is 0.00
 2019-04-12 10:26:13,708 - INFO - ===================rsync ended successfully======================
 2019-04-12 10:26:13,708 - INFO - =================================================================
 2019-04-12 10:26:13,708 - INFO - csv file:example/src.csv is ready to be loaded into xcption
+```
 
 
 **example for the CSV file created by the assess command:**
