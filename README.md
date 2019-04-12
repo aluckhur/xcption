@@ -116,7 +116,7 @@ optional arguments:
   -h, --help                                  show this help message and exit
   -s SOURCE, --source SOURCE                  source nfs path (nfssrv:/mount)
   -d DESTINATION, --destination DESTINATION   destintion nfs path (nfssrv:/mount)
-  -l DEPTH, --depth DEPTH                     filesystem depth to create jobs, range of 0-10
+  -l DEPTH, --depth DEPTH                     filesystem depth to create jobs, range of 1-10
   -c CSVFILE, --csvfile CSVFILE               output CSV file
   -j jobname, --job jobname                   xcption job name
 ```
