@@ -62,28 +62,46 @@ optional arguments:
   -d, --debug           log debug messages to console
 
 ```
-#There are 2 options to start using xcption. 
+#There are 2 options to create xcption jobs: 
 1.  manual csv creation 
-2.  assessment of existing export and creation of CSV file and job directory structure automaticaly 
+2.  automatic assessment of existing filesystem 
 
 **manual CSV creation**
 
 a CSV file with the jobs should be created with the following columns:
 
-**JOB NAME** - A name for the JOB, later on actions and output can be filtered by this name
+`JOB NAME` - A name for the JOB, later on actions and output can be filtered by this name
 
-**SOURCE PATH** - Source NFSv3 path. The source should be mountable as root from all instances in the cluster
+`SOURCE PATH` - Source NFSv3 path. The source should be mountable as root from all instances in the cluster
 
-**DEST PATH** - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster
+`DEST PATH` - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster
 
-**SYNC SCHED** (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)
+`SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)
 
-**CPU MHz** (optional) - The allocated CPU frequency for the job (DEFAULT:3000)
+`CPU MHz` (optional) - The allocated CPU frequency for the job (DEFAULT:3000)
 
-**RAM MB** (optional) - The allocated RAM for the job (DEFAULT:800)
+`RAM MB` (optional) - The allocated RAM for the job (DEFAULT:800)
+
+**assessment of existing filesystem**
+Automatic assessment of the source file, preperation of the destination filesytem and creation of the csv file can be achived using the `assess` command.
+
+for example if our source volume directory structure 
+
+├── folder1
+│   ├── subfolder1
+│   ├── subfolder2
+│   └── subfolder3
+├── folder2
+│   ├── subfolder1
+│   ├── subfolder2
+│   └── subfolder3
+└── folder3
+    ├── subfolder1
+    └── subfolder2
 
 
-Example for the file:
+**example for the CSV file:**
+
 
 ```
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
