@@ -62,35 +62,130 @@ optional arguments:
   -d, --debug           log debug messages to console
 
 ```
-#There are 2 options to start using xcption. 
+#There are 2 options to create xcption jobs: 
 1.  manual csv creation 
-2.  assessment of existing export and creation of CSV file and job directory structure automaticaly 
+2.  automatic assessment of existing filesystem 
 
 **manual CSV creation**
 
 a CSV file with the jobs should be created with the following columns:
 
-**JOB NAME** - A name for the JOB, later on actions and output can be filtered by this name
+`JOB NAME` - A name for the JOB, later on actions and output can be filtered by this name  
+`SOURCE PATH` - Source NFSv3 path. The source should be mountable as root from all instances in the cluster  
+`DEST PATH` - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster  
+`SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
+`CPU MHz` (optional) - The allocated CPU frequency for the job (DEFAULT:3000)  
+`RAM MB` (optional) - The allocated RAM for the job (DEFAULT:800)  
 
-**SOURCE PATH** - Source NFSv3 path. The source should be mountable as root from all instances in the cluster
-
-**DEST PATH** - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster
-
-**SYNC SCHED** (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)
-
-**CPU MHz** (optional) - The allocated CPU frequency for the job (DEFAULT:3000)
-
-**RAM MB** (optional) - The allocated RAM for the job (DEFAULT:800)
-
-
-Example for the file:
-
+CSV file example:
 ```
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
 test1,192.168.100.2:/xcp/src1,192.168.100.3:/xcp/dst1,*/3 * * * *,100,800
 test2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/4 * * * *,100,800
 test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
 ```
+
+**assessment of existing filesystem**
+Automatic assessment of the source file, preperation of the destination filesytem and creation of the csv file can be achived using the `assess` command.
+
+for example if our source file system directory structure upto depth of 2 look as follows (bellow the subfolders we have many other file adn directorye). 
+
+```
+ ├── folder1  
+ │   ├── subfolder1  
+ │   ├── subfolder2  
+ │   └── subfolder3  
+ ├── folder2  
+ │   ├── subfolder1  
+ │   ├── subfolder2  
+ │   └── subfolder3  
+ └── folder3  
+     ├── subfolder1  
+     └── subfolder2  
+```
+we can use the `assess` command to build this initial directory structure on the destination volume and automaticaly create the xcption csv file for us.
+xcption will analyse the source file system, will validate destination filesystem is not already contains the same paths as the source and will create the initial filesystem on the destination (using rsync).
+**directory structure created using rsync will not be updated to the destination if new files/directories are created bellow the paths manged by xcption jobs 
+for example if a file is created under /src/folder1/ it should be manualy updqted to the destination**
+
+```
+user@master:~/xcption$ sudo ./xcption.py assess -h
+usage: xcption.py assess [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE [-j jobname]
+
+optional arguments:
+  -h, --help                                  show this help message and exit
+  -s SOURCE, --source SOURCE                  source nfs path (nfssrv:/mount)
+  -d DESTINATION, --destination DESTINATION   destintion nfs path (nfssrv:/mount)
+  -l DEPTH, --depth DEPTH                     filesystem depth to create jobs, range of 0-10
+  -c CSVFILE, --csvfile CSVFILE               output CSV file
+  -j jobname, --job jobname                   xcption job name
+```
+
+Example of running asses for the above filesystem:
+
+```
+user@master:~/xcption$ sudo ./xcption.py assess -s 192.168.100.2:/xcp/src -d 192.168.100.2:/xcp/dst -l 2 -c example/src.csv -j src_job
+2019-04-12 10:26:12,044 - INFO - destination dir: 192.168.100.2:/xcp/dst/ for source dir: 192.168.100.2:/xcp/src/ already exists but empty
+2019-04-12 10:26:12,049 - INFO - job csv file:example/src.csv created
+2019-04-12 10:26:12,049 - INFO - rsync can be used to create the destination initial directory structure for xcption jobs
+2019-04-12 10:26:12,049 - INFO - rsync command to sync directory structure for the required depth will be:
+2019-04-12 10:26:12,049 - INFO - rsync -av --stats --exclude="/*/*/*" "/tmp/src_15693/" "/tmp/dst_15693/"
+2019-04-12 10:26:12,050 - INFO - (192.168.100.2:/xcp/src is mounted on:/tmp/src_15693 and 192.168.100.2:/xcp/dst is mounted on:/tmp/dst_15693)
+do you want to run rsync ? [y/N] y
+2019-04-12 10:26:13,674 - INFO - =================================================================
+2019-04-12 10:26:13,674 - INFO - ========================Starting rsync===========================
+2019-04-12 10:26:13,675 - INFO - =================================================================
+sending incremental file list
+./
+folder1/
+folder1/subfolder1/
+folder1/subfolder2/
+folder1/subfolder3/
+folder2/
+folder2/subfolder1/
+folder2/subfolder2/
+folder2/subfolder3/
+folder3/
+folder3/subfolder1/
+folder3/subfolder2/
+
+Number of files: 12 (dir: 12)
+Number of created files: 11 (dir: 11)
+Number of deleted files: 0
+Number of regular files transferred: 0
+Total file size: 0 bytes
+Total transferred file size: 0 bytes
+Literal data: 0 bytes
+Matched data: 0 bytes
+File list size: 0
+File list generation time: 0.001 seconds
+File list transfer time: 0.000 seconds
+Total bytes sent: 361
+Total bytes received: 63
+
+sent 361 bytes  received 63 bytes  848.00 bytes/sec
+total size is 0  speedup is 0.00
+2019-04-12 10:26:13,707 - INFO - =================================================================
+2019-04-12 10:26:13,708 - INFO - ===================rsync ended successfully======================
+2019-04-12 10:26:13,708 - INFO - =================================================================
+2019-04-12 10:26:13,708 - INFO - csv file:example/src.csv is ready to be loaded into xcption
+```
+
+
+**example for the CSV file created by the assess command:**
+
+```
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
+src_job,192.168.100.2:/xcp/src/folder2/subfolder2,192.168.100.2:/xcp/dst/folder2/subfolder2,0 0 * * * *,3000,800
+src_job,192.168.100.2:/xcp/src/folder2/subfolder3,192.168.100.2:/xcp/dst/folder2/subfolder3,0 0 * * * *,3000,800
+src_job,192.168.100.2:/xcp/src/folder2/subfolder1,192.168.100.2:/xcp/dst/folder2/subfolder1,0 0 * * * *,3000,800
+src_job,192.168.100.2:/xcp/src/folder1/subfolder2,192.168.100.2:/xcp/dst/folder1/subfolder2,0 0 * * * *,3000,800
+src_job,192.168.100.2:/xcp/src/folder1/subfolder3,192.168.100.2:/xcp/dst/folder1/subfolder3,0 0 * * * *,3000,800
+src_job,192.168.100.2:/xcp/src/folder1/subfolder1,192.168.100.2:/xcp/dst/folder1/subfolder1,0 0 * * * *,3000,800
+src_job,192.168.100.2:/xcp/src/folder3/subfolder2,192.168.100.2:/xcp/dst/folder3/subfolder2,0 0 * * * *,3000,800
+src_job,192.168.100.2:/xcp/src/folder3/subfolder1,192.168.100.2:/xcp/dst/folder3/subfolder1,0 0 * * * *,3000,800
+```
+
 
 **Following the creation of the csv file, the file should be loaded and validated using the `load` command:**
 
