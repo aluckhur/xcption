@@ -1,0 +1,76 @@
+<title>Vdbench src1/logfile.html</title><pre>
+Copyright (c) 2000, 2018, Oracle and/or its affiliates. All rights reserved.
+Vdbench distribution: vdbench50407
+
+04:19:52.731 input argument scanned: '-f/root/vdbench/nas'
+04:19:52.734 input argument scanned: 'fanchor=/xcp/src1/f3'
+04:19:52.737 input argument scanned: 'dirwid=2'
+04:19:52.737 input argument scanned: 'numfiles=25'
+04:19:52.737 input argument scanned: 'filesize=4k'
+04:19:52.738 input argument scanned: 'fxfersize=1k'
+04:19:52.738 input argument scanned: 'thrds=6'
+04:19:52.738 input argument scanned: 'etime=10h'
+04:19:52.738 input argument scanned: 'itime=30'
+04:19:52.739 input argument scanned: 'dirdep=3'
+04:19:52.739 input argument scanned: 'filrdpct=0'
+04:19:52.739 input argument scanned: '-p5576'
+04:19:52.751 input argument scanned: '-osrc1'
+04:19:52.752 java.vendor                   Oracle Corporation
+04:19:52.752 java.home                     /usr/lib/jvm/java-8-oracle/jre
+04:19:52.752 java.vm.specification.version 1.8
+04:19:52.752 java.vm.version               25.201-b09
+04:19:52.752 java.vm.vendor                Oracle Corporation
+04:19:52.752 java.specification.version    1.8
+04:19:52.752 java.class.version            52.0
+04:19:52.752 user.name                     root
+04:19:52.752 user.dir                      /root/xcption
+04:19:52.752 java.io.tmpdir                /tmp
+04:19:52.752 java.class.path               /root/vdbench/:/root/vdbench/classes:/root/vdbench/vdbench.jar
+04:19:52.752 os.name                       Linux
+04:19:52.752 os.arch                       amd64
+04:19:52.753 os.version                    4.15.0-47-generic
+04:19:52.753 sun.arch.data.model           64
+04:19:52.755 Flushing all reports
+04:19:52.799 Creating anchor for /xcp/src1/f3,fsd=fsd1
+04:19:52.841 rd1 fsd to format: fsd1
+04:19:52.841 rd1 format on host: localhost
+04:19:52.852 Anchor size: anchor=/xcp/src1/f3: dirs:           14; files:          200; bytes:   800.000k (819,200)
+04:19:53.043 Starting slave: /root/vdbench/vdbench SlaveJvm -m localhost -n localhost-10-190412-04.19.52.665 -l localhost-0 -p 5576   
+04:19:53.362 Slave localhost-0 (pid  32637) connected to master 32615
+04:19:53.369 All slaves are now connected
+
+Link to Run Definitions:         <A HREF="#_1607460018">format_for_rd1 For loops: None</A>
+                                 <A HREF="#_1811075214">rd1 For loops: None</A>
+
+04:19:53.571 Flushing all reports
+04:19:53.573 slv=localhost-0 fwd=format fsd=fsd1 anchor=/xcp/src1/f3 threads= 8 skew= 0.00 operation=read 
+04:19:53.612 Waiting for synchronization of all slaves
+04:19:54.126 Synchronization of all slaves complete
+
+<a name="_1607460018"></a><i><b>04:19:55.009 Starting RD=format_for_rd1</b></i>
+
+04:19:55.291 localhost-0: anchor=/xcp/src1/f3 mkdir complete.
+04:19:55.362 localhost-0: anchor=/xcp/src1/f3 create complete.
+Apr 12, 2019 ..Interval.. .ReqstdOps... ...cpu%...  read ....read..... ....write.... ..mb/sec... mb/sec .xfer.. ...mkdir.... ...rmdir.... ...create... ....open.... ...close.... ...delete...
+                            rate   resp total  sys   pct   rate   resp   rate   resp  read write  total    size  rate   resp  rate   resp  rate   resp  rate   resp  rate   resp  rate   resp
+04:19:56.095            1    6.7  0.117  17.1 4.23   0.0    0.0  0.000    6.7  0.117  0.00  0.03   0.03    4096   0.5  0.329   0.0  0.000   6.7  2.503   6.7  0.551   6.7  0.009   0.0  0.000
+04:19:56.142      avg_2-1    NaN  0.000   NaN  NaN   0.0    NaN  0.000    NaN  0.000   NaN   NaN    NaN       0   NaN  0.000   NaN  0.000   NaN  0.000   NaN  0.000   NaN  0.000   NaN  0.000
+04:19:56.145      std_2-1                                                                                                                                                                    
+04:19:56.150      max_2-1                                                                                                                                                                    
+04:19:56.278 
+04:19:56.278 Miscellaneous statistics:
+04:19:56.278 (These statistics do not include activity between the last reported interval and shutdown.)
+04:19:56.279 FILE_CREATES        Files created:                                  200          6/sec
+04:19:56.279 DIRECTORY_CREATES   Directories created:                             14          0/sec
+04:19:56.279 WRITE_OPENS         Files opened for write activity:                200          6/sec
+04:19:56.280 DIR_EXISTS          Directory may not exist (yet):                    5          0/sec
+04:19:56.280 FILE_CLOSES         Close requests:                                 200          6/sec
+04:19:56.280 
+04:19:56.280 Flushing all reports
+04:19:56.281 Java Heap in MB. max:  494.938; current:   61.875; used:   30.776; free:   31.099
+04:19:56.307 slv=localhost-0 fwd=fwd1 fsd=fsd1 anchor=/xcp/src1/f3 threads= 6 skew= 0.00 operation=read 
+04:19:56.312 Waiting for synchronization of all slaves
+04:19:56.415 Synchronization of all slaves complete
+
+<a name="_1811075214"></a><i><b>04:19:57.001 Starting RD=rd1; elapsed=36000; fwdrate=max. For loops: None</b></i>
+

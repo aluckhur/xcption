@@ -714,8 +714,7 @@ def create_status (reporttype,displaylogs=False):
 					baseline_job_name = jobdetails['baseline_job_name']
 					sync_job_name     = jobdetails['sync_job_name']
 					scan_job_name     = jobdetails['scan_job_name']
-					rescan_job_name   = jobdetails['rescan_job_name']					
-					xcpindexname      = jobdetails['xcpindexname']			
+					rescan_job_name   = jobdetails['rescan_job_name']						
 					jobcron           = jobdetails['cron']
 
 					baselinejobstatus = '-'
@@ -877,6 +876,8 @@ def create_status (reporttype,displaylogs=False):
 						print "DST:"+dst
 						print "SYNC CRON:"+jobcron
 					 	print "NEXT SYNC:"+syncsched
+					 	print "XCP INDEX NAME:"+xcpindexname
+					 	print ""
 
 					 	#for baseline 
 					 	if baselinejob and baselinealloc:
@@ -1068,7 +1069,7 @@ def update_nomad_job_status(action):
 
 			#check if job dir exists
 			if not os.path.exists(jobdir):
-				logging.error("job config directory:" + jobdir + " not exists. please init first") 
+				logging.error("job config directory:" + jobdir + " not exists. please use 'sload' first") 
 				exit (1)
 					
 			for src in jobsdict[jobname]:
@@ -1088,7 +1089,7 @@ def update_nomad_job_status(action):
 						job = ''
 					
 					if not job:
-						logging.warning("job name:"+nomadjobname+" doesn't exists") 
+						logging.warning("sync was not initialized for src:"+src+". please use 'sync' first") 
 					
 					else:
 						baselinestatus = check_baseline_job_status(baselinejobname)
@@ -1583,10 +1584,9 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 				unmountdir(tempmountpointdst)
 				exit(1)		
 			if depth > 1:
-				depthrsync = '/*'
+				depthrsync = ''
 				for x in xrange(depth):
 					depthrsync += '/*'
-				print depthrsync
 				rsynccmd = 'rsync -av --stats --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
 				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
 				logging.info("rsync command to sync directory structure for the required depth will be:")
