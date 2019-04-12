@@ -127,7 +127,6 @@ Example of running asses for the above filesystem:
 user@master:~/xcption$ sudo ./xcption.py assess -s 192.168.100.2:/xcp/src -d 192.168.100.2:/xcp/dst -l 2 -c example/src.csv -j src_job
 2019-04-12 10:26:12,044 - INFO - destination dir: 192.168.100.2:/xcp/dst/ for source dir: 192.168.100.2:/xcp/src/ already exists but empty
 2019-04-12 10:26:12,049 - INFO - job csv file:example/src.csv created
-/*/*/*
 2019-04-12 10:26:12,049 - INFO - rsync can be used to create the destination initial directory structure for xcption jobs
 2019-04-12 10:26:12,049 - INFO - rsync command to sync directory structure for the required depth will be:
 2019-04-12 10:26:12,049 - INFO - rsync -av --stats --exclude="/*/*/*" "/tmp/src_15693/" "/tmp/dst_15693/"
