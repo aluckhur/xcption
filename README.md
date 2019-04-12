@@ -63,9 +63,9 @@ optional arguments:
 
 ```
 
-****There are 2 options to create xcption jobs: 
-****1.  manual csv creation 
-****2.  automatic assessment of existing filesystem 
+**There are 2 options to create xcption jobs: **
+1.  manual csv creation 
+2.  automatic assessment of existing filesystem 
 
 ****manual CSV creation**
 
