@@ -87,17 +87,17 @@ Automatic assessment of the source file, preperation of the destination filesyte
 
 for example if our source volume directory structure 
 
-> ├── folder1
-> │   ├── subfolder1
-> │   ├── subfolder2
-> │   └── subfolder3
-> ├── folder2
-> │   ├── subfolder1
-> │   ├── subfolder2
-> │   └── subfolder3
-> └── folder3
->     ├── subfolder1
->     └── subfolder2
+> ├── folder1  
+> │   ├── subfolder1  
+> │   ├── subfolder2  
+> │   └── subfolder3  
+> ├── folder2  
+> │   ├── subfolder1  
+> │   ├── subfolder2  
+> │   └── subfolder3  
+> └── folder3  
+>     ├── subfolder1  
+>     └── subfolder2  
 
 **example for the CSV file:**
 
