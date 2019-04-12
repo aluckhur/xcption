@@ -1559,7 +1559,7 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 				warning=True  
 
 			#create xcption job entry
-			print depth,currentdepth,dircount,nfssrcpath,path
+			#print depth,currentdepth,dircount,nfssrcpath,path
 			if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ "will be configured as xcp job")
 				#append data to csv 
@@ -1590,8 +1590,8 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 				rsynccmd = 'rsync -av --stats --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
 				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
 				logging.info("rsync command to sync directory structure for the required depth will be:")
-				logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
 				logging.info(rsynccmd)
+				logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
 				if query_yes_no("do you want to run rsync ?", default="no"): 
 					end=False 
 					logging.info("=================================================================")
