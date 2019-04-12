@@ -62,11 +62,11 @@ optional arguments:
   -d, --debug           log debug messages to console
 
 ```
-#There are 2 options to create xcption jobs: 
+##There are 2 options to create xcption jobs: 
 1.  manual csv creation 
 2.  automatic assessment of existing filesystem 
 
-**manual CSV creation**
+##manual CSV creation**
 
 a CSV file with the jobs should be created with the following columns:
 
@@ -85,7 +85,7 @@ test2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/4 * * * *,100,800
 test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
 ```
 
-**assessment of existing filesystem**
+##assessment of existing filesystem**
 Automatic assessment of the source file, preperation of the destination filesytem and creation of the csv file can be achived using the `assess` command.
 
 for example if our source file system directory structure upto depth of 2 look as follows (bellow the subfolders we have many other file adn directorye). 
