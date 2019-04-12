@@ -77,6 +77,7 @@ parser_sync     = subparser.add_parser('sync',     help='start schedule updates 
 parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
 parser_pause    = subparser.add_parser('pause',    help='disable sync schedule')
 parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
+parser_verify   = subparser.add_parser('verify',   help='start verify to validate consistancy between source and destination (xcp verify)')
 #parser_scan     = subparser.add_parser('scan',     help='scan fielsystem')
 #parser_rescan   = subparser.add_parser('rescan',   help='rescan fielsystem')
 parser_delete   = subparser.add_parser('delete',   help='delete existing config')
@@ -90,7 +91,7 @@ parser_status.add_argument('-l','--logs',help="display xcp logs", required=False
 
 parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_assess.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
-parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 0-10",required=True,type=int)
+parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_assess.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
 parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
