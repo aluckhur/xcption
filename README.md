@@ -62,11 +62,12 @@ optional arguments:
   -d, --debug           log debug messages to console
 
 ```
-##There are 2 options to create xcption jobs: 
-1.  manual csv creation 
-2.  automatic assessment of existing filesystem 
 
-##manual CSV creation**
+****There are 2 options to create xcption jobs: 
+****1.  manual csv creation 
+****2.  automatic assessment of existing filesystem 
+
+****manual CSV creation**
 
 a CSV file with the jobs should be created with the following columns:
 
