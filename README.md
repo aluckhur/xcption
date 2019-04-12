@@ -63,7 +63,7 @@ optional arguments:
 
 ```
 
-**There are 2 options to create xcption jobs: **
+**There are 2 options to create xcption jobs:**
 
 **1.  manual CSV creation**
 
