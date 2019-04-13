@@ -1,6 +1,0 @@
---2019-04-12 19:15:46--  http://localhost:4646/v1/client/fs/logs/f6df59c1-3500-c229-92f0-ead644e6aa82?task=verify
-Resolving localhost (localhost)... 127.0.0.1
-Connecting to localhost (localhost)|127.0.0.1|:4646... connected.
-HTTP request sent, awaiting response... 500 Internal Server Error
-2019-04-12 19:15:46 ERROR 500: Internal Server Error.
-
