@@ -519,14 +519,22 @@ def start_nomad_jobs(action):
 							baselinejobname = jobdetails['baseline_job_name']
 							baselinestatus = check_baseline_job_status(baselinejobname)
 							
-							#if sync job and baseline was not started disable schedule 
-							if action == 'sync' or action == 'verify':
+							#if sync job and baseline was not started disable schedule for sync 
+							if action == 'sync':
 								if baselinestatus != 'Baseline Is Complete':
-									logging.warning(action+" will be paused:"+baselinestatus)									
+									logging.warning(action+" will be paused:"+baselinestatus.lower())									
 									nomadjobdict["Job"]["Stop"] = True
 								else:
 									logging.debug("baseline is completed, can start "+action)
-							
+
+							#if sync job and baseline was not started disable schedule for sync 
+							if action == 'verify' or action == 'verify':
+								if baselinestatus != 'Baseline Is Complete':
+									logging.warning(action+" is not possiable:"+baselinestatus.lower())									
+									continue
+								else:
+									logging.debug("baseline is completed, can start "+action)
+
 
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
@@ -559,7 +567,7 @@ def parse_stats_from_log (type,name,task='none'):
 				content = f.read()
 				lines = content.splitlines()
 				if lines: 
-					lastline = lines[-1]
+					#lastline = lines[-1]
 					results['content'] = content
 		except:
 			logging.error("cannot read log file:"+logfilepath)	
@@ -571,13 +579,19 @@ def parse_stats_from_log (type,name,task='none'):
 			logging.debug("log for job:"+allocid+" is avaialble using api")								
 			lines = response.content.splitlines()
 			if lines:
-				lastline = lines[-1]
-			results['content'] = response.content
+				#lastline = lines[-1]
+				results['content'] = response.content
 		else:
 			logging.debug("log for job:"+allocid+" is not avaialble using api")																								
 
+	if results['content'] != '':
+		matchObj = re.finditer("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)? scanned.+)$",results['content'],re.M|re.I)
+		if matchObj:
+			for matchNum, match in enumerate(matchObj, start=1):
+				lastline = match.group()
+				results['lastline'] = lastline
+
 	if lastline:
-		#print lastline
 		matchObj = re.search("\s+(\S*\d+s)(\.)?$", lastline, re.M|re.I)
 		if matchObj: 
 			results['time'] = matchObj.group(1)
@@ -617,7 +631,7 @@ def parse_stats_from_log (type,name,task='none'):
 			results['found'] = matchObj.group(1)
 			results['withdata'] = matchObj.group(2)
 			if results['found'] == '100%': 
-				results['verifiedcount']='yes'
+				results['verified']='yes'
 				results['found']=results['scanned']
 		
 		matchObj = re.search("100\% verified \(attrs, mods\)", lastline, re.M|re.I)
@@ -701,7 +715,7 @@ def create_status (reporttype,displaylogs=False):
 	
 	#build the table object
 	table = PrettyTable()
-	table.field_names = ["Job","Source Path","Dest Path","BL Status","BL Time","BL Sent","SY Status","Next SY","SY Time","SY Sent","SY#"]#,"VR#","VR Status"]
+	table.field_names = ["Job","Source Path","Dest Path","BL Status","BL Time","BL Sent","SY Status","Next SY","SY Time","SY Sent","SY#","VR Status","VR Ratio","VR#"]
 	rowcount = 0
 	
 	for jobname in jobsdict:
@@ -727,19 +741,11 @@ def create_status (reporttype,displaylogs=False):
 					verify_job_name   = jobdetails['verify_job_name']
 					jobcron           = jobdetails['cron']
 
+					#baseline job information
 					baselinejobstatus = '-'
 					baselinestatus = '-'
 					baselinesent = '-'
-
-					baselinetime   = '-'
-
-					syncstatus   = '- '
-					synctime     = '- '
-					nodename     = '- '
-					syncsched    = get_next_cron_time(jobcron)
-					syncsent     = '-'
-
-					#baseline job information
+					baselinetime   = '-'					
 					baselinefound = False
 					#location for the cache dir for baseline  
 					baselinecachedir = os.path.join(cachedir,'job_'+baseline_job_name)
@@ -784,6 +790,11 @@ def create_status (reporttype,displaylogs=False):
 
 
 					#gather sync related info
+					syncstatus   = '- '
+					synctime     = '- '
+					nodename     = '- '
+					syncsched    = get_next_cron_time(jobcron)
+					syncsent     = '-'
 					joblastdetails = {}
 					alloclastdetails = {}
 					syncjobsstructure = {}
@@ -871,9 +882,99 @@ def create_status (reporttype,displaylogs=False):
 							for node in nodes:
 								if node['ID'] == nodeid: nodename = node['Name']
 
+
+					#gather verify related info
+					verifyratio = '- '
+					verifystatus = '- '
+					verifytime = '- '
+					verifyjoblastdetails = {}
+					verifyalloclastdetails = {}
+					verifyjobsstructure = {}
+					verifyperiodiccounter = 0
+					verifyallocperiodiccounter = 0
+					verifycounter = 0
+					verifyjobfound = False
+					#location for the cache dir for verify 
+					verifycachedir     = os.path.join(cachedir,'job_'+verify_job_name)					
+
+					if not os.path.exists(verifycachedir): 
+						logging.debug('cannot find job cache dir:'+verifycachedir)
+					else:			
+						for file in os.listdir(verifycachedir):
+							if file == 'job_'+verify_job_name+'.json':
+								verifyjobfound = True
+								verifycachefile = os.path.join(verifycachedir,file)
+								with open(verifycachefile) as f:
+									logging.debug('loading cached info job file:'+verifycachefile)
+									jobdata = json.load(f)
+									if jobdata['Stop']: verifysched = 'paused'
+									if not verifyjobsstructure.has_key('job'):
+										verifyjobsstructure['job'] = {}
+									verifyjobsstructure['job'] = jobdata
+
+							if file.startswith("periodic-"):
+								verifycachefile = os.path.join(verifycachedir,file)
+								with open(verifycachefile) as f:
+									logging.debug('loading cached info periodic file:'+verifycachefile)
+									jobdata = json.load(f)
+									if file.split('-')[1] > verifyperiodiccounter:										
+										verifystatus = jobdata['Status']
+										verifyjoblastdetails = jobdata
+										verifyperiodiccounter = file.split('-')[1]
+									if not verifyjobsstructure.has_key('periodics'):
+										verifyjobsstructure['periodics'] = {}
+									verifyjobsstructure['periodics'][jobdata['ID']] = {}											
+									verifyjobsstructure['periodics'][jobdata['ID']] = jobdata
+									verifycounter+=1
+
+							if file.startswith("alloc_"):
+								verifyalloccachefile = os.path.join(verifycachedir,file)
+								with open(verifyalloccachefile) as f:
+									logging.debug('loading cached info alloc file:'+verifyalloccachefile)
+									allocdata = json.load(f)
+									if allocdata['CreateTime'] > verifyallocperiodiccounter:
+										verifyallocperiodiccounter = allocdata['CreateTime'] 
+										verifyalloclastdetails = allocdata
+									if not verifyjobsstructure.has_key('allocs'):
+										verifyjobsstructure['allocs'] = {}										
+									verifyjobsstructure['allocs'][allocdata['ID']] = {}
+									verifyjobsstructure['allocs'][allocdata['ID']] = allocdata
+
+							if file.startswith("log_"):
+								verifylogcachefile = os.path.join(verifycachedir,file)
+								logallocid = file.replace('log_','').replace('.log','')
+								logging.debug('loading cached info log file:'+verifylogcachefile)
+								statsresults = parse_stats_from_log('file',verifylogcachefile)
+								if 'time' in statsresults.keys(): 
+									verifytime = statsresults['time']
+								if 'bwout' in statsresults.keys(): 
+									verifysent = statsresults['bwout']
+								if 'found' in statsresults.keys(): 
+									verifyratio = statsresults['found']+'/'+statsresults['scanned']	
+								if not verifyjobsstructure.has_key('logs'):
+									verifyjobsstructure['logs'] = {}
+								verifyjobsstructure['logs'][logallocid] = {}										
+								verifyjobsstructure['logs'][logallocid] = statsresults
+
+					if not verifyjobfound: verifysched = '-'
+			
+					if verifyalloclastdetails: 
+						logging.debug("verify job name:"+verify_job_name+" lastjobid:"+verifyjoblastdetails['ID']+' allocjobid:'+verifyalloclastdetails['ID'])
+
+						verifylogcachefile = os.path.join(verifycachedir,'log_'+verifyalloclastdetails['ID']+'.log')
+						statsresults = parse_stats_from_log('file',verifylogcachefile)
+						if 'time' in statsresults.keys(): verifytime = statsresults['time']
+						if 'lastline' in statsresults.keys(): verifylastline = statsresults['lastline']
+						if 'found' in statsresults.keys(): verifyratio = statsresults['found']+'/'+statsresults['scanned']						
+						verifystatus =  verifyalloclastdetails['ClientStatus']
+						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
+						#if verifystatus == 'failed' and (statsresults['found'] != statsresults['scanned']): verifystatus =  'diff'
+						#if verifystatus == 'complete': verifystatus = 'idle'
+						#if verifystatus == 'idle' and (statsresults['found'] == statsresults['scanned']): verifystatus =  'equal'
+
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
 					syncsentshort = re.sub("\(.+\)","",syncsent)
-					table.add_row([jobname,src,truncate_middle(dst,30),baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter])
+					table.add_row([jobname,src,truncate_middle(dst,30),baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifyratio,verifycounter])
 					rowcount += 1
 
 
