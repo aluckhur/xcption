@@ -1,0 +1,40 @@
+XCP 1.4-17914d6; (c) 2019 NetApp, Inc.; Licensed to haim marko [NetApp Inc] until Sat Jun  1 00:44:36 2019
+USAGE
+  xcp show [options] hosts
+  xcp [scan] [options] path
+  xcp copy/verify [options] source_path target_path
+  xcp sync/resume [options] -id name
+
+  Path format
+    server:export[:subdirectory]
+
+  Multipath format
+    server1addr1,server1addr2,...:export[:subdirectory]
+
+  Documentation
+    commands and options: xcp help [command]
+    features, performance tuning, examples: xcp help info
+
+EXAMPLES
+  Query a server to see its RPC services and NFS exports;
+  print a human-readable tree report for one of the NFS exports;
+  and list all the files from the root of a subdirectory:
+
+    xcp show server.abc.com
+    xcp scan -stats server.abc.com:/tmp
+    xcp scan -l server.abc.com:/tmp:/test
+
+  Copy from a local SAN or DAS filesystem (requires local NFS service):
+
+    sudo xcp copy localhost:/home/smith cdot:/target
+  
+  Three-level verification: compare stats, attributes, and full data:
+    sudo xcp verify -stats localhost:/home/smith cdot:/target
+    sudo xcp verify -nodata localhost:/home/smith cdot:/target
+    sudo xcp verify localhost:/home/smith cdot:/target
+
+  Please run "xcp help" to see the commands and options
+  Please run "xcp help info" to see the user guide, including more examples...
+
+xcp usage error: verify: invalid path '1'
+verify: invalid path '1'

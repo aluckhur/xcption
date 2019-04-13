@@ -1,9 +1,4 @@
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-src_job,192.168.100.2:/xcp/src/folder2/subfolder2,192.168.100.2:/xcp/dst/folder2/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder2/subfolder3,192.168.100.2:/xcp/dst/folder2/subfolder3,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder2/subfolder1,192.168.100.2:/xcp/dst/folder2/subfolder1,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder2,192.168.100.2:/xcp/dst/folder1/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder3,192.168.100.2:/xcp/dst/folder1/subfolder3,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder1,192.168.100.2:/xcp/dst/folder1/subfolder1,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder3/subfolder2,192.168.100.2:/xcp/dst/folder3/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder3/subfolder1,192.168.100.2:/xcp/dst/folder3/subfolder1,0 0 * * * *,3000,800
+job1020,192.168.100.2:/xcp/src/folder2,192.168.100.2:/xcp/dst/folder2,0 0 * * * *,3000,800
+job1020,192.168.100.2:/xcp/src/folder1,192.168.100.2:/xcp/dst/folder1,0 0 * * * *,3000,800
+job1020,192.168.100.2:/xcp/src/folder3,192.168.100.2:/xcp/dst/folder3,0 0 * * * *,3000,800
