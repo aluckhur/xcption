@@ -112,6 +112,10 @@ parser_pause.add_argument('-s','--source',help="change the scope of the command 
 parser_resume.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_resume.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
+parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
@@ -719,7 +723,7 @@ def create_status (reporttype,displaylogs=False):
 	
 	#build the table object
 	table = PrettyTable()
-	table.field_names = ["Job","Source Path","Dest Path","BL Status","BL Time","BL Sent","SY Status","Next SY","SY Time","SY Sent","SY#","VR Status","VR Ratio","VR#"]
+	table.field_names = ["Job","Source Path","Dest Path","BL Status","BL Time","BL Sent","SY Status","Next SY","SY Time","SY Sent","SY#","VR Status","VR Start","VR Ratio","VR#"]
 	rowcount = 0
 	
 	for jobname in jobsdict:
@@ -898,6 +902,7 @@ def create_status (reporttype,displaylogs=False):
 					verifyallocperiodiccounter = 0
 					verifycounter = 0
 					verifyjobfound = False
+					verifystarttime = '- '
 					#location for the cache dir for verify 
 					verifycachedir     = os.path.join(cachedir,'job_'+verify_job_name)					
 
@@ -979,9 +984,16 @@ def create_status (reporttype,displaylogs=False):
 						except:
 							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
 
+			 			try:
+			 				verifystarttime = verifyalloclastdetails['TaskStates']['verify']['StartedAt']
+			 				verifystarttime = verifystarttime.split('T')[0]+' '+verifystarttime.split('T')[1].split('.')[0]
+			 			except:
+			 				verifystarttime = '-'
+
+
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
 					syncsentshort = re.sub("\(.+\)","",syncsent)
-					table.add_row([jobname,src,truncate_middle(dst,30),baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifyratio,verifycounter])
+					table.add_row([jobname,src,truncate_middle(dst,30),baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter])
 					rowcount += 1
 
 
@@ -989,7 +1001,7 @@ def create_status (reporttype,displaylogs=False):
 					if reporttype == 'verbose':
 						#building verbose details table for the job
 						verbosetable = PrettyTable()
-						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Verified','Data Sent','Node','Status']
 
 						#print general information 
 					 	print "JOB: "+jobname
@@ -1044,6 +1056,8 @@ def create_status (reporttype,displaylogs=False):
 				 			except:
 				 				errors = '0'
 
+				 			verifyratio = '-'
+
 				 			try:
 				 				sent = baselinestatsresults['bwout']
 				 			except:
@@ -1066,7 +1080,7 @@ def create_status (reporttype,displaylogs=False):
 
 
 							if not phasefilter or phasefilter == task:
-				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,sent,nodename,baselinestatus])
+				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,verifyratio,sent,nodename,baselinestatus])
 				 				if displaylogs:
 									verbosetable.border = False
 									verbosetable.align = 'l'
@@ -1079,12 +1093,21 @@ def create_status (reporttype,displaylogs=False):
 									print ""
 									print ""
 									verbosetable = PrettyTable()
-									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Verified','Data Sent','Node','Status']
+
+						#pp.pprint(verifyjobsstructure['periodics']['verify_job28039_192.168.100.2-_xcp_src2/periodic-1555272886'])
+						#exit(1)
+						
+						syncjobsstructure['periodics'].update(verifyjobsstructure['periodics'])
+						syncjobsstructure['allocs'].update(verifyjobsstructure['allocs'])
+						syncjobsstructure['logs'].update(verifyjobsstructure['logs'])
 
 					 	#for each periodic 
-					 	counter = 1
+					 	synccounter = 1
+					 	verifycounter = 1
 					 	if 'periodics' in syncjobsstructure.keys():
 						 	for periodic in sorted(syncjobsstructure['periodics'].keys()):
+
 						 		currentperiodic = syncjobsstructure['periodics'][periodic]
 						 		for allocid in syncjobsstructure['allocs']:
 						 			if syncjobsstructure['allocs'][allocid]['JobID'] == periodic:
@@ -1093,17 +1116,26 @@ def create_status (reporttype,displaylogs=False):
 						 				if allocid in syncjobsstructure['logs'].keys():
 						 					currentlog = syncjobsstructure['logs'][allocid]
 
-						 				task = 'sync' + str(counter)
-						 				counter+=1
+						 				tasktype = ''
+						 				if periodic.startswith('sync'):   
+						 					task = 'sync' + str(synccounter)
+						 					tasktype = 'sync'
+						 					synccounter+=1
+						 				if periodic.startswith('verify'): 
+						 					task = 'verify'+str(verifycounter)
+						 					verifycounter+=1
+						 					tasktype = 'verify'
+
+						 				
 
 							 			try:
-							 				starttime = currentalloc['TaskStates']['sync']['StartedAt']
+							 				starttime = currentalloc['TaskStates'][tasktype]['StartedAt']
 							 				starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]
 							 			except:
 							 				starttime = '-'
 
 							 			try:
-							 				endtime = currentalloc['TaskStates']['sync']['FinishedAt']
+							 				endtime = currentalloc['TaskStates'][tasktype]['FinishedAt']
 							 				endtime = endtime.split('T')[0]+' '+endtime.split('T')[1].split('.')[0]
 							 			except:
 							 				endtime = '-'
@@ -1139,6 +1171,11 @@ def create_status (reporttype,displaylogs=False):
 							 				errors = '0'	
 
 							 			try:
+							 				verifyratio = currentlog['found']+'/'+currentlog['scanned']
+							 			except:
+							 				verifyratio = '-'
+
+							 			try:
 							 				sent = currentlog['bwout']
 							 			except:
 							 				sent = '-'
@@ -1158,11 +1195,11 @@ def create_status (reporttype,displaylogs=False):
 											syncstatus = '-'
 										
 										if not phasefilter or phasefilter == task:
-						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,sent,nodename,syncstatus])
+						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,verifyratio,sent,nodename,syncstatus])
 							 				if displaylogs:
 												verbosetable.border = False
 												verbosetable.align = 'l'
-												print verbosetable
+												print verbosetable.get_string(sortby="Start Time")
 												print ""
 												try:
 													print currentlog['content']
@@ -1171,12 +1208,12 @@ def create_status (reporttype,displaylogs=False):
 												print ""
 												print ""
 												verbosetable = PrettyTable()
-												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Data Sent','Node','Status',]
+												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Verified','Data Sent','Node','Status',]
 
 						#print the table 
 						verbosetable.border = False
 						verbosetable.align = 'l'
-						print verbosetable
+						print verbosetable.get_string(sortby="Start Time")
 						print ""
 						print ""
 
