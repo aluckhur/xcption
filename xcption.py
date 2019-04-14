@@ -571,6 +571,7 @@ def parse_stats_from_log (type,name,task='none'):
 					results['content'] = content
 		except:
 			logging.error("cannot read log file:"+logfilepath)	
+
 	elif type == 'alloc':						
 		#try to get the log file using api
 		allocid = name
@@ -585,7 +586,7 @@ def parse_stats_from_log (type,name,task='none'):
 			logging.debug("log for job:"+allocid+" is not avaialble using api")																								
 
 	if results['content'] != '':
-		matchObj = re.finditer("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)? scanned.+)$",results['content'],re.M|re.I)
+		matchObj = re.finditer("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)? [scanned|reviewed].+)$",results['content'],re.M|re.I)
 		if matchObj:
 			for matchNum, match in enumerate(matchObj, start=1):
 				lastline = match.group()
@@ -647,7 +648,6 @@ def parse_stats_from_log (type,name,task='none'):
 		if matchObj:
 			results['diffmodtime'] = matchObj.group(1)
 
-
 	return results
 
 #get the next cron run in human readable 
@@ -694,7 +694,11 @@ def create_status (reporttype,displaylogs=False):
 	jobs = {}
 	allocs = {}
 	nodes = {}
-	
+
+
+	#if display logs then print verbose 
+	if displaylogs==True: reporttype = 'verbose' 	
+
 	try:
 		jobs  = n.jobs.get_jobs()
 	except:
@@ -749,7 +753,7 @@ def create_status (reporttype,displaylogs=False):
 					baselinefound = False
 					#location for the cache dir for baseline  
 					baselinecachedir = os.path.join(cachedir,'job_'+baseline_job_name)
-					statsresults ={}
+					baselinestatsresults ={}
 					#baseline objects 
 					baselinejob={}
 					baselinealloc={}
@@ -778,12 +782,11 @@ def create_status (reporttype,displaylogs=False):
 							if file.startswith("log_"):
 								baselinelogcachefile = os.path.join(baselinecachedir,file)
 								logging.debug('loading cached info log file:'+baselinelogcachefile)
-								statsresults = parse_stats_from_log('file',baselinelogcachefile)
-								if 'time' in statsresults.keys(): 
-									baselinetime = statsresults['time']
-									baselinelog = statsresults
-								if 'bwout' in statsresults.keys(): 
-									baselinesent = statsresults['bwout']
+								baselinestatsresults = parse_stats_from_log('file',baselinelogcachefile)
+								if 'time' in baselinestatsresults.keys(): 
+									baselinetime = baselinestatsresults['time']
+								if 'bwout' in baselinestatsresults.keys(): 
+									baselinesent = baselinestatsresults['bwout']
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
@@ -890,6 +893,7 @@ def create_status (reporttype,displaylogs=False):
 					verifyjoblastdetails = {}
 					verifyalloclastdetails = {}
 					verifyjobsstructure = {}
+					verifystatsresults = {}
 					verifyperiodiccounter = 0
 					verifyallocperiodiccounter = 0
 					verifycounter = 0
@@ -944,17 +948,17 @@ def create_status (reporttype,displaylogs=False):
 								verifylogcachefile = os.path.join(verifycachedir,file)
 								logallocid = file.replace('log_','').replace('.log','')
 								logging.debug('loading cached info log file:'+verifylogcachefile)
-								statsresults = parse_stats_from_log('file',verifylogcachefile)
-								if 'time' in statsresults.keys(): 
-									verifytime = statsresults['time']
-								if 'bwout' in statsresults.keys(): 
-									verifysent = statsresults['bwout']
-								if 'found' in statsresults.keys(): 
-									verifyratio = statsresults['found']+'/'+statsresults['scanned']	
+								verifystatsresults = parse_stats_from_log('file',verifylogcachefile)
+								if 'time' in verifystatsresults.keys(): 
+									verifytime = verifystatsresults['time']
+								if 'bwout' in verifystatsresults.keys(): 
+									verifysent = verifystatsresults['bwout']
+								if 'found' in verifystatsresults.keys(): 
+									verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']	
 								if not verifyjobsstructure.has_key('logs'):
 									verifyjobsstructure['logs'] = {}
 								verifyjobsstructure['logs'][logallocid] = {}										
-								verifyjobsstructure['logs'][logallocid] = statsresults
+								verifyjobsstructure['logs'][logallocid] = verifystatsresults
 
 					if not verifyjobfound: verifysched = '-'
 			
@@ -962,15 +966,18 @@ def create_status (reporttype,displaylogs=False):
 						logging.debug("verify job name:"+verify_job_name+" lastjobid:"+verifyjoblastdetails['ID']+' allocjobid:'+verifyalloclastdetails['ID'])
 
 						verifylogcachefile = os.path.join(verifycachedir,'log_'+verifyalloclastdetails['ID']+'.log')
-						statsresults = parse_stats_from_log('file',verifylogcachefile)
-						if 'time' in statsresults.keys(): verifytime = statsresults['time']
-						if 'lastline' in statsresults.keys(): verifylastline = statsresults['lastline']
-						if 'found' in statsresults.keys(): verifyratio = statsresults['found']+'/'+statsresults['scanned']						
+						verifystatsresults = parse_stats_from_log('file',verifylogcachefile)
+						if 'time' in verifystatsresults.keys(): verifytime = verifystatsresults['time']
+						if 'lastline' in verifystatsresults.keys(): verifylastline = verifystatsresults['lastline']
+						if 'found' in verifystatsresults.keys(): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
-						#if verifystatus == 'failed' and (statsresults['found'] != statsresults['scanned']): verifystatus =  'diff'
-						#if verifystatus == 'complete': verifystatus = 'idle'
-						#if verifystatus == 'idle' and (statsresults['found'] == statsresults['scanned']): verifystatus =  'equal'
+						try:
+							if verifystatus == 'failed' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
+							if verifystatus == 'complete': verifystatus = 'idle'
+							if verifystatus == 'idle' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
+						except:
+							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
 
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
 					syncsentshort = re.sub("\(.+\)","",syncsent)
@@ -1008,37 +1015,37 @@ def create_status (reporttype,displaylogs=False):
 				 				endtime = '-'
 
 				 			try:
-				 				duration = baselinelog['time']
+				 				duration = baselinestatsresults['time']
 				 			except:
 				 				duration = '-'
 
 				 			try:
-				 				scanned = baselinelog['scanned']
+				 				scanned = baselinestatsresults['scanned']
 				 			except:
 				 				scanned = '0'
 				 				
 				 			try:
-				 				copied = baselinelog['copied']
+				 				copied = baselinestatsresults['copied']
 				 			except:
 				 				copied = '0'
 
 				 			try:
-				 				deleted = baselinelog['gone']
+				 				deleted = baselinestatsresults['gone']
 				 			except:
 				 				deleted = '0'
 
 				 			try:
-				 				modified = baselinelog['modified']
+				 				modified = baselinestatsresults['modified']
 				 			except:
 				 				modified = '0'						 										 				
 
 				 			try:
-				 				errors = baselinelog['errors']
+				 				errors = baselinestatsresults['errors']
 				 			except:
 				 				errors = '0'
 
 				 			try:
-				 				sent = baselinelog['bwout']
+				 				sent = baselinestatsresults['bwout']
 				 			except:
 				 				sent = '-'
 
@@ -1066,7 +1073,7 @@ def create_status (reporttype,displaylogs=False):
 									print verbosetable
 									print ""
 									try:
-										print baselinelog['content']
+										print baselinestatsresults['content']
 									except:
 										print "log is not avaialble"
 									print ""
@@ -1824,7 +1831,7 @@ if args.subparser_name == 'verify':
 
 if args.subparser_name == 'status' and not args.verbose:
 	parse_nomad_jobs_to_files()
-	create_status('general')
+	create_status('general',args.logs)
 if args.subparser_name == 'status' and args.verbose:
 	parse_nomad_jobs_to_files()
 	create_status('verbose',args.logs)
