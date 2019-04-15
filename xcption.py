@@ -1790,7 +1790,7 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 				depthrsync = ''
 				for x in xrange(depth):
 					depthrsync += '/*'
-				rsynccmd = 'rsync -av --stats --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
+				rsynccmd = 'rsync -av --stats --exclude ".snapshot" --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
 				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
 				logging.info("rsync command to sync directory structure for the required depth will be:")
 				logging.info(rsynccmd)
