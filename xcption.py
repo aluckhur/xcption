@@ -77,13 +77,7 @@ parser_sync     = subparser.add_parser('sync',     help='start schedule updates 
 parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
 parser_pause    = subparser.add_parser('pause',    help='disable sync schedule')
 parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
-<<<<<<< HEAD
-#parser_verify   = subparser.add_parser('verify',   help='start verify to validate consistancy between source and destination (xcp verify)')
-#parser_scan     = subparser.add_parser('scan',     help='scan fielsystem')
-#parser_rescan   = subparser.add_parser('rescan',   help='rescan fielsystem')
-=======
 parser_verify   = subparser.add_parser('verify',   help='start verify to validate consistancy between source and destination (xcp verify)')
->>>>>>> verify
 parser_delete   = subparser.add_parser('delete',   help='delete existing config')
 parser_nomad    = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
 
