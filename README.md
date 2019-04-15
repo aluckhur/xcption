@@ -271,10 +271,31 @@ user@master:~/xcption$ sudo ./xcption.py verify
 
 ```
 
-**To see the job status use the `status` command**
+**To report the status use the `status` command**
+
+can be filtered by specific job (-j), source (-s) and phase (-p)
 
 ```
+user@master:~/xcption$ sudo ./xcption.py status -h
+usage: xcption.py status [-h] [-j jobname] [-s srcpath] [-v] [-p phase] [-l]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+  -v, --verbose         provide detailed information
+  -p phase, --phase phase
+                        change the scope of the command to specific phase
+                        (basline,sync#)
+  -l, --logs            display xcp logs
+```
+
+
+Example:
+
+```
 
 user@master:~/xcption# sudo ./xcption.py status
 
@@ -288,7 +309,7 @@ job29786  192.168.100.2:/xcp/src1/f1  192.168.100.2:/xcp/f1  complete   4s      
 
 ```
 
-verbose output. can be filtered by specific job (-j), source (-s) and phase (-p)
+verbose output. 
 
 
 ```
