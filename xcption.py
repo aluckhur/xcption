@@ -1649,11 +1649,16 @@ def list_dirs(startpath,depth):
     for root, dirs, files in os.walk(startpath):
     	dir = root.lstrip(startpath)
     	dir = './'+dir
+    	
+    	if (dir == '.snapshot'):
+    		continue
+    	
     	yield dir,len(dirs),len(files),dirs
         
         num_sep_this = root.count(os.path.sep)
         if num_sep + depth <= num_sep_this:
             del dirs[:]
+
 
 def unmountdir(dir):
 	if subprocess.call( [ 'umount', dir ], stderr=subprocess.STDOUT):
