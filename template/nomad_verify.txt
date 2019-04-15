@@ -35,7 +35,7 @@ job "{{ verify_job_name }}" {
       }	  
       config {
         command = "{{ xcppath }}"
-        args    = ["verify","-noid","-nodata","{{ src }}","{{ dst }}"]
+        args    = ["verify","-v","-noid","-nodata","{{ src }}","{{ dst }}"]
       }
     }
   }
