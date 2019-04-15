@@ -5,20 +5,20 @@ rm -rf /root/xcption/system/xcp_repo/catalog/*
 rm -rf /root/xcption/system/xcp_repo/stats/*
 rm -rf /root/xcption/system/xcp_repo/tmpreports/*
 rm -rf /root/xcption/system/xcp_repo/nomadcache/*
-
 rm -rf /root/xcption/system/xcp_repo/jobs
+rm -rf /root/xcption/system/xcp_repo/*
 rm -rf /mnt/slave1/*
 rm -rf /mnt/slave2/*
 
-for i in {1..20}
-do
-	for j in {1..2}
-	do
-		mkdir /mnt/slave$j/dst$i
-		chmod -R 777 /mnt/slave$j
-
-	done	
-done
+#for i in {1..20}
+#do
+#	for j in {1..2}
+#	do
+#		mkdir /mnt/slave$j/dst$i
+#		chmod -R 777 /mnt/slave$j
+#
+#	done	
+#done
 
 
 if [[ $(nomad status) != "No running jobs" ]]; then
