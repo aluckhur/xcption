@@ -35,6 +35,7 @@ xcprepopath = os.path.join(root,'system','xcp_repo')
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 #cache dir for current state 
 cachedir = os.path.join(xcprepopath,'nomadcache')
+cachedir = '/tmp/nomadcache'
 #file containing loaded jobs 
 jobdictjson = os.path.join(cachedir,'jobs.json')
 #path to nomad bin 
@@ -1098,10 +1099,12 @@ def create_status (reporttype,displaylogs=False):
 
 						#merge sync and verify data 
 						jobstructure=syncjobsstructure.copy()
-										
-						jobstructure['periodics'].update(verifyjobsstructure['periodics'])
-						jobstructure['allocs'].update(verifyjobsstructure['allocs'])
-						jobstructure['logs'].update(verifyjobsstructure['logs'])
+						if 'periodics' in verifyjobsstructure.keys():
+							jobstructure['periodics'].update(verifyjobsstructure['periodics'])
+						if 'allocs' in verifyjobsstructure.keys():
+							jobstructure['allocs'].update(verifyjobsstructure['allocs'])
+						if 'logs' in verifyjobsstructure.keys():
+							jobstructure['logs'].update(verifyjobsstructure['logs'])
 
 					 	#for each periodic 
 					 	synccounter = 1
@@ -1645,19 +1648,18 @@ def parse_nomad_jobs_to_files ():
 
 #walk throuth a dir upto certain depth in the directory tree 
 def list_dirs(startpath,depth):
-    num_sep = startpath.count(os.path.sep)
-    for root, dirs, files in os.walk(startpath):
-    	dir = root.lstrip(startpath)
-    	dir = './'+dir
-    	
-    	if (dir == '.snapshot'):
-    		continue
-    	
-    	yield dir,len(dirs),len(files),dirs
-        
-        num_sep_this = root.count(os.path.sep)
-        if num_sep + depth <= num_sep_this:
-            del dirs[:]
+	num_sep = startpath.count(os.path.sep)
+	for root, dirs, files in os.walk(startpath):
+		dir = root.lstrip(startpath)
+		if (dir.startswith('.snapshot')):
+			del dirs[:]
+			continue
+		else:
+			dir = './'+dir
+			yield dir,len(dirs),len(files),dirs
+			num_sep_this = root.count(os.path.sep)
+			if num_sep + depth <= num_sep_this:
+				del dirs[:]
 
 
 def unmountdir(dir):
@@ -1753,14 +1755,15 @@ def assess_fs(csvfile,src,dst,depth,jobname):
 			else:
 				if os.path.exists(dstpath):
 					dstdirfiles = os.listdir(dstpath)
-
+					print dstdirfiles 
 					if len(dstdirfiles) > 0:
-						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
-						unmountdir(tempmountpointsrc)
-						unmountdir(tempmountpointdst)
-						exit(1)
-					else:
-						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
+						if len(dstdirfiles) > 1 and dstdirfiles[0] != '.snapshot':
+							logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
+							unmountdir(tempmountpointsrc)
+							unmountdir(tempmountpointdst)
+							exit(1)
+						else:
+							logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
 
 			#check if destination directory exists/contains files
 			if dircount > 20:
