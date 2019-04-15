@@ -218,6 +218,7 @@ sudo user@master:~/xcption# ./xcption.py load -c example/test.csv
 2019-03-25 07:02:05,121 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src3
 
 ```
+
 **To run the baseline (xcp copy) the `baseline` command should be used**
 
 
@@ -260,10 +261,7 @@ user@master:~/xcption# sudo ./xcption.py sync -s 192.168.100.2:/xcp/src10
 2019-03-14 15:07:18,663 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src10
 ```
 
-**To see the job status use the `status` command**
-
-```
-verification using xcp verify can be start if a job finished baseline 
+**verification using xcp verify can be start if a job finished baseline 
 
 ```
 user@master:~/xcption$ sudo ./xcption.py verify
@@ -289,7 +287,9 @@ job29786  192.168.100.2:/xcp/src1/f1  192.168.100.2:/xcp/f1  complete   4s      
 
 
 ```
+
 verbose output. can be filtered by specific job (-j), source (-s) and phase (-p)
+
 
 ```
 user@master:~/xcption$ sudo ./xcption.py status -v
