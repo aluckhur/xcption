@@ -35,7 +35,7 @@ xcprepopath = os.path.join(root,'system','xcp_repo')
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 #cache dir for current state 
 cachedir = os.path.join(xcprepopath,'nomadcache')
-cachedir = '/tmp/nomadcache'
+cachedir = '/root/nomadcache'
 #file containing loaded jobs 
 jobdictjson = os.path.join(cachedir,'jobs.json')
 #path to nomad bin 
@@ -1094,16 +1094,22 @@ def create_status (reporttype,displaylogs=False):
 									print ""
 									print ""
 									verbosetable = PrettyTable()
-									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Verified','Data Sent','Node','Status']
+									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 
 						#merge sync and verify data 
 						jobstructure=syncjobsstructure.copy()
 						if 'periodics' in verifyjobsstructure.keys():
+							if not 'periodics' in jobstructure.keys():
+								jobstructure['periodics']={}
 							jobstructure['periodics'].update(verifyjobsstructure['periodics'])
 						if 'allocs' in verifyjobsstructure.keys():
+							if not 'allocs' in jobstructure.keys():
+								jobstructure['allocs']={}							
 							jobstructure['allocs'].update(verifyjobsstructure['allocs'])
 						if 'logs' in verifyjobsstructure.keys():
+							if not 'logs' in jobstructure.keys():
+								jobstructure['logs']={}								
 							jobstructure['logs'].update(verifyjobsstructure['logs'])
 
 					 	#for each periodic 
