@@ -55,6 +55,8 @@ positional arguments:
     syncnow             initiate sync now
     pause               disable sync schedule
     resume              resume sync schedule
+    verify              start verify to validate consistancy between source
+                        and destination (xcp verify)    
     delete              delete existing config
 
 optional arguments:
@@ -239,7 +241,6 @@ user@master:~/xcption# sudo ./xcption.py baseline
 2019-03-26 21:18:13,627 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src3
 ```
 
-
 **To schedule the incremantal updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
 
 ```
@@ -253,7 +254,6 @@ optional arguments:
                         change the scope of the command to specific path
 ```
 
-
 Example:
 ```
 user@master:~/xcption# sudo ./xcption.py sync -s 192.168.100.2:/xcp/src10
@@ -263,76 +263,93 @@ user@master:~/xcption# sudo ./xcption.py sync -s 192.168.100.2:/xcp/src10
 **To see the job status use the `status` command**
 
 ```
+verification using xcp verify can be start if a job finished baseline 
+
+```
+user@master:~/xcption$ sudo ./xcption.py verify
+2019-04-15 07:27:23,691 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f3
+2019-04-15 07:27:23,763 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f2
+2019-04-15 07:27:23,826 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f1
+
+```
+
+**To see the job status use the `status` command**
+
+```
+
+
 user@master:~/xcption# sudo ./xcption.py status
- Job    Source Path              Dest Path                Baseline Status  Baseline Time  Sync Status  Next Sync  Sync Time  Node    Sync #
- test1  192.168.100.2:/xcp/src1  192.168.100.3:/xcp/dst1  complete         1s             idle         00:01:34   1s         slave2  32
- test2  192.168.100.2:/xcp/src2  192.168.100.4:/xcp/dst2  complete         2s             failed       00:03:34   1s         slave2  24
- test2  192.168.100.2:/xcp/src3  192.168.100.4:/xcp/dst3  complete         2s             idle         00:00:34   2s         slave2  19
+
+BL=Baseline CY=Sync VR=Verifya
+
+Job       Source Path                 Dest Path              BL Status  BL Time  BL Sent   SY Status  Next SY   SY Time  SY Sent   SY#  VR Status  VR Start             VR Ratio  VR#
+job29786  192.168.100.2:/xcp/src1/f3  192.168.100.2:/xcp/f3  complete   1s       1023 KiB  idle       16:32:31  0s       54.5 KiB  1    equal      2019-04-15 07:27:23  217/217   2
+job29786  192.168.100.2:/xcp/src1/f2  192.168.100.2:/xcp/f2  complete   1s       60.2 KiB  idle       16:32:31  0s       19.2 KiB  1    equal      2019-04-15 07:27:23  4/4       2
+job29786  192.168.100.2:/xcp/src1/f1  192.168.100.2:/xcp/f1  complete   4s       309 MiB   idle       16:32:31  0s       22.0 KiB  1    diff       2019-04-15 07:27:24  29/30     2
+
 
 ```
-verbose output for specific job
+verbose output. can be filtered by specific job (-j), source (-s) and phase (-p)
 
 ```
-user@master:~/xcption#sudo ./xcption.py status -v -s 192.168.100.2:/xcp/src2
-JOB:test2
-SRC:192.168.100.2:/xcp/src2
-DST:192.168.100.4:/xcp/dst2
-SYNC CRON:*/4 * * * *
-NEXT SYNC:00:02:21
- Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Node    Status
- baseline  2019-03-24 09:49:26  2019-03-24 09:49:28  2s        1,108    1,107   0         0        0       slave2  complete
- sync1     2019-03-24 09:50:15  2019-03-24 09:50:16  1s        1,211    202     0         1,006    0       slave2  complete
- sync2     2019-03-24 09:52:00  2019-03-24 09:52:00  0s        507      202     0         303      0       slave2  complete
- sync3     2019-03-24 09:56:00  2019-03-24 09:56:01  1s        559      353     0         202      0       slave2  complete
- sync4     2019-03-24 10:00:00  2019-03-24 10:00:01  1s        557      202     0         353      0       slave2  complete
- sync5     2019-03-24 10:04:00  2019-03-24 10:04:00  0s        406      202     0         202      0       slave2  complete
- sync6     2019-03-24 10:08:00  2019-03-24 10:08:01  1s        1,321    1,108   0         202      0       slave2  complete
- sync7     2019-03-24 10:12:00  2019-03-24 10:12:01  1s        1,617    504     0         1,108    0       slave2  complete
- sync8     2019-03-24 12:04:26  2019-03-24 12:04:28  1s        1,326    813     0         504      0       slave2  complete
- sync9     2019-03-24 12:08:00  2019-03-24 12:08:01  1s        1,783    968     0         606      0       slave2  complete
- sync10    2019-03-24 12:12:00  2019-03-24 12:12:01  1s        1,592    1,006   0         570      0       slave2  complete
- sync11    2019-03-24 17:16:01  2019-03-24 17:16:02  -         0        0       0         0        0       slave2  failed
- sync12    2019-03-25 06:16:38  2019-03-25 06:16:39  -         0        0       0         0        0       slave2  failed
- sync13    2019-03-25 06:20:00  2019-03-25 06:20:00  -         0        0       0         0        0       slave2  failed
- sync14    2019-03-25 06:24:00  2019-03-25 06:24:00  -         0        0       0         0        0       slave2  failed
- sync15    2019-03-25 06:28:00  2019-03-25 06:28:00  -         0        0       0         0        0       slave2  failed
- sync16    2019-03-25 06:32:00  2019-03-25 06:32:00  -         0        0       0         0        0       slave2  failed
- sync17    2019-03-25 06:36:00  2019-03-25 06:36:00  -         0        0       0         0        0       slave2  failed
- sync18    2019-03-25 06:40:00  2019-03-25 06:40:00  -         0        0       0         0        0       slave2  failed
- sync19    2019-03-25 06:44:00  2019-03-25 06:44:00  -         0        0       0         0        0       slave2  failed
- sync20    2019-03-25 06:48:00  2019-03-25 06:48:00  -         0        0       0         0        0       slave2  failed
- sync21    2019-03-25 06:52:00  2019-03-25 06:52:00  -         0        0       0         0        0       slave2  failed
- sync22    2019-03-25 06:56:00  2019-03-25 06:56:01  -         0        0       0         0        0       slave2  failed
- sync23    2019-03-25 07:00:00  2019-03-25 07:00:00  -         0        0       0         0        0       slave2  failed
- sync24    2019-03-25 07:04:00  2019-03-25 07:04:00  -         0        0       0         0        0       slave2  failed
+user@master:~/xcption$ sudo ./xcption.py status -v
+JOB: job29786
+SRC: 192.168.100.2:/xcp/src1/f3
+DST: 192.168.100.2:/xcp/f3
+SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
+XCP INDEX NAME: 192.168.100.2-_xcp_src1_f3-192.168.100.2-_xcp_f3
+
+Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Data Sent             Node    Status
+baseline  2019-04-15 07:25:48  2019-04-15 07:25:49  1s        217      216     0         0        0       1023 KiB(901 KiB/s)   slave2  complete
+sync1     2019-04-15 07:26:14  2019-04-15 07:26:15  0s        0        0       0         0        0       54.5 KiB(101 KiB/s)   slave2  complete
+verify1   2019-04-15 07:26:56  2019-04-15 07:26:57  1s        217/217  0       0         0        0       31.5 KiB(31.0 KiB/s)  slave2  complete
+verify2   2019-04-15 07:27:23  2019-04-15 07:27:24  0s        217/217  0       0         0        0       31.5 KiB(94.9 KiB/s)  slave2  complete
+
+
+JOB: job29786
+SRC: 192.168.100.2:/xcp/src1/f2
+DST: 192.168.100.2:/xcp/f2
+SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
+XCP INDEX NAME: 192.168.100.2-_xcp_src1_f2-192.168.100.2-_xcp_f2
+
+Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Data Sent             Node    Status
+baseline  2019-04-15 07:25:48  2019-04-15 07:25:49  1s        4        3       0         0        0       60.2 KiB(55.6 KiB/s)  master  complete
+sync1     2019-04-15 07:26:14  2019-04-15 07:26:15  0s        0        0       0         0        0       19.2 KiB(43.0 KiB/s)  master  complete
+verify1   2019-04-15 07:26:56  2019-04-15 07:26:56  0s        4/4      0       0         0        0       2.62 KiB(2.77 KiB/s)  master  complete
+verify2   2019-04-15 07:27:23  2019-04-15 07:27:24  0s        4/4      0       0         0        0       2.62 KiB(9.86 KiB/s)  master  complete
+
+
+JOB: job29786
+SRC: 192.168.100.2:/xcp/src1/f1
+DST: 192.168.100.2:/xcp/f1
+SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
+XCP INDEX NAME: 192.168.100.2-_xcp_src1_f1-192.168.100.2-_xcp_f1
+
+Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors             Data Sent             Node    Status
+baseline  2019-04-15 07:25:48  2019-04-15 07:25:52  4s        29       28      0         0        0                  309 MiB(67.4 MiB/s)   slave1  complete
+sync1     2019-04-15 07:26:15  2019-04-15 07:26:15  0s        0        0       0         0        0                  22.0 KiB(45.3 KiB/s)  slave1  complete
+verify1   2019-04-15 07:26:56  2019-04-15 07:26:57  0s        29/29    0       0         0        0                  7.98 KiB(46.9 KiB/s)  slave1  complete
+verify2   2019-04-15 07:27:24  2019-04-15 07:27:24  0s        29/30    0       0         0        1 (attr:0 time:1)  8.10 KiB(19.5 KiB/s)  slave1  diff
 
 ```
 
 *To see xcp logs for specific phase of a job use th -p <phase> flag**
 
 ```
-user@master:~/xcption# sudo ./xcption.py status -v -s 192.168.100.2:/xcp/src2 -l -p sync11
-JOB:test2
-SRC:192.168.100.2:/xcp/src2
-DST:192.168.100.4:/xcp/dst2
-SYNC CRON:*/4 * * * *
-NEXT SYNC:00:01:11
- Phase   Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Node    Status
- sync11  2019-03-24 17:16:01  2019-03-24 17:16:02  -         0        0       0         0        0       slave2  failed
+user@master:~/xcption# sudo ./xcption.py status -v -s 192.168.100.2:/xcp/src1/f1 -p verify2 -l
+JOB: job29786
+SRC: 192.168.100.2:/xcp/src1/f1
+DST: 192.168.100.2:/xcp/f1
+SYNC CRON: 0 0 * * * * (NEXT RUN 16:31:56)
+XCP INDEX NAME: 192.168.100.2-_xcp_src1_f1-192.168.100.2-_xcp_f1
+
+Phase    Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors             Data Sent             Node    Status
+verify2  2019-04-15 07:27:24  2019-04-15 07:27:24  0s        29/30    0       0         0        1 (attr:0 time:1)  8.10 KiB(19.5 KiB/s)  slave1  diff
 
 XCP 1.4-17914d6; (c) 2019 NetApp, Inc.; Licensed to haim marko [NetApp Inc] until Sat Jun  1 00:44:36 2019
 
 xcp: WARNING: CPU count is only 2!
-xcp: Index: {source: 192.168.100.2:/xcp/src2, target: 192.168.100.4:/xcp/dst2}
-
-
-xcp: mount '192.168.100.2:/xcp/src2': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
-xcp: mount '192.168.100.4:/xcp/dst2': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
-xcp: diff '192.168.100.2-_xcp_src2-192.168.100.4-_xcp_dst2': Found 5 completed directories and 5 in progress
-xcp: sync '192.168.100.2-_xcp_src2-192.168.100.4-_xcp_dst2': 410 reviewed, 1 checked at source, 409 gone, 9 dir.gone, 400 file.gone, 1 modification, 132 KiB in (358 KiB/s), 57.9 KiB out (158 KiB/s), 0s.
-xcp: sync '192.168.100.2-_xcp_src2-192.168.100.4-_xcp_dst2': Starting search pass for 6 modified/in-progress directories...
-xcp: sync phase 2: Rereading the 1 modified/in-progress directory...
-xcp: rd '192.168.100.4:/xcp/dst2' fileid 514531: WARNING: nfs3 READDIRPLUS '192.168.100.4:/xcp/dst2' cookie 0 maxcount 65536: nfs3 error 70: stale filehandle
-xcp: ERROR: nfs3 READDIRPLUS '192.168.100.4:/xcp/dst2' cookie 0 maxcount 65536: nfs3 error 70: stale filehandle
-
-```
+xcp: mount '192.168.100.2:/xcp/src1/f1': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
+xcp: mount '192.168.100.2:/xcp/f1': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
+xcp: compare1 'file': WARNING: (error) source file not found on target: nfs3 LOOKUP 'file' in '192.168.100.2:/xcp/f1/f2': nfs3 error 2: no such file or directory
+30 scanned, 29 found (3 have data), 1 different mod time, 1 error, 22.0 KiB in (53.0 KiB/s), 8.10 KiB out (19.5 KiB/s), 0s.
