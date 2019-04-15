@@ -1,0 +1,126 @@
+<title>Vdbench src1/config.html</title><pre>
+Output from script /root/vdbench/linux/config.sh: 
+
+Mon Apr 15 06:43:39 CDT 2019
+>>>>>uname -a
+Linux server1 4.4.0-116-generic #140-Ubuntu SMP Mon Feb 12 21:23:04 UTC 2018 x86_64 x86_64 x86_64 GNU/Linux
+Mon Apr 15 06:43:39 CDT 2019
+>>>>>ifconfig -a
+ens160    Link encap:Ethernet  HWaddr 00:50:56:9e:48:09  
+          inet addr:10.68.65.60  Bcast:10.68.65.255  Mask:255.255.255.0
+          inet6 addr: fe80::250:56ff:fe9e:4809/64 Scope:Link
+          UP BROADCAST RUNNING MULTICAST  MTU:1500  Metric:1
+          RX packets:273942944 errors:0 dropped:466 overruns:0 frame:0
+          TX packets:131878640 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1000 
+          RX bytes:522074702144 (522.0 GB)  TX bytes:23709774394 (23.7 GB)
+
+lo        Link encap:Local Loopback  
+          inet addr:127.0.0.1  Mask:255.0.0.0
+          inet6 addr: ::1/128 Scope:Host
+          UP LOOPBACK RUNNING  MTU:65536  Metric:1
+          RX packets:796660 errors:0 dropped:0 overruns:0 frame:0
+          TX packets:796660 errors:0 dropped:0 overruns:0 carrier:0
+          collisions:0 txqueuelen:1 
+          RX bytes:70157392 (70.1 MB)  TX bytes:70157392 (70.1 MB)
+
+Mon Apr 15 06:43:39 CDT 2019
+>>>>>id
+uid=0(root) gid=0(root) groups=0(root)
+Mon Apr 15 06:43:39 CDT 2019
+>>>>>mount
+sysfs on /sys type sysfs (rw,nosuid,nodev,noexec,relatime)
+proc on /proc type proc (rw,nosuid,nodev,noexec,relatime)
+udev on /dev type devtmpfs (rw,nosuid,relatime,size=32968508k,nr_inodes=8242127,mode=755)
+devpts on /dev/pts type devpts (rw,nosuid,noexec,relatime,gid=5,mode=620,ptmxmode=000)
+tmpfs on /run type tmpfs (rw,nosuid,noexec,relatime,size=6597760k,mode=755)
+/dev/mapper/ubuntu--hmarko--vg-root on / type ext4 (rw,relatime,errors=remount-ro,data=ordered)
+securityfs on /sys/kernel/security type securityfs (rw,nosuid,nodev,noexec,relatime)
+tmpfs on /dev/shm type tmpfs (rw,nosuid,nodev)
+tmpfs on /run/lock type tmpfs (rw,nosuid,nodev,noexec,relatime,size=5120k)
+tmpfs on /sys/fs/cgroup type tmpfs (ro,nosuid,nodev,noexec,mode=755)
+cgroup on /sys/fs/cgroup/systemd type cgroup (rw,nosuid,nodev,noexec,relatime,xattr,release_agent=/lib/systemd/systemd-cgroups-agent,name=systemd)
+pstore on /sys/fs/pstore type pstore (rw,nosuid,nodev,noexec,relatime)
+cgroup on /sys/fs/cgroup/perf_event type cgroup (rw,nosuid,nodev,noexec,relatime,perf_event)
+cgroup on /sys/fs/cgroup/blkio type cgroup (rw,nosuid,nodev,noexec,relatime,blkio)
+cgroup on /sys/fs/cgroup/cpu,cpuacct type cgroup (rw,nosuid,nodev,noexec,relatime,cpu,cpuacct)
+cgroup on /sys/fs/cgroup/net_cls,net_prio type cgroup (rw,nosuid,nodev,noexec,relatime,net_cls,net_prio)
+cgroup on /sys/fs/cgroup/devices type cgroup (rw,nosuid,nodev,noexec,relatime,devices)
+cgroup on /sys/fs/cgroup/memory type cgroup (rw,nosuid,nodev,noexec,relatime,memory)
+cgroup on /sys/fs/cgroup/cpuset type cgroup (rw,nosuid,nodev,noexec,relatime,cpuset)
+cgroup on /sys/fs/cgroup/hugetlb type cgroup (rw,nosuid,nodev,noexec,relatime,hugetlb)
+cgroup on /sys/fs/cgroup/pids type cgroup (rw,nosuid,nodev,noexec,relatime,pids)
+cgroup on /sys/fs/cgroup/freezer type cgroup (rw,nosuid,nodev,noexec,relatime,freezer)
+debugfs on /sys/kernel/debug type debugfs (rw,relatime)
+hugetlbfs on /dev/hugepages type hugetlbfs (rw,relatime)
+mqueue on /dev/mqueue type mqueue (rw,relatime)
+systemd-1 on /proc/sys/fs/binfmt_misc type autofs (rw,relatime,fd=30,pgrp=1,timeout=0,minproto=5,maxproto=5,direct)
+sunrpc on /run/rpc_pipefs type rpc_pipefs (rw,relatime)
+fusectl on /sys/fs/fuse/connections type fusectl (rw,relatime)
+/dev/sda1 on /boot type ext2 (rw,relatime,block_validity,barrier,user_xattr,acl)
+lxcfs on /var/lib/lxcfs type fuse.lxcfs (rw,nosuid,nodev,relatime,user_id=0,group_id=0,allow_other)
+tmpfs on /run/user/0 type tmpfs (rw,nosuid,nodev,relatime,size=6597760k,mode=700)
+10.68.65.235:/xcp_repo on /root/xcption/system/xcp_repo type nfs (rw,relatime,vers=3,rsize=65536,wsize=65536,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.68.65.235,mountvers=3,mountport=635,mountproto=udp,local_lock=none,addr=10.68.65.235)
+10.68.65.235:/vol1 on /mnt type nfs (rw,relatime,vers=3,rsize=65536,wsize=65536,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,mountaddr=10.68.65.235,mountvers=3,mountport=635,mountproto=udp,local_lock=none,addr=10.68.65.235)
+Mon Apr 15 06:43:39 CDT 2019
+>>>>>memory
+MemTotal:       65977588 kB
+MemFree:        63985896 kB
+MemAvailable:   64899056 kB
+Buffers:          171200 kB
+Cached:          1199036 kB
+SwapCached:            0 kB
+Active:          1185924 kB
+Inactive:         531452 kB
+Active(anon):     354204 kB
+Inactive(anon):    46200 kB
+Active(file):     831720 kB
+Inactive(file):   485252 kB
+Unevictable:        3652 kB
+Mlocked:            3652 kB
+SwapTotal:       1003516 kB
+SwapFree:        1003516 kB
+Dirty:                 0 kB
+Writeback:             0 kB
+AnonPages:        350788 kB
+Mapped:           149892 kB
+Shmem:             50844 kB
+Slab:             116844 kB
+SReclaimable:      87324 kB
+SUnreclaim:        29520 kB
+KernelStack:        3296 kB
+PageTables:         7128 kB
+NFS_Unstable:          0 kB
+Bounce:                0 kB
+WritebackTmp:          0 kB
+CommitLimit:    33992308 kB
+Committed_AS:    1654784 kB
+VmallocTotal:   34359738367 kB
+VmallocUsed:           0 kB
+VmallocChunk:          0 kB
+HardwareCorrupted:     0 kB
+AnonHugePages:    149504 kB
+CmaTotal:              0 kB
+CmaFree:               0 kB
+HugePages_Total:       0
+HugePages_Free:        0
+HugePages_Rsvd:        0
+HugePages_Surp:        0
+Hugepagesize:       2048 kB
+DirectMap4k:       81792 kB
+DirectMap2M:     3063808 kB
+DirectMap1G:    66060288 kB
+              total        used        free      shared  buff/cache   available
+Mem:       65977588      504888    63985620       50844     1487080    64898780
+Low:       65977588     1991968    63985620
+High:             0           0           0
+Swap:       1003516           0     1003516
+Mon Apr 15 06:43:39 CDT 2019
+>>>>>ps -ef | grep -i vdb
+root      2976 27205  0 06:43 pts/1    00:00:00 /bin/bash /root/vdbench/vdbench -f /root/xcption/test/vdbench_nas fanchor=/mnt dirwid=8 numfiles=100 filesize=1m fxfersize=1k thrds=6 etime=10m itime=10 dirdep=3 filrdpct=0 -p 5576 -o src1
+root      2978  2976  0 06:43 pts/1    00:00:00 java -client -Xmx512m -Xms64m -cp /root/vdbench/:/root/vdbench/classes:/root/vdbench/vdbench.jar Vdb.Vdbmain -f /root/xcption/test/vdbench_nas fanchor=/mnt dirwid=8 numfiles=100 filesize=1m fxfersize=1k thrds=6 etime=10m itime=10 dirdep=3 filrdpct=0 -p 5576 -o src1
+root      3001  2978  0 06:43 pts/1    00:00:00 /bin/bash /root/vdbench/vdbench SlaveJvm -m localhost -n localhost-10-190415-06.43.38.408 -l localhost-0 -p 5576
+root      3005  3001  0 06:43 pts/1    00:00:00 java -client -Xmx1024m -Xms128m -cp /root/vdbench/:/root/vdbench/classes:/root/vdbench/vdbench.jar Vdb.SlaveJvm SlaveJvm -m localhost -n localhost-10-190415-06.43.38.408 -l localhost-0 -p 5576
+root      3052  2978  0 06:43 pts/1    00:00:00 /bin/bash /root/vdbench/linux/config.sh -o /root/xcption/src1 localhost
+root      3068  3052  0 06:43 pts/1    00:00:00 grep -i vdb
+
