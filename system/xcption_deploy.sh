@@ -77,12 +77,12 @@ echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement"
 export APT=`command -v apt`
 export YUM=`command -v yum`
 
-if [ -n "$APT" ]; then
-    apt -y update
-    INST_APP="apt"
-elif [ -n "$YUM" ]; then
+if [ -n "$YUM" ]; then
     yum -y update
     INST_APP="yum"
+elif [ -n "$YUM" ]; then
+    apt -y update
+    INST_APP="apt"  
 else
     echo "Error: no path to apt or yum" >&2;
     exit 1;
