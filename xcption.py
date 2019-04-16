@@ -71,28 +71,28 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 
 # create the sub commands 
 parser_status   = subparser.add_parser('status',   help='display status')	
-parser_assess   = subparser.add_parser('assess',   help='assess fielsystem and create csv file')
+parser_asses    = subparser.add_parser('asses',   help='asses fielsystem and create csv file')
 parser_load     = subparser.add_parser('load',     help='load/update configuration from csv file')
 parser_baseline = subparser.add_parser('baseline', help='start baseline (xcp copy)')
 parser_sync     = subparser.add_parser('sync',     help='start schedule updates (xcp sync)')
 parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
 parser_pause    = subparser.add_parser('pause',    help='disable sync schedule')
 parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
-parser_verify   = subparser.add_parser('verify',   help='start verify to validate consistancy between source and destination (xcp verify)')
+parser_verify   = subparser.add_parser('verify',   help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete   = subparser.add_parser('delete',   help='delete existing config')
 parser_nomad    = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
-parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (basline,sync#)", required=False,type=str,metavar='phase')
+parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (baseline,sync#)", required=False,type=str,metavar='phase')
 parser_status.add_argument('-l','--logs',help="display xcp logs", required=False,action='store_true')
 
-parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
-parser_assess.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
-parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
-parser_assess.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
-parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
+parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_asses.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
+parser_asses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
+parser_asses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
+parser_asses.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -1679,9 +1679,9 @@ def unmountdir(dir):
 		logging.error("cannot delete temp mount point:"+dir)
 		exit(1)
 
-#assessment of filesystem and creation of csv file out of it 
-def assess_fs(csvfile,src,dst,depth,jobname):
-	logging.debug("trying to assess src:" + src + " dst:" + dst) 
+#assesment of filesystem and creation of csv file out of it 
+def asses_fs(csvfile,src,dst,depth,jobname):
+	logging.debug("trying to asses src:" + src + " dst:" + dst) 
 
 	if not re.search("\S+\:\/\S+", src):
 		logging.error("source format is incorrect: " + src) 
@@ -1874,8 +1874,8 @@ if args.subparser_name == 'nomad':
 	parse_nomad_jobs_to_files()
 	exit (0)
 
-if args.subparser_name == 'assess':
-	assess_fs(args.csvfile,args.source,args.destination,args.depth,jobfilter)	
+if args.subparser_name == 'asses':
+	asses_fs(args.csvfile,args.source,args.destination,args.depth,jobfilter)	
 
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
