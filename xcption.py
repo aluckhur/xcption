@@ -35,7 +35,7 @@ xcprepopath = os.path.join(root,'system','xcp_repo')
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 #cache dir for current state 
 cachedir = os.path.join(xcprepopath,'nomadcache')
-cachedir = '/root/nomadcache'
+cachedir = os.path.join(root,'nomadcache')
 #file containing loaded jobs 
 jobdictjson = os.path.join(cachedir,'jobs.json')
 #path to nomad bin 
@@ -85,7 +85,7 @@ parser_nomad    = subparser.add_parser('nomad',    description='hidden command, 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
-parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (baseline,sync#)", required=False,type=str,metavar='phase')
+parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (baseline,sync#,verify#)", required=False,type=str,metavar='phase')
 parser_status.add_argument('-l','--logs',help="display xcp logs", required=False,action='store_true')
 
 parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
