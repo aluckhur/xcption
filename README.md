@@ -1,4 +1,4 @@
-# xcption
+# XCPtion
 
 ## What is XCPtion?
 
@@ -12,7 +12,7 @@ You will need to apply for XCP license from: [XCP License Site](https://xcp.neta
 
 ## Installation
 
-XCPtion can be installed directly on internet connected Ubunto/CentOS/RedHat server by pulling the reposoity files using the command:
+XCPtion can be installed directly on internet connected Ubuntu/CentOS/RedHat server by pulling the repository using the command:
 
 *ALL instances should be pulled to the same path on all of the servers !!!*
 
@@ -48,14 +48,14 @@ positional arguments:
   {status,asess,load,baseline,sync,syncnow,pause,resume,delete}
                         sub commands that can be used
     status              display status
-    assess              assess fielsystem and create csv file
+    asses               asses filesystem and create csv file
     load                load/update configuration from csv file
     baseline            start baseline (xcp copy)
     sync                start schedule updates (xcp sync)
     syncnow             initiate sync now
     pause               disable sync schedule
     resume              resume sync schedule
-    verify              start verify to validate consistancy between source
+    verify              start verify to validate consistency between source
                         and destination (xcp verify)    
     delete              delete existing config
 
@@ -73,7 +73,7 @@ a CSV file with the jobs should be created with the following columns:
 
 `JOB NAME` - A name for the JOB, later on actions and output can be filtered by this name  
 `SOURCE PATH` - Source NFSv3 path. The source should be mountable as root from all instances in the cluster  
-`DEST PATH` - Destination NFSv3 path. The source should be mountable as root from all instances in the cluster  
+`DEST PATH` - Destination NFSv3 path. The destination should be mountable as root from all instances in the cluster  
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
 `CPU MHz` (optional) - The allocated CPU frequency for the job (DEFAULT:3000)  
 `RAM MB` (optional) - The allocated RAM for the job (DEFAULT:800)  
@@ -88,9 +88,9 @@ test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
 
 **2. assessment of existing filesystem**
 
-Automatic assessment of the source file, preperation of the destination filesytem and creation of the csv file can be achived using the `assess` command.
+Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `asses` command.
 
-for example if our source file system directory structure upto depth of 2 look as follows (bellow the subfolders we have many other file adn directorye). 
+for example if our source file system directory structure up to depth of 2 levels look as follows (bellow the subfolders we have many other files and directorye). 
 
 ```
  ├── folder1  
@@ -105,10 +105,10 @@ for example if our source file system directory structure upto depth of 2 look a
      ├── subfolder1  
      └── subfolder2  
 ```
-we can use the `assess` command to build this initial directory structure on the destination volume and automaticaly create the xcption csv file for us.
-xcption will analyse the source file system, will validate destination filesystem is not already contains the same paths as the source and will create the initial filesystem on the destination (using rsync).
-**directory structure created using rsync will not be updated to the destination if new files/directories are created bellow the paths manged by xcption jobs 
-for example if a file is created under /src/folder1/ it should be manualy updqted to the destination**
+we can use the `asses` command to build this initial directory structure on the destination volume and automatically create the XCPtion csv file for us.
+XCPtion will analyze the source file system, will validate destination filesystem is not already contains the same paths as the source and will create the initial filesystem on the destination (using rsync).
+**directory structure created using rsync will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs 
+for example if a file is created under /src/folder1/ it should be manually updated to the destination**
 
 ```
 user@master:~/xcption$ sudo ./xcption.py assess -h
@@ -242,7 +242,7 @@ user@master:~/xcption# sudo ./xcption.py baseline
 2019-03-26 21:18:13,627 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src3
 ```
 
-**To schedule the incremantal updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
+**To schedule the incremental updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
 
 ```
 usage: xcption.py sync [-h] [-j jobname] [-s srcpath]
@@ -309,7 +309,7 @@ job29786  192.168.100.2:/xcp/src1/f1  192.168.100.2:/xcp/f1  complete   4s      
 
 ```
 
-verbose output. 
+verbose output can be seen using the `-v` argument for the `status` command 
 
 
 ```
@@ -354,7 +354,7 @@ verify2   2019-04-15 07:27:24  2019-04-15 07:27:24  0s        29/30    0       0
 
 ```
 
-*To see xcp logs for specific phase of a job use th -p <phase> flag**
+*To see xcp logs for specific phase of a job use the `-p <phase>` argument together with the `-l` argument **
 
 ```
 user@master:~/xcption# sudo ./xcption.py status -v -s 192.168.100.2:/xcp/src1/f1 -p verify2 -l
