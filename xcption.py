@@ -632,13 +632,15 @@ def parse_stats_from_log (type,name,task='none'):
 			results['bwout'] = matchObj.group(1).replace(' out ','')
 
 		#matches for verify job
-		matchObj = re.search("(\d+\%?) found \((\d+) have data\)", lastline, re.M|re.I)
+		matchObj = re.search("(\d+\%?) found \((\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) have data\)", lastline, re.M|re.I)
 		if matchObj: 
 			results['found'] = matchObj.group(1)
 			results['withdata'] = matchObj.group(2)
 			if results['found'] == '100%': 
 				results['verified']='yes'
 				results['found']=results['scanned']
+			else:
+				results['found']=format(int(results['found']),',')
 		
 		matchObj = re.search("100\% verified \(attrs, mods\)", lastline, re.M|re.I)
 		if matchObj:
@@ -1211,9 +1213,10 @@ def create_status (reporttype,displaylogs=False):
 											if currentperiodic['Status'] in ['pending','running']: jobstatus =  currentperiodic['Status']
 											if tasktype == 'verify':
 												if jobstatus == 'failed' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
-												if jobstatus == 'complete': verifystatus = 'idle'
+												if jobstatus == 'complete': jobstatus = 'idle'
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'										
 										except:
+											print "ff"
 											jobstatus = '-'
 										
 										if not phasefilter or phasefilter == task:
