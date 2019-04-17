@@ -591,7 +591,7 @@ def parse_stats_from_log (type,name,task='none'):
 			logging.debug("log for job:"+allocid+" is not avaialble using api")																								
 
 	if results['content'] != '':
-		matchObj = re.finditer("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)? [scanned|reviewed].+)$",results['content'],re.M|re.I)
+		matchObj = re.finditer("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S? [scanned|reviewed].+)$",results['content'],re.M|re.I)
 		if matchObj:
 			for matchNum, match in enumerate(matchObj, start=1):
 				lastline = match.group()
@@ -602,26 +602,26 @@ def parse_stats_from_log (type,name,task='none'):
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) scanned", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj: 
 			results['scanned'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) copied", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) copied", lastline, re.M|re.I)
 		if matchObj: 
 			results['copied'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) indexed", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) indexed", lastline, re.M|re.I)
 		if matchObj: 
 			results['indexed'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) gone", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) gone", lastline, re.M|re.I)
 		if matchObj: 
 			results['gone'] = matchObj.group(1)	
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) modification", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) modification", lastline, re.M|re.I)
 		if matchObj: 
 			results['modification'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) error", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) error", lastline, re.M|re.I)
 		if matchObj: 
 			results['errors'] = matchObj.group(1)
 
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) file.gone", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) file.gone", lastline, re.M|re.I)
 		if matchObj: 
 			results['filegone'] = matchObj.group(1)
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
@@ -632,7 +632,7 @@ def parse_stats_from_log (type,name,task='none'):
 			results['bwout'] = matchObj.group(1).replace(' out ','')
 
 		#matches for verify job
-		matchObj = re.search("(\d+\%?) found \((\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) have data\)", lastline, re.M|re.I)
+		matchObj = re.search("(\d+\%?) found \((\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) have data\)", lastline, re.M|re.I)
 		if matchObj: 
 			results['found'] = matchObj.group(1)
 			results['withdata'] = matchObj.group(2)
@@ -1050,7 +1050,7 @@ def create_status (reporttype,displaylogs=False):
 				 				deleted = '0'
 
 				 			try:
-				 				modified = baselinestatsresults['modified']
+				 				modified = baselinestatsresults['modification']
 				 			except:
 				 				modified = '0'						 										 				
 
@@ -1174,7 +1174,7 @@ def create_status (reporttype,displaylogs=False):
 							 				deleted = '0'
 
 							 			try:
-							 				modified = currentlog['modified']
+							 				modified = currentlog['modification']
 							 			except:
 							 				modified = '0'						 										 				
 
@@ -1216,7 +1216,6 @@ def create_status (reporttype,displaylogs=False):
 												if jobstatus == 'complete': jobstatus = 'idle'
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'										
 										except:
-											print "ff"
 											jobstatus = '-'
 										
 										if not phasefilter or phasefilter == task:
