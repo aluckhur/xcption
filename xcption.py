@@ -627,7 +627,7 @@ def parse_stats_from_log (type,name,task='none'):
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
 		if matchObj: 
 			results['dirgone'] = matchObj.group(1)			
-		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+ \SiB\/s\))", lastline, re.M|re.I)
+		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
 			results['bwout'] = matchObj.group(1).replace(' out ','')
 
