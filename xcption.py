@@ -209,7 +209,7 @@ def parse_csv(csv_path):
 				src     = row[1]
 				dst     = row[2]
 
-				if (jobfilter == '' or jobfilter == jobname) and (srcfilter == '' or srcfilter == src):
+				if (jobfilter == '' or jobfilter == jobname) and (srcfilter == '' or srcfilter in src):
 	
 					cron    = ''
 					if 3 < len(row): cron    = row[3] 
@@ -374,7 +374,7 @@ def create_nomad_jobs():
 					exit(1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter == src:
+				if srcfilter == '' or srcfilter in src:
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	              = jobdetails['dst']
@@ -489,7 +489,7 @@ def start_nomad_jobs(action):
 				exit (1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter == src:
+				if srcfilter == '' or srcfilter in src:
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
@@ -739,7 +739,7 @@ def create_status (reporttype,displaylogs=False):
 				exit (1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter == src:
+				if srcfilter == '' or srcfilter in src:
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
@@ -1082,7 +1082,7 @@ def create_status (reporttype,displaylogs=False):
 
 
 
-							if not phasefilter or phasefilter == task:
+							if not phasefilter or task.startswith(phasefilter):
 				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,sent,nodename,baselinestatus])
 				 				if displaylogs:
 									verbosetable.border = False
@@ -1218,7 +1218,7 @@ def create_status (reporttype,displaylogs=False):
 										except:
 											jobstatus = '-'
 										
-										if not phasefilter or phasefilter == task:
+										if not phasefilter or task.startswith(phasefilter):
 						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,sent,nodename,jobstatus])
 							 				if displaylogs:
 												verbosetable.border = False
@@ -1268,7 +1268,7 @@ def update_nomad_job_status(action):
 				exit (1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter == src:
+				if srcfilter == '' or srcfilter in src:
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
@@ -1418,7 +1418,7 @@ def delete_jobs(forceparam):
 				logging.warning("job config directory:" + jobdir + " not exists. please init first") 
 			
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter == src:
+				if srcfilter == '' or srcfilter in src:
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
