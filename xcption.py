@@ -598,7 +598,7 @@ def parse_stats_from_log (type,name,task='none'):
 				results['lastline'] = lastline
 
 	if lastline:
-		matchObj = re.search("\s+(\S*\d+s)(\.)?$", lastline, re.M|re.I)
+		matchObj = re.search("\s+(\S*\d+[s|m])(\.)?$", lastline, re.M|re.I)
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 
@@ -1079,6 +1079,7 @@ def create_status (reporttype,displaylogs=False):
 								if baselinejob['Status'] in ['pending','running']: baselinestatus =  baselinejob['Status']
 							except:
 								baselinestatus = '-'
+							if baselinestatus == 'running': endtime = '-' 
 
 
 
@@ -1217,6 +1218,10 @@ def create_status (reporttype,displaylogs=False):
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'										
 										except:
 											jobstatus = '-'
+
+
+										if jobstatus == 'running':
+											endtime = '-' 
 										
 										if not phasefilter or task.startswith(phasefilter):
 						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,sent,nodename,jobstatus])
