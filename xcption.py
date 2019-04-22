@@ -1251,7 +1251,7 @@ def create_status (reporttype,displaylogs=False):
 	if rowcount > 0 and reporttype == 'general':
 		table.border = False
 		table.align = 'l'
-		print "\n BL=Baseline CY=Sync VR=Verify\n"
+		print "\n BL=Baseline SY=Sync VR=Verify\n"
 		print table
 
 	elif reporttype == 'general':
