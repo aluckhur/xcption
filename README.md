@@ -42,7 +42,7 @@ The interaction is done using the following python CLI command (need root access
 
 ```
 usage: xcption.py [-h] [-d]
-                  {status,load,baseline,sync,syncnow,pause,resume,delete} ...
+                  {status,asses,load,baseline,sync,syncnow,pause,resume,delete} ...
 
 positional arguments:
   {status,asess,load,baseline,sync,syncnow,pause,resume,delete}
@@ -90,7 +90,7 @@ test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
 
 Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `asses` command.
 
-for example if our source file system directory structure up to depth of 2 levels look as follows (bellow the subfolders we have many other files and directorye). 
+for example if our source file system directory structure up to depth of 2 levels look as follows (bellow the subfolders we have many other files and directories). 
 
 ```
  ├── folder1  
