@@ -105,8 +105,8 @@ for example if our source file system directory structure up to depth of 2 level
      ├── subfolder1  
      └── subfolder2  
 ```
-we can use the `asses` command to build this initial directory structure on the destination volume and automatically create the XCPtion csv file for us.
-XCPtion will analyze the source file system, will validate destination filesystem is not already contains the same paths as the source and will create the initial filesystem on the destination (using rsync).
+we can use the `asses` command to build this initial directory structure on the destination volume and automatically create the XCPtion CSV file for us.
+XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).
 **directory structure created using rsync will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs 
 for example if a file is created under /src/folder1/ it should be manually updated to the destination**
 
