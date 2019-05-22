@@ -77,10 +77,10 @@ echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement"
 export APT=`command -v apt`
 export YUM=`command -v yum`
 
-if [ -n "$YUM" ]; then
+if [ -n $YUM ]; then
     yum -y update
     INST_APP="yum"
-elif [ -n "$YUM" ]; then
+elif [ -n $YUM ]; then
     apt -y update
     INST_APP="apt"  
 else
