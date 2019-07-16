@@ -511,7 +511,7 @@ def start_nomad_jobs(action):
 						if not os.path.exists(jobfile): 
 							logging.warning("log file"+jobfile+" for job:"+nomadjobname+" could not be found, please load first") 
 						else:
-							logging.info("starting/updating job:" + nomadjobname) 
+							logging.info("starting/updating sync job for src:" + src+ " dst:"+dst) 
 							nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
 							nomadjobdict = json.loads(nomadjobjson)
 
@@ -1329,7 +1329,7 @@ def update_nomad_job_status(action):
 							if baselinestatus != 'Baseline Is Complete':
 								logging.warning("cannot syncnow since baseline status for:"+nomadjobname+' is:'+baselinestatus)
 							else:
-								logging.info("starting syncnow job:"+nomadjobname) 
+								logging.info("starting sync src:"+src+" dst:"+dst) 
 								if currentstopstatus == 'pause':									
 									logging.debug("temporary resuming job:"+nomadjobname+" to allow syncnow") 
 									nomadjobdict["Job"]["Stop"] = False
@@ -1431,6 +1431,7 @@ def delete_jobs(forceparam):
 					dstbase       = jobdetails['dstbase']
 					syncnomadjobname  = jobdetails['sync_job_name']
 					baselinejobname  = jobdetails['baseline_job_name']
+					verifyjobname    = jobdetails['verify_job_name']
 
 					force = forceparam
 					if not force: force = query_yes_no("delete job for source:"+src,'no')
@@ -1441,6 +1442,9 @@ def delete_jobs(forceparam):
 						
 						#delete sync jobs 
 						delete_job_by_prefix(syncnomadjobname)
+
+						#delete verify jobs 
+						delete_job_by_prefix(verifyjobname)
 
 						#delete xcp repo
 						indexpath = os.path.join(xcprepopath,'catalog','indexes',jobsdict[jobname][src]["xcpindexname"])
@@ -1466,6 +1470,15 @@ def delete_jobs(forceparam):
 								rmout = shutil.rmtree(synccachedir) 
 							except:
 								logging.error("could not delete sync cache dir:"+synccachedir)
+
+                                                verifycachedir = os.path.join(cachedir,'job_'+verifyjobname)
+                                                if os.path.exists(verifyjobname):
+                                                        logging.debug("delete verify cache dir:"+verifyjobname)
+                                                        try:
+                                                                rmout = shutil.rmtree(verifyjobname)
+                                                        except:
+                                                                logging.error("could not delete verify cache dir:"+verifyjobname)
+
 
 						#delete entry from jobdict
 						del jobsdictcopy[jobname][src]
@@ -1768,7 +1781,7 @@ def asses_fs(csvfile,src,dst,depth,jobname):
 			else:
 				if os.path.exists(dstpath):
 					dstdirfiles = os.listdir(dstpath)
-					print dstdirfiles 
+					#print dstdirfiles 
 					if len(dstdirfiles) > 0:
 						if len(dstdirfiles) > 1 and dstdirfiles[0] != '.snapshot':
 							logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
