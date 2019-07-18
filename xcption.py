@@ -602,6 +602,10 @@ def parse_stats_from_log (type,name,task='none'):
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 
+                matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) reviewed, (\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) checked at source", lastline, re.M|re.I)
+                if matchObj:
+                        results['scanned'] = matchObj.group(1)
+
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj: 
 			results['scanned'] = matchObj.group(1)
