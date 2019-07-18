@@ -511,7 +511,7 @@ def start_nomad_jobs(action):
 						if not os.path.exists(jobfile): 
 							logging.warning("log file"+jobfile+" for job:"+nomadjobname+" could not be found, please load first") 
 						else:
-							logging.info("starting/updating sync job for src:" + src+ " dst:"+dst) 
+							logging.info("starting/updating "+action+" job for src:" + src+ " dst:"+dst) 
 							nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
 							nomadjobdict = json.loads(nomadjobjson)
 
