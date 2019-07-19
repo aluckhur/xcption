@@ -602,10 +602,9 @@ def parse_stats_from_log (type,name,task='none'):
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 
-                matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) reviewed, (\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) checked at source", lastline, re.M|re.I)
+                matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) reviewed", lastline, re.M|re.I)
                 if matchObj:
-                        results['scanned'] = matchObj.group(1)
-
+                        results['reviewed'] = matchObj.group(1)
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj: 
 			results['scanned'] = matchObj.group(1)
@@ -1008,7 +1007,7 @@ def create_status (reporttype,displaylogs=False):
 					if reporttype == 'verbose':
 						#building verbose details table for the job
 						verbosetable = PrettyTable()
-						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 						#print general information 
 					 	print "JOB: "+jobname
@@ -1042,6 +1041,11 @@ def create_status (reporttype,displaylogs=False):
 				 				scanned = baselinestatsresults['scanned']
 				 			except:
 				 				scanned = '0'
+
+                                                        try:
+                                                                reviewed = baselinestatsresults['reviewed']
+                                                        except:
+                                                                reviewed = '0'
 				 				
 				 			try:
 				 				copied = baselinestatsresults['copied']
@@ -1088,7 +1092,7 @@ def create_status (reporttype,displaylogs=False):
 
 
 							if not phasefilter or task.startswith(phasefilter):
-				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,sent,nodename,baselinestatus])
+				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus])
 				 				if displaylogs:
 									verbosetable.border = False
 									verbosetable.align = 'l'
@@ -1101,8 +1105,7 @@ def create_status (reporttype,displaylogs=False):
 									print ""
 									print ""
 									verbosetable = PrettyTable()
-									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
-
+									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 						#merge sync and verify data 
 						jobstructure=syncjobsstructure.copy()
@@ -1163,11 +1166,16 @@ def create_status (reporttype,displaylogs=False):
 							 				duration = '-'
 
 							 			try:
-							 				scanned = currentlog['scanned']
-							 				if tasktype == 'verify': scanned = currentlog['found']+'/'+currentlog['scanned']
+							 				reviewed = currentlog['reviewed']
 							 			except:
-							 				scanned = '0'
+							 				reviewed = '0'
 							 				
+                                                                                try:
+                                                                                        scanned = currentlog['scanned']
+                                                                                        if tasktype == 'verify': scanned = currentlog['found']+'/'+currentlog['scanned']
+                                                                                except:
+                                                                                        scanned = '0'
+
 							 			try:
 							 				copied = currentlog['copied']
 							 			except:
@@ -1228,7 +1236,7 @@ def create_status (reporttype,displaylogs=False):
 											endtime = '-' 
 										
 										if not phasefilter or task.startswith(phasefilter):
-						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,copied,modified,deleted,errors,sent,nodename,jobstatus])
+						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
 							 				if displaylogs:
 												verbosetable.border = False
 												verbosetable.align = 'l'
@@ -1241,7 +1249,7 @@ def create_status (reporttype,displaylogs=False):
 												print ""
 												print ""
 												verbosetable = PrettyTable()
-												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 						#print the table 
 						verbosetable.border = False
@@ -1293,7 +1301,8 @@ def update_nomad_job_status(action):
 						job = ''
 					
 					if not job:
-						logging.warning("sync was not initialized for src:"+src+". please use 'sync' first") 
+						logging.warning(nomadjobname)
+						logging.warning("sync job does not exists for src:"+src+". please use sync command to recreate it") 
 					
 					else:
 						baselinestatus = check_baseline_job_status(baselinejobname)
@@ -1320,7 +1329,7 @@ def update_nomad_job_status(action):
 						elif action in ['pause','resume'] and currentstopstatus != action:
 							nomadjobdict["Job"]["Stop"] = newstate
 
-							logging.info("job name:"+nomadjobname+" status changed to:"+action) 
+							logging.info("src:"+src+" dst:"+dst+" status changed to:"+action) 
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
 								job = n.job.get_job(nomadjobname)
