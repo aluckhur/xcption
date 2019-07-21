@@ -560,13 +560,16 @@ def start_nomad_jobs(action):
 
 #parse stats from xcp logs, logs can be retrived from api or file in the repo
 def parse_stats_from_log (type,name,task='none'):
+#def parse_stats_from_log (type,name,task='none',jobstatus='unknow'):
 	#output dict
 	results = {}
 	results['content'] = ''
 	lastline = ''
 
 	if type == 'file':
-		logfilepath = name 								
+		logfilepath = name
+
+
 		try:
 			with open(logfilepath, 'r') as f:
 				content = f.read()
@@ -576,6 +579,18 @@ def parse_stats_from_log (type,name,task='none'):
 					results['content'] = content
 		except:
 			logging.error("cannot read log file:"+logfilepath)	
+
+#future optimization for status 
+#		logjsonfile = re.sub('\.log$', '.json', logfilepath)
+#		if jobstatus == 'complete' and os.path.isfile(logjsonfile):
+#			logging.debug("reading data from json file:"+logjsonfile)								
+#			try:
+#				with open(logjsonfile, 'r') as f:
+#					results = json.load(f)
+#    				return results
+#			except:
+#				logging.debug("reading data from json file:"+logjsonfile+" failed")								
+
 
 	elif type == 'alloc':						
 		#try to get the log file using api
@@ -595,7 +610,7 @@ def parse_stats_from_log (type,name,task='none'):
 		if matchObj:
 			for matchNum, match in enumerate(matchObj, start=1):
 				lastline = match.group()
-				results['lastline'] = lastline
+			results['lastline'] = lastline
 
 	if lastline:
 		matchObj = re.search("\s+(\S*\d+[s|m])(\.)?$", lastline, re.M|re.I)
@@ -657,6 +672,18 @@ def parse_stats_from_log (type,name,task='none'):
 		matchObj = re.search("(\d+) different mod time", lastline, re.M|re.I)
 		if matchObj:
 			results['diffmodtime'] = matchObj.group(1)
+	
+	#future optimization for status 
+#	if type == 'file':
+#		logjsonfile = re.sub('\.log$', '.json', logfilepath)
+#		
+#		logging.debug("storing log data in json file:"+logjsonfile)								
+#		try:
+#			# Writing JSON data
+#			with open(logjsonfile, 'w') as f:
+#				json.dump(results, f)
+#		except:
+#			logging.debug("failed storing log data in json file:"+logjsonfile)								
 
 	return results
 
@@ -800,7 +827,6 @@ def create_status (reporttype,displaylogs=False):
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
-
 
 					#gather sync related info
 					syncstatus   = '- '
@@ -1042,11 +1068,11 @@ def create_status (reporttype,displaylogs=False):
 				 			except:
 				 				scanned = '0'
 
-                                                        try:
-                                                                reviewed = baselinestatsresults['reviewed']
-                                                        except:
-                                                                reviewed = '0'
-				 				
+							try:
+								reviewed = baselinestatsresults['reviewed']
+							except:
+								reviewed = '0'
+ 				
 				 			try:
 				 				copied = baselinestatsresults['copied']
 				 			except:
@@ -1105,7 +1131,7 @@ def create_status (reporttype,displaylogs=False):
 									print ""
 									print ""
 									verbosetable = PrettyTable()
-									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 						#merge sync and verify data 
 						jobstructure=syncjobsstructure.copy()
@@ -1127,7 +1153,6 @@ def create_status (reporttype,displaylogs=False):
 					 	verifycounter = 1
 					 	if 'periodics' in jobstructure.keys():
 						 	for periodic in sorted(jobstructure['periodics'].keys()):
-
 						 		currentperiodic = jobstructure['periodics'][periodic]
 						 		for allocid in jobstructure['allocs']:
 						 			if jobstructure['allocs'][allocid]['JobID'] == periodic:
@@ -1170,11 +1195,11 @@ def create_status (reporttype,displaylogs=False):
 							 			except:
 							 				reviewed = '0'
 							 				
-                                                                                try:
-                                                                                        scanned = currentlog['scanned']
-                                                                                        if tasktype == 'verify': scanned = currentlog['found']+'/'+currentlog['scanned']
-                                                                                except:
-                                                                                        scanned = '0'
+										try:
+											scanned = currentlog['scanned']
+											if tasktype == 'verify': scanned = currentlog['found']+'/'+currentlog['scanned']
+										except:
+											scanned = '0'
 
 							 			try:
 							 				copied = currentlog['copied']
@@ -1301,7 +1326,6 @@ def update_nomad_job_status(action):
 						job = ''
 					
 					if not job:
-						logging.warning(nomadjobname)
 						logging.warning("sync job does not exists for src:"+src+". please use sync command to recreate it") 
 					
 					else:
