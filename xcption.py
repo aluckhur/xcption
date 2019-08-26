@@ -25,8 +25,14 @@ pp = pprint.PrettyPrinter(indent=1)
 
 #general settings
 dcname = 'DC1'
+
 #xcp path location
 xcppath = '/usr/local/bin/xcp'
+#xcp windows location
+xcpwinpath = 'C:/NetApp/XCP/xcp.exe'
+#robocopy windows location
+robocopypath = 'C:/Windows/System32/robocopy.exe'
+
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
 #xcp repo and cache dir loaction 
@@ -34,19 +40,24 @@ xcprepopath = os.path.join(root,'system','xcp_repo')
 #xcp indexes path 
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 #cache dir for current state 
-cachedir = os.path.join(xcprepopath,'nomadcache')
+#cachedir = os.path.join(xcprepopath,'nomadcache')
 cachedir = os.path.join(root,'nomadcache')
+
 #file containing loaded jobs 
 jobdictjson = os.path.join(cachedir,'jobs.json')
 #path to nomad bin 
 nomadpath = '/usr/local/bin/nomad'
+
 #location for the jobs dir
 jobsdir = os.path.join(xcprepopath,'jobs') 
+
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
+
 #log file location
 logdirpath = os.path.join(root,'log') 
 logfilepath = os.path.join(logdirpath,'xcption.log')
+
 #creating the logs directory
 if not os.path.isdir(logdirpath):
 	try:
