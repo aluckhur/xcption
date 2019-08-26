@@ -35,10 +35,13 @@ robocopypath = 'C:/Windows/System32/robocopy.exe'
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
+
 #xcp repo and cache dir loaction 
 xcprepopath = os.path.join(root,'system','xcp_repo')
+
 #xcp indexes path 
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
+
 #cache dir for current state 
 #cachedir = os.path.join(xcprepopath,'nomadcache')
 cachedir = os.path.join(root,'nomadcache')
