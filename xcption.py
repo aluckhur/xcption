@@ -249,6 +249,18 @@ def parse_csv(csv_path):
 					
 					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool) 
 
+					srcbase = src.replace(':/','-_')
+					srcbase = srcbase.replace('/','_')
+					srcbase = srcbase.replace(' ','-')
+					srcbase = srcbase.replace('\\','_')
+					srcbase = srcbase.replace('$','_dollar')
+					
+					dstbase = dst.replace(':/','-_')
+					dstbase = dstbase.replace('/','_')
+					dstbase = dstbase.replace(' ','-')
+					dstbase = dstbase.replace('\\','_')
+					dstbase = dstbase.replace('$','_dollar')
+
 					if ostype == 'linux':
 						if not re.search("\S+\:\/\S+", src):
 							logging.error("src path format is incorrect: " + src) 
@@ -282,6 +294,9 @@ def parse_csv(csv_path):
 						if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
 							logging.error("dst path format is incorrect: " + dst)
 							exit(1)	
+
+						pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
+						run_powershell_cmd_on_windows_agent(srcbase,pscmd)
 							
 						srchost = src.split('\\')[2]
 						srcpath = src.replace('\\\\'+srchost,'')
@@ -298,17 +313,6 @@ def parse_csv(csv_path):
 						logging.error("duplicate dst path: " + dst)
 						exit(1)
 							
-					srcbase = src.replace(':/','-_')
-					srcbase = srcbase.replace('/','_')
-					srcbase = srcbase.replace(' ','-')
-					srcbase = srcbase.replace('\\','_')
-					srcbase = srcbase.replace('$','_dollar')
-					
-					dstbase = dst.replace(':/','-_')
-					dstbase = dstbase.replace('/','_')
-					dstbase = dstbase.replace(' ','-')
-					dstbase = dstbase.replace('\\','_')
-					dstbase = dstbase.replace('$','_dollar')
 					
 					baseline_job_name = 'baseline_'+jobname+'_'+srcbase
 					sync_job_name     = 'sync_'+jobname+'_'+srcbase
@@ -378,6 +382,33 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 			except:
 				logging.error("job:"+nomadjobname+" creation failed") 
 				exit(1)
+
+#run powershell commnad on windows agent
+def run_powershell_cmd_on_windows_agent (psjobname, pscmd):
+	#loading job ginga2 templates 
+	templates_dir = ginga2templatedir
+	env = Environment(loader=FileSystemLoader(templates_dir) )
+	
+	try:
+		ps_template = env.get_template('nomad_windows_powershell.txt')
+	except:
+		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_windows_powershell.txt'))
+		exit(1)
+
+	psjobname = psjobname + os.getpid().__str__()
+
+	pscmd = pscmd.replace('\\','\\\\')
+
+	#creating create job to validate 
+	powershell_job_file = os.path.join('/tmp',psjobname+'.hcl')	
+	logging.debug("creating job file: " + powershell_job_file)				
+	with open(powershell_job_file, 'w') as fh:
+		fh.write(ps_template.render(
+			dcname=dcname,
+			powershelljob=psjobname,
+			cmd=pscmd
+		))
+
 
 #create nomad hcl files
 def create_nomad_jobs():
