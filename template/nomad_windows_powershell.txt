@@ -17,7 +17,7 @@ job "{{ powershelljob }}" {
       attempts = 0
       mode     = "fail"
     }
-    task "baseline" {
+    task "{{ powershelljob }}" {
       driver = "raw_exec"
 	  resources {
 	    cpu    = 20

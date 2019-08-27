@@ -295,16 +295,17 @@ def parse_csv(csv_path):
 							logging.error("dst path format is incorrect: " + dst)
 							exit(1)	
 
-						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windown server") 
+						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
 						pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
 						psstatus = run_powershell_cmd_on_windows_agent(srcbase,pscmd)
 						if  psstatus != 'complete':
 							logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
+							logging.error("dd")
 							exit(1)								
 						pscmd = 'if (test-path '+dst+') {exit 0} else {exit 1}'
 						psstatus = run_powershell_cmd_on_windows_agent(dstbase,pscmd)
 						if  psstatus != 'complete':
-							logging.error("cannot validate dst:"+dst+" using cifs, validation is:"+psstatus)
+							logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
 							exit(1)	
 							
 						srchost = src.split('\\')[2]
