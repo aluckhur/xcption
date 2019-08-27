@@ -31,7 +31,7 @@ xcppath = '/usr/local/bin/xcp'
 #xcp windows location
 xcpwinpath = 'C:/NetApp/XCP/xcp.exe'
 #robocopy windows location
-robocopypath = 'C:/Windows/System32/robocopy.exe'
+robocopywinpath = 'C:/Windows/System32/robocopy.exe'
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -85,7 +85,7 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 
 # create the sub commands 
 parser_status   = subparser.add_parser('status',   help='display status')	
-parser_asses    = subparser.add_parser('asses',   help='asses fielsystem and create csv file')
+parser_asses    = subparser.add_parser('asses',    help='asses fielsystem and create csv file')
 parser_load     = subparser.add_parser('load',     help='load/update configuration from csv file')
 parser_baseline = subparser.add_parser('baseline', help='start baseline (xcp copy)')
 parser_sync     = subparser.add_parser('sync',     help='start schedule updates (xcp sync)')
@@ -111,6 +111,7 @@ parser_asses.add_argument('-j','--job',help="xcption job name", required=False,t
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_load.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
 
 parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -238,32 +239,55 @@ def parse_csv(csv_path):
 					memory  = ''
 					if 5 < len(row): memory  = row[5] 
 					if memory == '': memory  = defaultmemory 
+                    
+					ostype = 'linux'
+					if src.__contains__('\\'):
+						ostype = 'windows'
+					tool = 'xcp'
+					if args.robocopy and ostype == 'windows':
+						tool = 'robocopy'
 					
-					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst) 
-					if not re.search("\S+\:\/\S+", src):
-						logging.error("src path format is incorrect: " + src) 
-						exit(1)	
-					if not re.search("\S+\:\/\S+", dst):
-						logging.error("dst path format is incorrect: " + dst)
-						exit(1)	
-					
-					if args.subparser_name == 'load':
-						#check if src/dst can be mounted
-						subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
-						logging.info("validating src:" + src + " and dst:" + dst+ " are mountable") 
-						if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-							logging.error("cannot mount src using nfs: " + src)
-							exit(1)					
-						subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
+					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool) 
+
+					if ostype == 'linux':
+						if not re.search("\S+\:\/\S+", src):
+							logging.error("src path format is incorrect: " + src) 
+							exit(1)	
+						if not re.search("\S+\:\/\S+", dst):
+							logging.error("dst path format is incorrect: " + dst)
+							exit(1)	
+
 						
-						if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-							logging.error("cannot mount dst using nfs: " + dst)
-							exit(1)					
-						subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)	
+						if args.subparser_name == 'load':
+							#check if src/dst can be mounted
+							subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
+							logging.info("validating src:" + src + " and dst:" + dst+ " are mountable") 
+							if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+								logging.error("cannot mount src using nfs: " + src)
+								exit(1)					
+							subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
+							
+							if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+								logging.error("cannot mount dst using nfs: " + dst)
+								exit(1)					
+							subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)	
+							
+							srchost,srcpath = src.split(":")
+							dsthost,dstpath = dst.split(":")									
 						
-					srchost,srcpath = src.split(":")
-					dsthost,dstpath = dst.split(":")		
-					
+					if ostype == 'windows':
+						if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
+							logging.error("src path format is incorrect: " + src) 
+							exit(1)	
+						if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
+							logging.error("dst path format is incorrect: " + dst)
+							exit(1)	
+							
+						srchost = src.split('\\')[2]
+						srcpath = src.replace('\\\\'+srchost,'')
+						dsthost = dst.split('\\')[2]
+						dstpath = dst.replace('\\\\'+dsthost,'')
+						
 					#validate no duplicate src and destination 
 					if not jobname in jobsdict:
 						jobsdict[jobname]={}
@@ -277,10 +301,14 @@ def parse_csv(csv_path):
 					srcbase = src.replace(':/','-_')
 					srcbase = srcbase.replace('/','_')
 					srcbase = srcbase.replace(' ','-')
+					srcbase = srcbase.replace('\\','_')
+					srcbase = srcbase.replace('$','_dollar')
 					
 					dstbase = dst.replace(':/','-_')
 					dstbase = dstbase.replace('/','_')
 					dstbase = dstbase.replace(' ','-')
+					dstbase = dstbase.replace('\\','_')
+					dstbase = dstbase.replace('$','_dollar')
 					
 					baseline_job_name = 'baseline_'+jobname+'_'+srcbase
 					sync_job_name     = 'sync_'+jobname+'_'+srcbase
@@ -304,8 +332,10 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["cron"]   = cron
 					jobsdict[jobname][src]["cpu"]    = cpu
 					jobsdict[jobname][src]["memory"] = memory
+					jobsdict[jobname][src]["ostype"] = ostype
+					jobsdict[jobname][src]["tool"] = tool
 
-					logging.debug("parsed the following relation:"+src+":"+dst)
+					logging.debug("parsed the following relation:"+src+" -> "+dst)
 
 					dstdict[dst] = 1
 					line_count += 1
