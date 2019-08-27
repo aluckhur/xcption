@@ -295,8 +295,17 @@ def parse_csv(csv_path):
 							logging.error("dst path format is incorrect: " + dst)
 							exit(1)	
 
+						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windown server") 
 						pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
-						run_powershell_cmd_on_windows_agent(srcbase,pscmd)
+						psstatus = run_powershell_cmd_on_windows_agent(srcbase,pscmd)
+						if  psstatus != 'complete':
+							logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
+							exit(1)								
+						pscmd = 'if (test-path '+dst+') {exit 0} else {exit 1}'
+						psstatus = run_powershell_cmd_on_windows_agent(dstbase,pscmd)
+						if  psstatus != 'complete':
+							logging.error("cannot validate dst:"+dst+" using cifs, validation is:"+psstatus)
+							exit(1)	
 							
 						srchost = src.split('\\')[2]
 						srcpath = src.replace('\\\\'+srchost,'')
@@ -383,6 +392,36 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 				logging.error("job:"+nomadjobname+" creation failed") 
 				exit(1)
 
+	return True
+
+def check_job_status (jobname):
+	jobdetails = {}
+	try:	
+		jobdetails = n.job.get_job(jobname)
+	except:
+		jobdetails = None
+
+	if not jobdetails:
+		logging.debug("job:"+jobname+" does not exist")
+		return False
+
+	#if job exists retrun the allocation status
+	status = 'unknown'
+	if jobdetails:
+		response = requests.get(nomadapiurl+'job/'+jobname+'/allocations')	
+		if not response.ok:
+			status =  'failure'
+		else:
+			jobdetails = json.loads(response.content)
+			try:
+				status = jobdetails[0]['ClientStatus']
+			except:
+				status = 'unknown'			
+	
+	return status
+	
+
+
 #run powershell commnad on windows agent
 def run_powershell_cmd_on_windows_agent (psjobname, pscmd):
 	#loading job ginga2 templates 
@@ -409,6 +448,25 @@ def run_powershell_cmd_on_windows_agent (psjobname, pscmd):
 			cmd=pscmd
 		))
 
+	#start job and monitor status
+	psjobstatus = 'not started'
+	if start_nomad_job_from_hcl(powershell_job_file, psjobname):
+		retrycount = 10
+		while retrycount > 0:
+			psjobstatus = check_job_status(psjobname)
+			retrycount =  retrycount - 1
+			if psjobstatus == 'failed' or psjobstatus == 'complete':
+				retrycount = 0
+			else:
+				time.sleep(1)
+		
+	logging.debug("delete job:"+psjobname)
+	response = requests.delete(nomadapiurl+'job/'+psjobname+'?purge=true')				
+	if not response.ok:
+		logging.debug("can't delete job:"+psjobname) 
+	
+	os.remove(powershell_job_file)
+	return psjobstatus
 
 #create nomad hcl files
 def create_nomad_jobs():
