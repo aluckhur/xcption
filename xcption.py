@@ -297,13 +297,13 @@ def parse_csv(csv_path):
 
 						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
 						pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
-						psstatus = run_powershell_cmd_on_windows_agent(srcbase,pscmd)
+						psstatus,stdout,stderr = run_powershell_cmd_on_windows_agent(pscmd)
 						if  psstatus != 'complete':
 							logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
-							logging.error("dd")
 							exit(1)								
 						pscmd = 'if (test-path '+dst+') {exit 0} else {exit 1}'
-						psstatus = run_powershell_cmd_on_windows_agent(dstbase,pscmd)
+						psstatus,stdout,stderr = run_powershell_cmd_on_windows_agent(pscmd)
+
 						if  psstatus != 'complete':
 							logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
 							exit(1)	
@@ -395,7 +395,7 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 
 	return True
 
-def check_job_status (jobname):
+def check_job_status (jobname,log=False):
 	jobdetails = {}
 	try:	
 		jobdetails = n.job.get_job(jobname)
@@ -404,10 +404,15 @@ def check_job_status (jobname):
 
 	if not jobdetails:
 		logging.debug("job:"+jobname+" does not exist")
-		return False
+		return False,'',''
+
 
 	#if job exists retrun the allocation status
+	stdout = ''
+	stderr = ''
 	status = 'unknown'
+	allocid = ''
+
 	if jobdetails:
 		response = requests.get(nomadapiurl+'job/'+jobname+'/allocations')	
 		if not response.ok:
@@ -416,15 +421,50 @@ def check_job_status (jobname):
 			jobdetails = json.loads(response.content)
 			try:
 				status = jobdetails[0]['ClientStatus']
+				allocid = jobdetails[0]['ID']
+
 			except:
-				status = 'unknown'			
-	
-	return status
+				status = 'unknown'	
+
+	if log == True and (status == 'complete' or status == 'failed') and allocid != '':
+		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stdout&plain=true')
+		if response.ok:
+			logging.debug("stdout log for job:"+jobname+" is avaialble using api")								
+			lines = response.content.splitlines()
+			if lines:
+				stdout = response.content						
+		
+		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stderr&plain=true')
+		if response.ok:
+			logging.debug("stderr log for job:"+jobname+" is avaialble using api")								
+			lines = response.content.splitlines()
+			if lines:
+				stderr = response.content	
+
+	return status,stdout,stderr 
 	
 
 
 #run powershell commnad on windows agent
-def run_powershell_cmd_on_windows_agent (psjobname, pscmd):
+def run_powershell_cmd_on_windows_agent (pscmd,log=False):
+
+	
+	psjobname = pscmd.replace(' ','_')
+	psjobname = 'win_'+psjobname
+	psjobname = psjobname.replace('}','-')
+	psjobname = psjobname.replace('{','-')
+	psjobname = psjobname.replace(')','-')
+	psjobname = psjobname.replace('(','-')	
+	psjobname = psjobname.replace(':/','-_')
+	psjobname = psjobname.replace('/','_')
+	psjobname = psjobname.replace(' ','-')
+	psjobname = psjobname.replace('\\','_')
+	psjobname = psjobname.replace('$','_dollar')
+	psjobname = psjobname.replace(';','=')
+	psjobname = psjobname.replace('\"','_')
+	psjobname = psjobname.replace('\'','_')
+
+
 	#loading job ginga2 templates 
 	templates_dir = ginga2templatedir
 	env = Environment(loader=FileSystemLoader(templates_dir) )
@@ -438,6 +478,8 @@ def run_powershell_cmd_on_windows_agent (psjobname, pscmd):
 	psjobname = psjobname + os.getpid().__str__()
 
 	pscmd = pscmd.replace('\\','\\\\')
+	pscmd = pscmd.replace('\"','\\\"')
+	pscmd = pscmd.replace("\'","\\\'")
 
 	#creating create job to validate 
 	powershell_job_file = os.path.join('/tmp',psjobname+'.hcl')	
@@ -449,25 +491,30 @@ def run_powershell_cmd_on_windows_agent (psjobname, pscmd):
 			cmd=pscmd
 		))
 
+
 	#start job and monitor status
+	stdout = ''
+	stderr = ''
+
 	psjobstatus = 'not started'
 	if start_nomad_job_from_hcl(powershell_job_file, psjobname):
 		retrycount = 10
 		while retrycount > 0:
-			psjobstatus = check_job_status(psjobname)
+			psjobstatus,stdout,stderr = check_job_status(psjobname,log)
 			retrycount =  retrycount - 1
 			if psjobstatus == 'failed' or psjobstatus == 'complete':
 				retrycount = 0
 			else:
 				time.sleep(1)
-		
+
+
 	logging.debug("delete job:"+psjobname)
 	response = requests.delete(nomadapiurl+'job/'+psjobname+'?purge=true')				
 	if not response.ok:
 		logging.debug("can't delete job:"+psjobname) 
 	
 	os.remove(powershell_job_file)
-	return psjobstatus
+	return psjobstatus,stdout,stderr
 
 #create nomad hcl files
 def create_nomad_jobs():
@@ -1845,7 +1892,7 @@ def parse_nomad_jobs_to_files ():
 
 
 #walk throuth a dir upto certain depth in the directory tree 
-def list_dirs(startpath,depth):
+def list_dirs_linux(startpath,depth):
 	num_sep = startpath.count(os.path.sep)
 	for root, dirs, files in os.walk(startpath):
 		dir = root.lstrip(startpath)
@@ -1872,7 +1919,7 @@ def unmountdir(dir):
 		exit(1)
 
 #assesment of filesystem and creation of csv file out of it 
-def asses_fs(csvfile,src,dst,depth,jobname):
+def asses_fs_linux(csvfile,src,dst,depth,jobname):
 	logging.debug("trying to asses src:" + src + " dst:" + dst) 
 
 	if not re.search("\S+\:\/\S+", src):
@@ -1929,7 +1976,7 @@ def asses_fs(csvfile,src,dst,depth,jobname):
 
 
 
-	srcdirstructure = list_dirs(tempmountpointsrc,depth-1)
+	srcdirstructure = list_dirs_linux(tempmountpointsrc,depth-1)
 	try:
 		for o in srcdirstructure:
 			path = o[0]
@@ -2067,7 +2114,10 @@ if args.subparser_name == 'nomad':
 	exit (0)
 
 if args.subparser_name == 'asses':
-	asses_fs(args.csvfile,args.source,args.destination,args.depth,jobfilter)	
+	if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
+		asses_fs_linux(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+	else:
+		asses_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
