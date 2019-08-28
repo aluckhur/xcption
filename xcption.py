@@ -296,13 +296,15 @@ def parse_csv(csv_path):
 							exit(1)	
 
 						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
+						
 						pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
-						psstatus,stdout,stderr = run_powershell_cmd_on_windows_agent(pscmd)
+						psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 						if  psstatus != 'complete':
 							logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
 							exit(1)								
+						
 						pscmd = 'if (test-path '+dst+') {exit 0} else {exit 1}'
-						psstatus,stdout,stderr = run_powershell_cmd_on_windows_agent(pscmd)
+						psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 
 						if  psstatus != 'complete':
 							logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
@@ -408,47 +410,50 @@ def check_job_status (jobname,log=False):
 
 
 	#if job exists retrun the allocation status
-	stdout = ''
-	stderr = ''
-	status = 'unknown'
+	results ={}
+	results['stdout'] = ''
+	results['stderr'] = ''
+	results['status'] = 'unknown'
 	allocid = ''
 
 	if jobdetails:
 		response = requests.get(nomadapiurl+'job/'+jobname+'/allocations')	
 		if not response.ok:
-			status =  'failure'
+			results['status'] =  'failure'
 		else:
 			jobdetails = json.loads(response.content)
 			try:
-				status = jobdetails[0]['ClientStatus']
+				results['status'] = jobdetails[0]['ClientStatus']
 				allocid = jobdetails[0]['ID']
 
 			except:
-				status = 'unknown'	
+				results['status'] = 'unknown'	
 
-	if log == True and (status == 'complete' or status == 'failed') and allocid != '':
+	if log == True and (results['status'] == 'complete' or results['status'] == 'failed') and allocid != '':
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stdout&plain=true')
 		if response.ok:
 			logging.debug("stdout log for job:"+jobname+" is avaialble using api")								
 			lines = response.content.splitlines()
 			if lines:
-				stdout = response.content						
+				results['stdout'] = response.content						
 		
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stderr&plain=true')
 		if response.ok:
 			logging.debug("stderr log for job:"+jobname+" is avaialble using api")								
 			lines = response.content.splitlines()
 			if lines:
-				stderr = response.content	
+				results['stderr'] = response.content	
 
-	return status,stdout,stderr 
+	return results
 	
 
 
 #run powershell commnad on windows agent
 def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 
-	
+
+	results = {}
+
 	psjobname = pscmd.replace(' ','_')
 	psjobname = 'win_'+psjobname
 	psjobname = psjobname.replace('}','-')
@@ -492,17 +497,15 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 		))
 
 
-	#start job and monitor status
-	stdout = ''
-	stderr = ''
+	#start job and monitor status'
 
 	psjobstatus = 'not started'
 	if start_nomad_job_from_hcl(powershell_job_file, psjobname):
 		retrycount = 10
 		while retrycount > 0:
-			psjobstatus,stdout,stderr = check_job_status(psjobname,log)
+			results = check_job_status(psjobname,log)
 			retrycount =  retrycount - 1
-			if psjobstatus == 'failed' or psjobstatus == 'complete':
+			if results['status'] == 'failed' or results['status'] == 'complete':
 				retrycount = 0
 			else:
 				time.sleep(1)
@@ -514,7 +517,7 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 		logging.debug("can't delete job:"+psjobname) 
 	
 	os.remove(powershell_job_file)
-	return psjobstatus,stdout,stderr
+	return results
 
 #create nomad hcl files
 def create_nomad_jobs():
@@ -2074,6 +2077,84 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 	if end:
 		unmountdir(tempmountpointsrc)
 		unmountdir(tempmountpointdst)
+
+
+def list_dirs_windows(startpath,depth):
+	pscmd = xcpwinpath+' scan -l -depth '+str(depth)+' '+startpath
+	results = run_powershell_cmd_on_windows_agent(pscmd,True)
+	if results['status'] != 'complete':
+		logging.error("directory scan for path:"+startpath+" failed")
+		exit(1)			
+
+
+	print pscmd, results['stdout'], results['stderr']
+
+	if results['stderr']:
+		matchObj = re.search("(\d+) errors,", results['stderr'], re.M|re.I)
+		if matchObj:
+			if matchObj.group(1) > 1:
+				logging.error("errors encountered during while scanning path:"+startpath)
+				logging.error(results['stderr'])
+				exit(1)	
+			print  "errors = ", matchObj.group(1)
+
+	# num_sep = startpath.count(os.path.sep)
+	# for root, dirs, files in os.walk(startpath):
+	# 	dir = root.lstrip(startpath)
+	# 	if (dir.startswith('.snapshot')):
+	# 		del dirs[:]
+	# 		continue
+	# 	else:
+	# 		dir = './'+dir
+	# 		yield dir,len(dirs),len(files),dirs
+	# 		num_sep_this = root.count(os.path.sep)
+	# 		if num_sep + depth <= num_sep_this:
+	# 			del dirs[:]
+
+
+#assesment of filesystem and creation of csv file out of it 
+def asses_fs_windows(csvfile,src,dst,depth,jobname):
+	logging.debug("trying to asses src:" + src + " dst:" + dst) 
+
+	if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
+		logging.error("src path format is incorrect: " + src) 
+		exit(1)	
+	if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
+		logging.error("dst path format is incorrect: " + dst)
+		exit(1)	
+
+	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
+	pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
+	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+	if  psstatus != 'complete':
+		logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
+		exit(1)								
+	pscmd = 'if (test-path '+dst+') {exit 0} else {exit 1}'
+	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+	if  psstatus != 'complete':
+		logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
+		exit(1)	
+
+	if (depth < 1 or depth > 12):
+		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
+		exit(1)	
+
+	#prepare things for csv creation
+	if jobname == '': jobname = 'job'+str(os.getpid())
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB"]
+	csv_data = []
+
+	if os.path.isfile(csvfile):
+		logging.warning("csv file:"+csvfile+" already exists")
+		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
+
+	#will be true if warning identified 
+	warning = False 
+
+	#will set to true if Ctrl-C been pressed during os.walk
+	end = False
+
+	srcdirstructure = list_dirs_windows(src,depth)
 
 
 
