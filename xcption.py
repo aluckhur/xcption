@@ -31,7 +31,10 @@ xcppath = '/usr/local/bin/xcp'
 #xcp windows location
 xcpwinpath = 'C:/NetApp/XCP/xcp.exe'
 #robocopy windows location
-robocopywinpath = 'C:/Windows/System32/robocopy.exe'
+robocopywinpath = 'c:\\nomad\\robocopy_wrapper.cmd'
+
+failbackuser = "demo\\administrator"
+failbackgroup = "demo\\users"
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -454,7 +457,8 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 
 	results = {}
 
-	psjobname = pscmd.replace(' ','_')
+	psjobname = pscmd[:15]+str(os.getpid())
+	psjobname = psjobname.replace(' ','_')
 	psjobname = 'win_'+psjobname
 	psjobname = psjobname.replace('}','-')
 	psjobname = psjobname.replace('{','-')
@@ -468,6 +472,8 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 	psjobname = psjobname.replace(';','=')
 	psjobname = psjobname.replace('\"','_')
 	psjobname = psjobname.replace('\'','_')
+	psjobname = psjobname.replace(':','-')
+	psjobname = psjobname.replace('*','x')
 
 
 	#loading job ginga2 templates 
@@ -518,6 +524,13 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 	
 	os.remove(powershell_job_file)
 	return results
+
+#create escaped sctring (used for command within hcl files)
+def escapestr (str1):
+	str1 = str1.replace('\\','\\\\')
+	str1 = str1.replace('\"','\\\"')
+	str1 = str1.replace("\'","\\\'")
+	return str1
 
 #create nomad hcl files
 def create_nomad_jobs():
@@ -572,49 +585,65 @@ def create_nomad_jobs():
 					jobcron           = jobdetails['cron']
 					cpu    			  = jobdetails['cpu']
 					memory            = jobdetails['memory']
-					
+					ostype			  = jobdetails['ostype']
+
+					if ostype == 'linux': xcpbinpath = xcppath
+					if ostype == 'windows': xcpbinpath = 'powershell'
 					#creating baseline job 
+
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
 					logging.info("creating/updating relationship configs for src:"+src)
 					logging.debug("creating baseline job file: " + baseline_job_file)				
+					
+					if ostype == 'linux':  xcpargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+					if ostype == 'windows': xcpargs = escapestr(xcpwinpath+" copy -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+					
 					with open(baseline_job_file, 'w') as fh:
 						fh.write(baseline_template.render(
 							dcname=dcname,
+							os=ostype,
 							baseline_job_name=baseline_job_name,
-							xcppath=xcppath,
-							xcpindexname=xcpindexname,
+							xcppath=xcpbinpath,
+							args=xcpargs,
 							memory=memory,
-							cpu=cpu,	
-							src=src,
-							dst=dst
+							cpu=cpu
 						))
 					
 					#creating sync job 
 					sync_job_file = os.path.join(jobdir,sync_job_name+'.hcl')		
 					logging.debug("creating sync job file: " + sync_job_file)				
+					
+					if ostype == 'linux':  xcpargs = "sync\",\"-id\",\""+xcpindexname
+					if ostype == 'windows': xcpargs = escapestr(xcpwinpath+" sync -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+
 					with open(sync_job_file, 'w') as fh:
 						fh.write(sync_template.render(
 							dcname=dcname,
+							os=ostype,
 							sync_job_name=sync_job_name,
 							jobcron=jobcron,
-							xcppath=xcppath,
-							xcpindexname=xcpindexname,
+							xcppath=xcpbinpath,
+							args=xcpargs,
 							memory=memory,
 							cpu=cpu					
 						))
 
 					#creating verify job
 					verify_job_file = os.path.join(jobdir,verify_job_name+'.hcl')	
-					logging.debug("creating verify job file: " + verify_job_file)				
+					logging.debug("creating verify job file: " + verify_job_file)	
+					
+					if ostype == 'linux':  xcpargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
+					if ostype == 'windows': xcpargs = escapestr(xcpwinpath+" verify -v -preserve-atime "+src+" "+dst)								
+					
 					with open(verify_job_file, 'w') as fh:
 						fh.write(verify_template.render(
 							dcname=dcname,
+							os=ostype,
 							verify_job_name=verify_job_name,
-							xcppath=xcppath,
+							xcppath=xcpbinpath,
+							args=xcpargs,
 							memory=memory,
-							cpu=cpu,	
-							src=src,
-							dst=dst
+							cpu=cpu
 						))					
 
 
@@ -744,7 +773,7 @@ def start_nomad_jobs(action):
 
 
 #parse stats from xcp logs, logs can be retrived from api or file in the repo
-def parse_stats_from_log (type,name,task='none'):
+def parse_stats_from_log (type,name,logtype,task='none'):
 #def parse_stats_from_log (type,name,task='none',jobstatus='unknow'):
 	#output dict
 	results = {}
@@ -780,7 +809,7 @@ def parse_stats_from_log (type,name,task='none'):
 	elif type == 'alloc':						
 		#try to get the log file using api
 		allocid = name
-		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+task+'&type=stderr&plain=true')
+		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+task+'&type='+logtype+'&plain=true')
 		if response.ok and re.search("\d", response.content, re.M|re.I):
 			logging.debug("log for job:"+allocid+" is avaialble using api")								
 			lines = response.content.splitlines()
@@ -966,6 +995,10 @@ def create_status (reporttype,displaylogs=False):
 					sync_job_name     = jobdetails['sync_job_name']
 					verify_job_name   = jobdetails['verify_job_name']
 					jobcron           = jobdetails['cron']
+					ostype			  = jobdetails['ostype']
+					
+					if ostype=='windows': logtype = 'stdout'
+					if ostype=='linux': logtype = 'stderr'
 
 					#baseline job information
 					baselinejobstatus = '-'
@@ -1001,10 +1034,10 @@ def create_status (reporttype,displaylogs=False):
 									baselinestatus =  allocdata['ClientStatus']
 									baselinefound  = True
 									baselinealloc = allocdata
-							if file.startswith("log_"):
+							if file.startswith(logtype+"log_"):
 								baselinelogcachefile = os.path.join(baselinecachedir,file)
 								logging.debug('loading cached info log file:'+baselinelogcachefile)
-								baselinestatsresults = parse_stats_from_log('file',baselinelogcachefile)
+								baselinestatsresults = parse_stats_from_log('file',baselinelogcachefile,logtype)
 								if 'time' in baselinestatsresults.keys(): 
 									baselinetime = baselinestatsresults['time']
 								if 'bwout' in baselinestatsresults.keys(): 
@@ -1072,11 +1105,11 @@ def create_status (reporttype,displaylogs=False):
 									syncjobsstructure['allocs'][allocdata['ID']] = {}
 									syncjobsstructure['allocs'][allocdata['ID']] = allocdata
 
-							if file.startswith("log_"):
+							if file.startswith(logtype+"log_"):
 								synclogcachefile = os.path.join(synccachedir,file)
-								logallocid = file.replace('log_','').replace('.log','')
+								logallocid = file.replace(logtype+'log_','').replace('.log','')
 								logging.debug('loading cached info log file:'+synclogcachefile)
-								statsresults = parse_stats_from_log('file',synclogcachefile)
+								statsresults = parse_stats_from_log('file',synclogcachefile,logtype)
 								if 'time' in statsresults.keys(): 
 									synctime = statsresults['time']
 								if 'bwout' in statsresults.keys(): 
@@ -1091,8 +1124,8 @@ def create_status (reporttype,displaylogs=False):
 					if alloclastdetails: 
 						logging.debug("sync job name:"+sync_job_name+" lastjobid:"+joblastdetails['ID']+' allocjobid:'+alloclastdetails['ID'])
 
-						synclogcachefile = os.path.join(synccachedir,'log_'+alloclastdetails['ID']+'.log')
-						statsresults = parse_stats_from_log('file',synclogcachefile)
+						synclogcachefile = os.path.join(synccachedir,logtype+'log_'+alloclastdetails['ID']+'.log')
+						statsresults = parse_stats_from_log('file',synclogcachefile,logtype)
 						if 'time' in statsresults.keys(): synctime = statsresults['time']
 						if 'lastline' in statsresults.keys(): synclastline = statsresults['lastline']
 						
@@ -1166,11 +1199,11 @@ def create_status (reporttype,displaylogs=False):
 									verifyjobsstructure['allocs'][allocdata['ID']] = {}
 									verifyjobsstructure['allocs'][allocdata['ID']] = allocdata
 
-							if file.startswith("log_"):
+							if file.startswith("stdoutlog_"):
 								verifylogcachefile = os.path.join(verifycachedir,file)
-								logallocid = file.replace('log_','').replace('.log','')
+								logallocid = file.replace('stdoutlog_','').replace('.log','')
 								logging.debug('loading cached info log file:'+verifylogcachefile)
-								verifystatsresults = parse_stats_from_log('file',verifylogcachefile)
+								verifystatsresults = parse_stats_from_log('file',verifylogcachefile,'stdout')
 								if 'time' in verifystatsresults.keys(): 
 									verifytime = verifystatsresults['time']
 								if 'bwout' in verifystatsresults.keys(): 
@@ -1187,8 +1220,8 @@ def create_status (reporttype,displaylogs=False):
 					if verifyalloclastdetails: 
 						logging.debug("verify job name:"+verify_job_name+" lastjobid:"+verifyjoblastdetails['ID']+' allocjobid:'+verifyalloclastdetails['ID'])
 
-						verifylogcachefile = os.path.join(verifycachedir,'log_'+verifyalloclastdetails['ID']+'.log')
-						verifystatsresults = parse_stats_from_log('file',verifylogcachefile)
+						verifylogcachefile = os.path.join(verifycachedir,'stdoutlog_'+verifyalloclastdetails['ID']+'.log')
+						verifystatsresults = parse_stats_from_log('file',verifylogcachefile,logtype)
 						if 'time' in verifystatsresults.keys(): verifytime = verifystatsresults['time']
 						if 'lastline' in verifystatsresults.keys(): verifylastline = verifystatsresults['lastline']
 						if 'found' in verifystatsresults.keys(): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
@@ -1225,7 +1258,8 @@ def create_status (reporttype,displaylogs=False):
 						print "SRC: "+src
 						print "DST: "+dst
 						print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
-					 	print "XCP INDEX NAME: "+xcpindexname
+					 	if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
+					 	print "OS: "+ostype.upper()
 					 	print ""
 
 					 	#for baseline 
@@ -1693,13 +1727,13 @@ def delete_jobs(forceparam):
 							except:
 								logging.error("could not delete sync cache dir:"+synccachedir)
 
-                                                verifycachedir = os.path.join(cachedir,'job_'+verifyjobname)
-                                                if os.path.exists(verifyjobname):
-                                                        logging.debug("delete verify cache dir:"+verifyjobname)
-                                                        try:
-                                                                rmout = shutil.rmtree(verifyjobname)
-                                                        except:
-                                                                logging.error("could not delete verify cache dir:"+verifyjobname)
+						verifycachedir = os.path.join(cachedir,'job_'+verifyjobname)
+						if os.path.exists(verifycachedir):
+							logging.debug("delete verify cache dir:"+verifyjobname)
+							try:
+								rmout = shutil.rmtree(verifycachedir)
+							except:
+								logging.error("could not delete verify cache dir:"+verifycachedir)
 
 
 						#delete entry from jobdict
@@ -1858,8 +1892,8 @@ def parse_nomad_jobs_to_files ():
 				#try to get the log file using api
 				response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
 				if response.ok and re.search("\d", response.content, re.M|re.I):
-					logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
-					alloclogfile = os.path.join(jobdir,'log_'+alloc['ID']+'.log')
+					logging.debug("stderr log for job:"+alloc['ID']+" is avaialble using api")
+					alloclogfile = os.path.join(jobdir,'stderrlog_'+alloc['ID']+'.log')
 					try:
 						with open(alloclogfile, 'w') as fp:
 							fp.write(response.content)
@@ -1867,6 +1901,21 @@ def parse_nomad_jobs_to_files ():
 					except:
 						logging.error("cannot create file:"+alloclogfile)
 						exit(1)
+
+				#get stderr logs
+				logtype = '&type=stdout'
+				#try to get the log file using api
+				response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
+				if response.ok and re.search("\d", response.content, re.M|re.I):
+					logging.debug("stdout log for job:"+alloc['ID']+" is avaialble using api")
+					alloclogfile = os.path.join(jobdir,'stdoutlog_'+alloc['ID']+'.log')
+					try:
+						with open(alloclogfile, 'w') as fp:
+							fp.write(response.content)
+							logging.debug("dumping log to log file:"+alloclogfile)		
+					except:
+						logging.error("cannot create file:"+alloclogfile)
+						exit(1)						
 
 				if alloc['TaskGroup'].startswith('verify'): 
 					#get stderr logs for verify
@@ -2090,6 +2139,7 @@ def list_dirs_windows(startpath,depth):
 
 	pscmd = xcpwinpath+' scan -l -depth '+str(depth)+' '+startpath
 	results = run_powershell_cmd_on_windows_agent(pscmd,True)
+
 	if results['status'] != 'complete':
 		logging.error("directory scan for path:"+startpath+" failed")
 		exit(1)			
@@ -2119,8 +2169,6 @@ def list_dirs_windows(startpath,depth):
 				basedir = matchObj.group(1)
 			else:
 				basedir = ''
-
-			print pathtype,path,basedir
 
 			if pathtype == "d": 
 				if not path in dirs.keys():
@@ -2186,13 +2234,114 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 	warning = False 
 
 	#will set to true if Ctrl-C been pressed during os.walk
-	end = False
+	end = True
 
 	srcdirstructure = list_dirs_windows(src,depth)
-	dstdirstructure = list_dirs_windows(dst,depth)
+	dstdirstructure = list_dirs_windows(dst,depth+1)
 
-	for srcdir in srcdirstructure:
-		print srcdir, srcdir.count(os.path.sep)
+	excludedir = ''
+
+	for path in srcdirstructure:
+		currentdepth = len(path.split("\\"))-1
+		#print path, currentdepth
+
+		dircount = srcdirstructure[path]['dircount']
+		filecount = srcdirstructure[path]['filecount']
+
+		srcpath = src+path.replace('.','',1)
+		dstpath = dst+path.replace('.','',1)
+
+		if filecount > 0 and currentdepth < depth and dircount > 0:
+			logging.warning("source path: "+srcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
+
+			warning=True 
+		else:
+			if path in dstdirstructure.keys():
+				if (dstdirstructure[path]['filecount']  > 0 or dstdirstructure[path]['dircount'] >0) and ((currentdepth < depth and dstdirstructure[path]['dircount'] == 0)
+						or (currentdepth == depth and (dstdirstructure[path]['dircount'] > 0 or dstdirstructure[path]['filecount'] >0))):
+					logging.error("destination path: "+dstpath+ " for source dir: "+srcpath+" exists and contains files")
+					exit(1)
+				else:
+					logging.info("destination path: "+dstpath+ " for source dir: "+srcpath+" exists but empty")
+
+		#check if destination have tomuch directories 
+		if dircount > 20:
+			logging.warning("the amount of directories under: "+dstpath+" is above 20, this will create extensive amount of xcption jobs")
+			warning=True  
+
+		#create xcption job entry
+		
+		if (currentdepth < depth and dircount == 0) or (currentdepth == depth and currentdepth > 0) or (depth == 0):
+			logging.debug("src path: "+srcpath+" and dst path: "+dstpath+ "will be configured as xcp job")
+
+			#append data to csv 
+			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
+
+			#exlude copy of files in this dir 
+			if currentdepth < depth:
+				if excludedir == '': excludedir = " /XD "
+				excludedir += "\""+srcpath+"\" "
+	if warning:
+		if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
+	
+	if not end:
+		try:
+		    with open(csvfile, 'w') as c:
+		        writer = csv.DictWriter(c, fieldnames=csv_columns)
+		        writer.writeheader()
+		        for data in csv_data:
+		            writer.writerow(data)
+		        logging.info("job csv file:"+csvfile+" created")
+		except IOError:
+			logging.error("could not write data to csv file:"+csvfile)
+			exit(1)	
+
+		if depth > 0:
+			depthxcpcopy = ''
+
+			pscmd1 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth+1)+" \""+src+"\" \""+dst+"\" /XF *"
+			pscmd2 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\""+excludedir
+
+			#pscmd1 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth+1)+" " +src+" "+dst#+" /XF *"
+			#pscmd2 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth)+" "+src+" "+dst
+
+			logging.info("robocopy can be used to create the destination initial directory structure for xcption jobs")
+			logging.info("robocopy command to sync directory structure for the required depth will be:")
+			logging.info(pscmd1+" ------ for directory structure")
+			logging.info(pscmd2+" ------ for files")
+			if query_yes_no("do you want to run robocopy ?", default="no"): 
+				end=False 
+				logging.info("=================================================================")
+				logging.info("========================Starting robocopy========================")
+				logging.info("=================================================================")
+
+				results = run_powershell_cmd_on_windows_agent(pscmd1,True)
+				if results['status'] != 'complete':
+					logging.error("robocopy failed")
+					if results['stderr']:
+						logging.error("errorlog:\n"+results['stderr'])	
+					if results['stdout']:
+						logging.error("errorlog:\n"+results['stdout'])						
+					exit(1)		
+
+				print results['stdout']
+
+				results = run_powershell_cmd_on_windows_agent(pscmd2,True)
+				if results['status'] != 'complete':
+					logging.error("robocopy failed")
+					if results['stderr']:
+						logging.error("errorlog:\n"+results['stderr'])	
+					if results['stdout']:
+						logging.error("errorlog:\n"+results['stdout'])							
+					exit(1)							
+				print results['stdout']
+
+				logging.info("=================================================================")
+				logging.info("=================robocopy ended successfully=====================")
+				logging.info("=================================================================")
+
+			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+	
 
 
 

@@ -11,7 +11,7 @@ job "{{ verify_job_name }}" {
 
   constraint {
     attribute = "${attr.kernel.name}"
-    value     = "linux"
+    value     = "{{ os }}"
   }
   
   group "{{ verify_job_name }}" {
@@ -35,7 +35,7 @@ job "{{ verify_job_name }}" {
       }	  
       config {
         command = "{{ xcppath }}"
-        args    = ["verify","-v","-noid","-nodata","{{ src }}","{{ dst }}"]
+        args    = ["{{ args }}"]
       }
     }
   }

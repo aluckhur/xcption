@@ -10,7 +10,7 @@ job "{{ baseline_job_name }}" {
   
   constraint {
     attribute = "${attr.kernel.name}"
-    value     = "linux"
+    value     = "{{ os }}"
   }
   
   group "{{ baseline_job_name }}" {
@@ -34,7 +34,7 @@ job "{{ baseline_job_name }}" {
       }	  
       config {
         command = "{{ xcppath }}"
-        args    = ["copy","-newid","{{ xcpindexname }}","{{ src }}","{{ dst }}"]
+        args    = ["{{ args }}"]
       }
     }
   }

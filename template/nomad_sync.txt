@@ -10,7 +10,7 @@ job "{{ sync_job_name }}" {
   
   constraint {
     attribute = "${attr.kernel.name}"
-    value     = "linux"
+    value     = "{{ os }}"
   }
   
   group "{{ sync_job_name }}" {
@@ -35,7 +35,7 @@ job "{{ sync_job_name }}" {
       }	  
       config {
         command = "{{ xcppath }}"
-        args    = ["sync","-id","{{ xcpindexname }}"]
+        args    = ["{{ args }}"]
       }
     }
   }

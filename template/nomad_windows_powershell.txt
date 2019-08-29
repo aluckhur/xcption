@@ -19,6 +19,7 @@ job "{{ powershelljob }}" {
     }
     task "{{ powershelljob }}" {
       driver = "raw_exec"
+      user = "demo\\koko"
 	  resources {
 	    cpu    = 20
 	    memory = 20
