@@ -2080,37 +2080,71 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 
 
 def list_dirs_windows(startpath,depth):
+
+	matchObj = re.search(r".+\\(.+)$", startpath, re.M|re.I)
+	if matchObj:
+		startfolder = matchObj.group(1)
+	else:
+		logging.error("unexpected format for path:"+startpath)
+		exit(1)
+
 	pscmd = xcpwinpath+' scan -l -depth '+str(depth)+' '+startpath
 	results = run_powershell_cmd_on_windows_agent(pscmd,True)
 	if results['status'] != 'complete':
 		logging.error("directory scan for path:"+startpath+" failed")
 		exit(1)			
 
-
-	print pscmd, results['stdout'], results['stderr']
-
 	if results['stderr']:
 		matchObj = re.search("(\d+) errors,", results['stderr'], re.M|re.I)
 		if matchObj:
 			if matchObj.group(1) > 1:
 				logging.error("errors encountered during while scanning path:"+startpath)
-				logging.error(results['stderr'])
-				exit(1)	
-			print  "errors = ", matchObj.group(1)
+				logging.error("\n\n"+results['stderr'])
+				exit(1)
 
-	# num_sep = startpath.count(os.path.sep)
-	# for root, dirs, files in os.walk(startpath):
-	# 	dir = root.lstrip(startpath)
-	# 	if (dir.startswith('.snapshot')):
-	# 		del dirs[:]
-	# 		continue
-	# 	else:
-	# 		dir = './'+dir
-	# 		yield dir,len(dirs),len(files),dirs
-	# 		num_sep_this = root.count(os.path.sep)
-	# 		if num_sep + depth <= num_sep_this:
-	# 			del dirs[:]
 
+	dirs = {}
+
+	lines = results['stdout'].splitlines()
+	for line in lines:
+		matchObj = re.search("^(f|d)\s+\S+\s+\S+\s+(.+)$", line, re.M|re.I)
+		if matchObj:
+			path = matchObj.group(2).replace(startfolder,".",1)
+			#if path == ".": path = ".\\"
+			pathtype = matchObj.group(1)
+
+
+			matchObj = re.search(r"(.+)\\.*$", path, re.M|re.I)
+			if matchObj:
+				basedir = matchObj.group(1)
+			else:
+				basedir = ''
+
+			print pathtype,path,basedir
+
+			if pathtype == "d": 
+				if not path in dirs.keys():
+					dirs[path]={}
+					dirs[path]["filecount"] = 0
+					dirs[path]["dircount"] = 0
+
+				if basedir != '':
+					if basedir in dirs.keys():
+						dirs[basedir]["dircount"] += 1
+					else:
+						dirs[basedir]={}
+						dirs[basedir]["filecount"] = 0
+						dirs[basedir]["dircount"] = 1						
+
+			elif pathtype == "f":
+				if basedir in dirs.keys():
+					dirs[basedir]["filecount"] += 1
+				else:
+					dirs[basedir]={}
+					dirs[basedir]["filecount"] = 1
+					dirs[basedir]["dircount"] = 0
+
+	return dirs
 
 #assesment of filesystem and creation of csv file out of it 
 def asses_fs_windows(csvfile,src,dst,depth,jobname):
@@ -2155,6 +2189,10 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 	end = False
 
 	srcdirstructure = list_dirs_windows(src,depth)
+	dstdirstructure = list_dirs_windows(dst,depth)
+
+	for srcdir in srcdirstructure:
+		print srcdir, srcdir.count(os.path.sep)
 
 
 
