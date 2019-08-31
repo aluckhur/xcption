@@ -26,10 +26,12 @@ pp = pprint.PrettyPrinter(indent=1)
 #general settings
 dcname = 'DC1'
 
+#default windows tool
+defaultwintool = 'xcp'
 #xcp path location
 xcppath = '/usr/local/bin/xcp'
 #xcp windows location
-xcpwinpath = 'C:/NetApp/XCP/xcp.exe'
+xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 #robocopy windows location
 robocopywinpath = 'c:\\nomad\\robocopy_wrapper.cmd'
 
@@ -109,12 +111,15 @@ parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)"
 parser_asses.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
 parser_asses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_asses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
+parser_asses.add_argument('-u','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
+parser_asses.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
+parser_asses.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
 parser_asses.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_load.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
+
 
 parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -246,9 +251,9 @@ def parse_csv(csv_path):
 					ostype = 'linux'
 					if src.__contains__('\\'):
 						ostype = 'windows'
-					tool = 'xcp'
-					if args.robocopy and ostype == 'windows':
-						tool = 'robocopy'
+					
+					tool = defaultwintool
+					if 6 < len(row): tool  = row[6]
 					
 					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool) 
 
@@ -507,7 +512,7 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 
 	psjobstatus = 'not started'
 	if start_nomad_job_from_hcl(powershell_job_file, psjobname):
-		retrycount = 10
+		retrycount = 20
 		while retrycount > 0:
 			results = check_job_status(psjobname,log)
 			retrycount =  retrycount - 1
@@ -586,11 +591,12 @@ def create_nomad_jobs():
 					cpu    			  = jobdetails['cpu']
 					memory            = jobdetails['memory']
 					ostype			  = jobdetails['ostype']
+					tool              = jobdetails['tool']
 
 					if ostype == 'linux': xcpbinpath = xcppath
 					if ostype == 'windows': xcpbinpath = 'powershell'
+					
 					#creating baseline job 
-
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
 					logging.info("creating/updating relationship configs for src:"+src)
 					logging.debug("creating baseline job file: " + baseline_job_file)				
@@ -831,7 +837,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 
-                matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) reviewed", lastline, re.M|re.I)
+                matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) [reviewed|compared]", lastline, re.M|re.I)
                 if matchObj:
                         results['reviewed'] = matchObj.group(1)
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) scanned", lastline, re.M|re.I)
@@ -862,6 +868,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
 			results['bwout'] = matchObj.group(1).replace(' out ','')
+
+		#xcp for windows
+		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+(\SiB)?\s\([0-9]*\.?[0-9]+(\SiB)?\/s\))", lastline, re.M|re.I)
+		if matchObj: 
+			results['bwout'] = matchObj.group(1)	
 
 		#matches for verify job
 		matchObj = re.search("(\d+\%?) found \((\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) have data\)", lastline, re.M|re.I)
@@ -996,6 +1007,7 @@ def create_status (reporttype,displaylogs=False):
 					verify_job_name   = jobdetails['verify_job_name']
 					jobcron           = jobdetails['cron']
 					ostype			  = jobdetails['ostype']
+					tool              = jobdetails['tool']
 					
 					if ostype=='windows': logtype = 'stdout'
 					if ostype=='linux': logtype = 'stderr'
@@ -1055,6 +1067,10 @@ def create_status (reporttype,displaylogs=False):
 					joblastdetails = {}
 					alloclastdetails = {}
 					syncjobsstructure = {}
+					syncjobsstructure['allocs'] = {}
+					syncjobsstructure['job'] = {}
+					syncjobsstructure['periodics'] = {}
+					syncjobsstructure['logs'] = {}
 					syncperiodiccounter = 0
 					allocperiodiccounter = 0
 					synccounter = 0
@@ -1147,6 +1163,10 @@ def create_status (reporttype,displaylogs=False):
 					verifyjoblastdetails = {}
 					verifyalloclastdetails = {}
 					verifyjobsstructure = {}
+					verifyjobsstructure['allocs'] = {}
+					verifyjobsstructure['job'] = {}
+					verifyjobsstructure['periodics'] = {}
+					verifyjobsstructure['logs'] = {}					
 					verifystatsresults = {}
 					verifyperiodiccounter = 0
 					verifyallocperiodiccounter = 0
@@ -1260,6 +1280,7 @@ def create_status (reporttype,displaylogs=False):
 						print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
 					 	if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
 					 	print "OS: "+ostype.upper()
+					 	if ostype =='windows': print "TOOL NAME: "+tool
 					 	print ""
 
 					 	#for baseline 
@@ -1345,8 +1366,7 @@ def create_status (reporttype,displaylogs=False):
 									print ""
 									try:
 										print baselinestatsresults['content']
-									except:
-										print "log is not avaialble"
+									except:										print "log is not avaialble"
 									print ""
 									print ""
 									verbosetable = PrettyTable()
@@ -1367,8 +1387,7 @@ def create_status (reporttype,displaylogs=False):
 								jobstructure['logs']={}								
 							jobstructure['logs'].update(verifyjobsstructure['logs'])
 
-					 	#for each periodic 
-					 	synccounter = 1
+					 	#for each periodic 					 	synccounter = 1
 					 	verifycounter = 1
 					 	if 'periodics' in jobstructure.keys():
 						 	for periodic in sorted(jobstructure['periodics'].keys()):
@@ -1981,6 +2000,17 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 		logging.error("destination format is incorrect: " + dst)
 		exit(1)	
 
+	if args.cpu: 
+		defaultcpu = args.cpu 
+		if defaultcpu < 0 or defaultcpu > 20000:
+			logging.error("cpu allocation is illegal:"+defaultcpu)
+			exit(1)	
+	if args.ram: 
+		defaultram = args.ram
+		if defaultram < 0 or defaultram > 20000:
+			logging.error("cpu allocation is illegal:"+defaultram)
+			exit(1)	
+
 	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
 	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
 
@@ -2205,6 +2235,21 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		logging.error("dst path format is incorrect: " + dst)
 		exit(1)	
 
+	if args.cpu: 
+		defaultcpu = args.cpu 
+		if defaultcpu < 0 or defaultcpu > 20000:
+			logging.error("cpu allocation is illegal:"+defaultcpu)
+			exit(1)	
+	if args.ram: 
+		defaultram = args.ram
+		if defaultram < 0 or defaultram > 20000:
+			logging.error("cpu allocation is illegal:"+defaultram)
+			exit(1)	
+
+	tool = defaultwintool
+	if args.robocopy:
+		tool = 'robocopy'
+
 	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
 	pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
 	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
@@ -2223,7 +2268,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 
 	#prepare things for csv creation
 	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB"]
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL"]
 	csv_data = []
 
 	if os.path.isfile(csvfile):
@@ -2275,7 +2320,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 			logging.debug("src path: "+srcpath+" and dst path: "+dstpath+ "will be configured as xcp job")
 
 			#append data to csv 
-			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
+			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory,"TOOL":tool})
 
 			#exlude copy of files in this dir 
 			if currentdepth < depth:
@@ -2299,8 +2344,8 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		if depth > 0:
 			depthxcpcopy = ''
 
-			pscmd1 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth+1)+" \""+src+"\" \""+dst+"\" /XF *"
-			pscmd2 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\""+excludedir
+			pscmd1 = robocopywinpath+" /COPY:DATSO /E /R:0 /NP /TEE /LEV:"+str(depth+1)+" \""+src+"\" \""+dst+"\" /XF *"
+			pscmd2 = robocopywinpath+" /COPY:DATSO /E /R:0 /NP /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\""+excludedir
 
 			#pscmd1 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth+1)+" " +src+" "+dst#+" /XF *"
 			#pscmd2 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth)+" "+src+" "+dst
