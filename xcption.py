@@ -34,7 +34,7 @@ xcppath = '/usr/local/bin/xcp'
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 #robocopy windows location
 robocopywinpath = 'c:\\nomad\\robocopy_wrapper.cmd'
-robocopyargs = ' /COPYALL /MIR /NP /MT:16 /R:0 /W:0 /TEE'
+robocopyargs = ' /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE'
 failbackuser = "demo\\administrator"
 failbackgroup = "demo\\users"
 
@@ -646,7 +646,7 @@ def create_nomad_jobs():
 					logging.debug("creating verify job file: " + verify_job_file)	
 					
 					if ostype == 'linux':  cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
-					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+" verify -v -preserve-atime "+src+" "+dst)								
+					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+" verify -v -l -preserve-atime "+src+" "+dst)								
 					
 					with open(verify_job_file, 'w') as fh:
 						fh.write(verify_template.render(
@@ -1256,11 +1256,12 @@ def create_status (reporttype,displaylogs=False):
 									verifyjobsstructure['allocs'][allocdata['ID']] = {}
 									verifyjobsstructure['allocs'][allocdata['ID']] = allocdata
 
-							if file.startswith("stdoutlog_"):
+							logtype = 'stderr'
+							if file.startswith(logtype+"log_"):
 								verifylogcachefile = os.path.join(verifycachedir,file)
-								logallocid = file.replace('stdoutlog_','').replace('.log','')
+								logallocid = file.replace(logtype+'log_','').replace('.log','')
 								logging.debug('loading cached info log file:'+verifylogcachefile)
-								verifystatsresults = parse_stats_from_log('file',verifylogcachefile,'stdout')
+								verifystatsresults = parse_stats_from_log('file',verifylogcachefile,logtype)
 								if 'time' in verifystatsresults.keys(): 
 									verifytime = verifystatsresults['time']
 								if 'bwout' in verifystatsresults.keys(): 
@@ -1343,32 +1344,32 @@ def create_status (reporttype,displaylogs=False):
 				 			try:
 				 				scanned = baselinestatsresults['scanned']
 				 			except:
-				 				scanned = '0'
+				 				scanned = '-'
 
 							try:
 								reviewed = baselinestatsresults['reviewed']
 							except:
-								reviewed = '0'
+								reviewed = '-'
  				
 				 			try:
 				 				copied = baselinestatsresults['copied']
 				 			except:
-				 				copied = '0'
+				 				copied = '-'
 
 				 			try:
 				 				deleted = baselinestatsresults['gone']
 				 			except:
-				 				deleted = '0'
+				 				deleted = '-'
 
 				 			try:
 				 				modified = baselinestatsresults['modification']
 				 			except:
-				 				modified = '0'						 										 				
+				 				modified = '-'						 										 				
 
 				 			try:
 				 				errors = baselinestatsresults['errors']
 				 			except:
-				 				errors = '0'
+				 				errors = '-'
 
 				 			verifyratio = '-'
 
@@ -1468,28 +1469,28 @@ def create_status (reporttype,displaylogs=False):
 							 			try:
 							 				reviewed = currentlog['reviewed']
 							 			except:
-							 				reviewed = '0'
+							 				reviewed = '-'
 							 				
 										try:
 											scanned = currentlog['scanned']
 											if tasktype == 'verify': scanned = currentlog['found']+'/'+currentlog['scanned']
 										except:
-											scanned = '0'
+											scanned = '-'
 
 							 			try:
 							 				copied = currentlog['copied']
 							 			except:
-							 				copied = '0'
+							 				copied = '-'
 
 							 			try:
 							 				deleted = currentlog['gone']
 							 			except:
-							 				deleted = '0'
+							 				deleted = '-'
 
 							 			try:
 							 				modified = currentlog['modification']
 							 			except:
-							 				modified = '0'						 										 				
+							 				modified = '-'						 										 				
 
 							 			try:
 							 				errors = currentlog['errors']
