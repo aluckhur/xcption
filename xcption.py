@@ -850,6 +850,17 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['copied'] = int(matchObj.group(2))
 				results['errors'] = int(matchObj.group(5))
 
+			matchObj = re.search(r"Bytes\s+\:\s+(\d+([\,]\d+)*([\.]\d+)?)\s+([g|m|k|t])?", results['content'], re.M|re.I)
+			if matchObj:
+				results['bwout'] = str(round(float(matchObj.group(1)),2))
+				quantifier = ''
+				if not matchObj.group(4): quantifier= ' B'
+				elif matchObj.group(4) == 'k': quantifier= ' KiB'
+				elif matchObj.group(4) == 'm': quantifier= ' MiB'
+				elif matchObj.group(4) == 'g': quantifier= ' GiB'
+				elif matchObj.group(4) == 't': quantifier= ' TiB'
+				results['bwout'] += quantifier
+
 			matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
 			if matchObj:
 				results['scanned'] += int(matchObj.group(1))				
@@ -901,7 +912,8 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['filegone'] = matchObj.group(1)
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
 		if matchObj: 
-			results['dirgone'] = matchObj.group(1)			
+			results['dirgone'] = matchObj.group(1)		
+
 		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
 			results['bwout'] = matchObj.group(1).replace(' out ','')
@@ -934,6 +946,16 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		matchObj = re.search("(\d+) different mod time", lastline, re.M|re.I)
 		if matchObj:
 			results['diffmodtime'] = matchObj.group(1)
+
+		#xcp verify for windows 
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) compared", lastline, re.M|re.I)
+		if matchObj:
+			results['scanned'] = matchObj.group(1)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) same", lastline, re.M|re.I)
+		if matchObj:		
+			results['found'] = matchObj.group(1)
+			if results['scanned'] == results['found']: results['verified']='yes'
+
 	
 	#future optimization for status 
 #	if type == 'file':
@@ -1085,7 +1107,7 @@ def create_status (reporttype,displaylogs=False):
 									baselinealloc = allocdata
 							if file.startswith(logtype+"log_"):
 								baselinelogcachefile = os.path.join(baselinecachedir,file)
-								logging.debug('loading cached info log file:'+baselinelogcachefile)
+								logging.debug('loading cached info log file:'+baselinelogcachefile) 
 								baselinestatsresults = parse_stats_from_log('file',baselinelogcachefile,logtype)
 								if 'time' in baselinestatsresults.keys(): 
 									baselinetime = baselinestatsresults['time']
@@ -1256,7 +1278,7 @@ def create_status (reporttype,displaylogs=False):
 									verifyjobsstructure['allocs'][allocdata['ID']] = {}
 									verifyjobsstructure['allocs'][allocdata['ID']] = allocdata
 
-							logtype = 'stderr'
+							logtype = 'stdout'
 							if file.startswith(logtype+"log_"):
 								verifylogcachefile = os.path.join(verifycachedir,file)
 								logallocid = file.replace(logtype+'log_','').replace('.log','')
@@ -1286,7 +1308,11 @@ def create_status (reporttype,displaylogs=False):
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
 						try:
+							#linux
 							if verifystatus == 'failed' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
+							#windows
+							if ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
+
 							if verifystatus == 'complete': verifystatus = 'idle'
 							if verifystatus == 'idle' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
 						except:
@@ -1404,7 +1430,8 @@ def create_status (reporttype,displaylogs=False):
 									print ""
 									try:
 										print baselinestatsresults['content']
-									except:										print "log is not avaialble"
+									except:										
+										print "log is not avaialble"
 									print ""
 									print ""
 									verbosetable = PrettyTable()
@@ -1507,7 +1534,7 @@ def create_status (reporttype,displaylogs=False):
 
 												errors = errors+' (attr:'+diffattr+' time:'+diffmodtime+')'
 							 			except:
-							 				errors = '0'	
+							 				errors = '-'	
 
 							 			try:
 							 				sent = currentlog['bwout']
@@ -1528,6 +1555,11 @@ def create_status (reporttype,displaylogs=False):
 											if tasktype == 'verify':
 												if jobstatus == 'failed' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 												if jobstatus == 'complete': jobstatus = 'idle'
+												#windows
+												print currentlog['found'], currentlog['scanned'], ostype
+
+												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
+
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'										
 										except:
 											jobstatus = '-'
@@ -2138,7 +2170,7 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 			#create xcption job entry
 			#print depth,currentdepth,dircount,nfssrcpath,path
 			if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
-				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ "will be configured as xcp job")
+				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
 				#append data to csv 
 				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
 
@@ -2266,10 +2298,10 @@ def list_dirs_windows(startpath,depth):
 def asses_fs_windows(csvfile,src,dst,depth,jobname):
 	logging.debug("trying to asses src:" + src + " dst:" + dst) 
 
-	if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
+	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
 		logging.error("src path format is incorrect: " + src) 
 		exit(1)	
-	if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
+	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
 		logging.error("dst path format is incorrect: " + dst)
 		exit(1)	
 
@@ -2465,7 +2497,7 @@ if args.subparser_name == 'nomad':
 	exit (0)
 
 if args.subparser_name == 'asses':
-	if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
+	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
 		asses_fs_linux(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 	else:
 		asses_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
