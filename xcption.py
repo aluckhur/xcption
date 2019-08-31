@@ -34,7 +34,7 @@ xcppath = '/usr/local/bin/xcp'
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 #robocopy windows location
 robocopywinpath = 'c:\\nomad\\robocopy_wrapper.cmd'
-
+robocopyargs = ' /COPYALL /MIR /NP /MT:16 /R:0 /W:0 /TEE'
 failbackuser = "demo\\administrator"
 failbackgroup = "demo\\users"
 
@@ -601,16 +601,20 @@ def create_nomad_jobs():
 					logging.info("creating/updating relationship configs for src:"+src)
 					logging.debug("creating baseline job file: " + baseline_job_file)				
 					
-					if ostype == 'linux':  xcpargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
-					if ostype == 'windows': xcpargs = escapestr(xcpwinpath+" copy -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+					if ostype == 'linux':  cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+					if ostype == 'windows' and tool == 'xcp': 
+						cmdargs = escapestr(xcpwinpath+" copy -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+					if ostype == 'windows' and tool == 'robocopy': 
+						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
 					
+
 					with open(baseline_job_file, 'w') as fh:
 						fh.write(baseline_template.render(
 							dcname=dcname,
 							os=ostype,
 							baseline_job_name=baseline_job_name,
 							xcppath=xcpbinpath,
-							args=xcpargs,
+							args=cmdargs,
 							memory=memory,
 							cpu=cpu
 						))
@@ -619,8 +623,11 @@ def create_nomad_jobs():
 					sync_job_file = os.path.join(jobdir,sync_job_name+'.hcl')		
 					logging.debug("creating sync job file: " + sync_job_file)				
 					
-					if ostype == 'linux':  xcpargs = "sync\",\"-id\",\""+xcpindexname
-					if ostype == 'windows': xcpargs = escapestr(xcpwinpath+" sync -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+					if ostype == 'linux':  cmdargs = "sync\",\"-id\",\""+xcpindexname
+					if ostype == 'windows' and tool == 'xcp': 
+						cmdargs = escapestr(xcpwinpath+" sync -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+					if ostype == 'windows' and tool == 'robocopy': 
+						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
 
 					with open(sync_job_file, 'w') as fh:
 						fh.write(sync_template.render(
@@ -629,7 +636,7 @@ def create_nomad_jobs():
 							sync_job_name=sync_job_name,
 							jobcron=jobcron,
 							xcppath=xcpbinpath,
-							args=xcpargs,
+							args=cmdargs,
 							memory=memory,
 							cpu=cpu					
 						))
@@ -638,8 +645,8 @@ def create_nomad_jobs():
 					verify_job_file = os.path.join(jobdir,verify_job_name+'.hcl')	
 					logging.debug("creating verify job file: " + verify_job_file)	
 					
-					if ostype == 'linux':  xcpargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
-					if ostype == 'windows': xcpargs = escapestr(xcpwinpath+" verify -v -preserve-atime "+src+" "+dst)								
+					if ostype == 'linux':  cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
+					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+" verify -v -preserve-atime "+src+" "+dst)								
 					
 					with open(verify_job_file, 'w') as fh:
 						fh.write(verify_template.render(
@@ -647,7 +654,7 @@ def create_nomad_jobs():
 							os=ostype,
 							verify_job_name=verify_job_name,
 							xcppath=xcpbinpath,
-							args=xcpargs,
+							args=cmdargs,
 							memory=memory,
 							cpu=cpu
 						))					
@@ -826,17 +833,47 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			logging.debug("log for job:"+allocid+" is not avaialble using api")																								
 
 	if results['content'] != '':
+
+		#for robocopy logs 
+		matchObj = re.search("Robust File Copy for Windows", results['content'], re.M|re.I)
+		if matchObj: 
+			matchObj = re.search("Times\s+\:\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)
+			if matchObj:
+				results['time'] = '';
+				if int( matchObj.group(1)) > 0: results['time'] += matchObj.group(1)+"h"
+				if int( matchObj.group(2)) > 0: results['time'] += matchObj.group(2)+"m"
+				results['time'] += matchObj.group(3)+"s"
+
+			matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
+			if matchObj:
+				results['scanned'] = int(matchObj.group(1))
+				results['copied'] = int(matchObj.group(2))
+				results['errors'] = int(matchObj.group(5))
+
+			matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
+			if matchObj:
+				results['scanned'] += int(matchObj.group(1))				
+				results['copied'] += int(matchObj.group(2))				
+				results['errors'] = int(matchObj.group(5))
+
+			matchObj = re.search("Times \:\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)	
+
+			return results
+			#results['scanned'] = matchObj.group(1)		
+
+		# for xcp logs
 		matchObj = re.finditer("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S? [scanned|reviewed].+)$",results['content'],re.M|re.I)
 		if matchObj:
 			for matchNum, match in enumerate(matchObj, start=1):
 				lastline = match.group()
 			results['lastline'] = lastline
 
+	#for xcp logs 	
 	if lastline:
 		matchObj = re.search("\s+(\S*\d+[s|m])(\.)?$", lastline, re.M|re.I)
 		if matchObj: 
 			results['time'] = matchObj.group(1)
-
+				#reviewed in xcp linux, compared xcp windows
                 matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) [reviewed|compared]", lastline, re.M|re.I)
                 if matchObj:
                         results['reviewed'] = matchObj.group(1)
