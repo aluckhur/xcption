@@ -32,11 +32,10 @@ defaultwintool = 'xcp'
 xcppath = '/usr/local/bin/xcp'
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
+
 #robocopy windows location
 robocopywinpath = 'c:\\nomad\\robocopy_wrapper.cmd'
 robocopyargs = ' /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE'
-failbackuser = "demo\\administrator"
-failbackgroup = "demo\\users"
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -89,17 +88,18 @@ parser.add_argument('-d','--debug',   help="log debug messages to console", acti
 subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
 
 # create the sub commands 
-parser_status   = subparser.add_parser('status',   help='display status')	
-parser_asses    = subparser.add_parser('asses',    help='asses fielsystem and create csv file')
-parser_load     = subparser.add_parser('load',     help='load/update configuration from csv file')
-parser_baseline = subparser.add_parser('baseline', help='start baseline (xcp copy)')
-parser_sync     = subparser.add_parser('sync',     help='start schedule updates (xcp sync)')
-parser_syncnow  = subparser.add_parser('syncnow',  help='initiate sync now')
-parser_pause    = subparser.add_parser('pause',    help='disable sync schedule')
-parser_resume   = subparser.add_parser('resume',   help='resume sync schedule')
-parser_verify   = subparser.add_parser('verify',   help='start verify to validate consistency between source and destination (xcp verify)')
-parser_delete   = subparser.add_parser('delete',   help='delete existing config')
-parser_nomad    = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
+parser_nodestatus   = subparser.add_parser('nodestatus',   help='display cluster nodes status')	
+parser_status       = subparser.add_parser('status',   help='display status')	
+parser_asses        = subparser.add_parser('asses',    help='asses fielsystem and create csv file')
+parser_load         = subparser.add_parser('load',     help='load/update configuration from csv file')
+parser_baseline     = subparser.add_parser('baseline', help='start baseline (xcp copy)')
+parser_sync         = subparser.add_parser('sync',     help='start schedule updates (xcp sync)')
+parser_syncnow      = subparser.add_parser('syncnow',  help='initiate sync now')
+parser_pause        = subparser.add_parser('pause',    help='disable sync schedule')
+parser_resume       = subparser.add_parser('resume',   help='resume sync schedule')
+parser_verify       = subparser.add_parser('verify',   help='start verify to validate consistency between source and destination (xcp verify)')
+parser_delete       = subparser.add_parser('delete',   help='delete existing config')
+parser_nomad        = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -111,9 +111,11 @@ parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)"
 parser_asses.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
 parser_asses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_asses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
-parser_asses.add_argument('-u','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
+parser_asses.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
 parser_asses.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
 parser_asses.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
+parser_asses.add_argument('-u','--failbackuser',help="failback user required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
+parser_asses.add_argument('-g','--failbackgroup',help="failback group required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
 parser_asses.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
@@ -254,8 +256,14 @@ def parse_csv(csv_path):
 					
 					tool = defaultwintool
 					if 6 < len(row): tool  = row[6]
+
+					failbackuser =''
+					if 7 < len(row): failbackuser  = row[7]					
+
+					failbackgroup =''
+					if 8 < len(row): failbackgroup  = row[8]	
 					
-					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool) 
+					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool+" failbackuser:"+failbackuser+" failback group:"+failbackgroup) 
 
 					srcbase = src.replace(':/','-_')
 					srcbase = srcbase.replace('/','_')
@@ -358,6 +366,9 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["memory"] = memory
 					jobsdict[jobname][src]["ostype"] = ostype
 					jobsdict[jobname][src]["tool"] = tool
+					jobsdict[jobname][src]["failbackuser"] = failbackuser
+					jobsdict[jobname][src]["failbackgroup"] = failbackgroup
+
 
 					logging.debug("parsed the following relation:"+src+" -> "+dst)
 
@@ -592,6 +603,8 @@ def create_nomad_jobs():
 					memory            = jobdetails['memory']
 					ostype			  = jobdetails['ostype']
 					tool              = jobdetails['tool']
+					failbackuser      = jobdetails['failbackuser']
+					failbackgroup     = jobdetails['failbackgroup']
 
 					if ostype == 'linux': xcpbinpath = xcppath
 					if ostype == 'windows': xcpbinpath = 'powershell'
@@ -1556,7 +1569,6 @@ def create_status (reporttype,displaylogs=False):
 												if jobstatus == 'failed' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 												if jobstatus == 'complete': jobstatus = 'idle'
 												#windows
-												print currentlog['found'], currentlog['scanned'], ostype
 
 												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 
@@ -1837,6 +1849,62 @@ def delete_jobs(forceparam):
 							exit(1)						
 
 #check if nomad is available + run the xcption_gc_system job if not avaialble 
+def nomadstatus():
+	logging.debug("getting list of nomad nodes")
+	response = requests.get(nomadapiurl+'nodes')	
+	if not response.ok:
+		logging.error("could not contact nomad cluster, please make sure this node is part of the cluster")
+		exit(1)
+	else:
+		#build the table object
+		table = PrettyTable()
+		table.field_names = ["Name","IP","Status","OS","Total CPU MHz","Total RAM MB","# Running Jobs"]		
+		nodes = json.loads(response.content)
+		
+		for node in nodes:
+			name = node['Name']
+			status = node['Status']
+			nodeid = node['ID']
+			ip = node['Address']
+
+			logging.debug("getting node specifics:"+name)
+			response = requests.get(nomadapiurl+'node/'+nodeid)
+			if not response.ok:
+				logging.error("could not get node information for node:"+name+" id:"+nodeid)
+				exit(1)
+			else:
+				nodedetails = json.loads(response.content)
+				ostype = nodedetails['Attributes']['os.name']
+				ip = nodedetails['Attributes']['unique.network.ip-address']
+				totalcpu = nodedetails['Resources']['CPU']
+				totalram = nodedetails['Resources']['MemoryMB']
+
+				#not working due to nomad not reflecting used resources 
+				#reservedcpu = nodedetails['ReservedResources']['Cpu']['CpuShares']
+				#reservedram = nodedetails['ReservedResources']['Memory']['MemoryMB']				
+				#cpuinfo = str(reservedcpu)+'/'+str(totalcpu) + ' ('+str(round(reservedcpu/totalcpu*100))+'%)'
+				#raminfo = str(reservedram)+'/'+str(totalram) + ' ('+str(round(reservedram/totalram*100))+'%)'
+
+				#pp.pprint(nodedetails)
+			logging.debug("getting node allocations:"+name)
+			response = requests.get(nomadapiurl+'node/'+nodeid+'/allocations')
+			if not response.ok:
+				logging.error("could not get node allocation for node:"+name+" id:"+nodeid)
+				exit(1)
+			else:		
+				allocdetails = json.loads(response.content)	
+				alloccounter = 0
+				#pp.pprint(allocdetails)
+				for alloc in allocdetails:
+					if alloc['JobID'] != 'xcption_gc_system' and alloc['ClientStatus'] == 'running': alloccounter += 1
+			table.add_row([name,ip,status,ostype,totalcpu,totalram,alloccounter])
+		
+		table.border = False
+		table.align = 'l'
+		print ""
+		print table			
+
+#check if nomad is available + run the xcption_gc_system job if not avaialble 
 def check_nomad():
 	response = requests.get(nomadapiurl+'nodes')	
 	if not response.ok:
@@ -1930,6 +1998,10 @@ def parse_nomad_jobs_to_files ():
 		logging.debug("cannot create lock file:"+lockfile)
 
 	for job in jobs:
+
+		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify')):
+			continue
+
 		jobdir = os.path.join(cachedir,'job_'+job['ID'])	
 
 		if len(job['ID'].split('/')) == 1:
@@ -2320,6 +2392,15 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 	if args.robocopy:
 		tool = 'robocopy'
 
+	failbackuser = ''
+	failbackgroup = ''
+	if tool == 'xcp' and (not args.failbackuser or not args.failbackgroup):
+		logging.error("--failbackuser and --failbackgroup are required to use xcp for windows")
+		exit(1)	
+	else:		
+		failbackuser = args.failbackuser
+		failbackgroup = args.failbackgroup		
+
 	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
 	pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
 	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
@@ -2338,7 +2419,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 
 	#prepare things for csv creation
 	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL"]
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP"]
 	csv_data = []
 
 	if os.path.isfile(csvfile):
@@ -2390,12 +2471,13 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 			logging.debug("src path: "+srcpath+" and dst path: "+dstpath+ "will be configured as xcp job")
 
 			#append data to csv 
-			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory,"TOOL":tool})
+			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup})
 
 			#exlude copy of files in this dir 
 			if currentdepth < depth:
 				if excludedir == '': excludedir = " /XD "
 				excludedir += "\""+srcpath+"\" "
+
 	if warning:
 		if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
 	
@@ -2414,11 +2496,8 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		if depth > 0:
 			depthxcpcopy = ''
 
-			pscmd1 = robocopywinpath+" /COPY:DATSO /E /R:0 /NP /TEE /LEV:"+str(depth+1)+" \""+src+"\" \""+dst+"\" /XF *"
-			pscmd2 = robocopywinpath+" /COPY:DATSO /E /R:0 /NP /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\""+excludedir
-
-			#pscmd1 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth+1)+" " +src+" "+dst#+" /XF *"
-			#pscmd2 = robocopywinpath+" /COPY:DATS /E /R:0 /NP /TEE /LEV:"+str(depth)+" "+src+" "+dst
+			pscmd1 = robocopywinpath+robocopyargs+" /LEV:"+str(depth+1)+" \""+src+"\" \""+dst+"\" /XF *"
+			pscmd2 = robocopywinpath+robocopyargs+" /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\""+excludedir
 
 			logging.info("robocopy can be used to create the destination initial directory structure for xcption jobs")
 			logging.info("robocopy command to sync directory structure for the required depth will be:")
@@ -2491,6 +2570,10 @@ if hasattr(args,'phase'):
 
 #check nomad avaialbility
 check_nomad()
+
+if args.subparser_name == 'nodestatus':
+	nomadstatus()
+	exit(0)
 
 if args.subparser_name == 'nomad':
 	parse_nomad_jobs_to_files()
