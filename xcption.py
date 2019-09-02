@@ -1858,7 +1858,7 @@ def nomadstatus():
 	else:
 		#build the table object
 		table = PrettyTable()
-		table.field_names = ["Name","IP","Status","OS","Total CPU MHz","Total RAM MB","# Running Jobs"]		
+		table.field_names = ["Name","IP","Status","OS","Reserved/Total CPU MHz","Reserved/Total RAM MB","# Running Jobs"]		
 		nodes = json.loads(response.content)
 		
 		for node in nodes:
@@ -1879,13 +1879,6 @@ def nomadstatus():
 				totalcpu = nodedetails['Resources']['CPU']
 				totalram = nodedetails['Resources']['MemoryMB']
 
-				#not working due to nomad not reflecting used resources 
-				#reservedcpu = nodedetails['ReservedResources']['Cpu']['CpuShares']
-				#reservedram = nodedetails['ReservedResources']['Memory']['MemoryMB']				
-				#cpuinfo = str(reservedcpu)+'/'+str(totalcpu) + ' ('+str(round(reservedcpu/totalcpu*100))+'%)'
-				#raminfo = str(reservedram)+'/'+str(totalram) + ' ('+str(round(reservedram/totalram*100))+'%)'
-
-				#pp.pprint(nodedetails)
 			logging.debug("getting node allocations:"+name)
 			response = requests.get(nomadapiurl+'node/'+nodeid+'/allocations')
 			if not response.ok:
@@ -1894,10 +1887,17 @@ def nomadstatus():
 			else:		
 				allocdetails = json.loads(response.content)	
 				alloccounter = 0
+				reservedcpu = 0
+				reservedram = 0
 				#pp.pprint(allocdetails)
 				for alloc in allocdetails:
-					if alloc['JobID'] != 'xcption_gc_system' and alloc['ClientStatus'] == 'running': alloccounter += 1
-			table.add_row([name,ip,status,ostype,totalcpu,totalram,alloccounter])
+					if alloc['JobID'] != 'xcption_gc_system' and alloc['ClientStatus'] == 'running': 
+						alloccounter += 1
+						reservedcpu += alloc['Resources']['CPU']
+						reservedram += alloc['Resources']['MemoryMB']
+			cpuinfo = str(reservedcpu)+'/'+str(totalcpu) + ' ('+str(round(float(reservedcpu)/float(totalcpu)*100))+'%)'
+			raminfo = str(reservedram)+'/'+str(totalram) + ' ('+str(round(float(reservedram)/float(totalram)*100))+'%)'						
+			table.add_row([name,ip,status,ostype,cpuinfo,raminfo,alloccounter])
 		
 		table.border = False
 		table.align = 'l'
