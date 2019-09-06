@@ -117,15 +117,16 @@ a CSV file with the jobs should be created with the following columns:
 CSV file example:
 ```
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-jobnfs1,192.168.0.200:/src/dir1,192.168.0.200:/dst/dir1,10 * * * *,1000,800
-jobnfs1,192.168.0.200:/src/dir2,192.168.0.200:/dst/dir2,20 * * * *,1000,800
-jobnfs2,192.168.0.200:/src/dir3,192.168.0.200:/dst/dir3,30 * * * *,1000,800
-jobnfs2,192.168.0.200:/src/dir4,192.168.0.200:/dst/dir4,40 * * * *,1000,800
+#NFS Jobs 
+jobnfs1,192.168.0.200:/nfssrc/dir1,192.168.0.200:/nfsdst/dir1,10 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir2,192.168.0.200:/nfsdst/dir2,20 * * * *,1000,800
+jobnfs2,192.168.0.200:/nfssrc/dir3,192.168.0.200:/nfsdst/dir3,30 * * * *,1000,800
+jobnfs2,192.168.0.200:/nfssrc/dir4,192.168.0.200:/nfsdst/dir4,40 * * * *,1000,800
+#CIFS jobs 
 jobwin1,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800,xcp
 jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,xcp
-jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,demo\administrator,demo\users
-jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,demo\administrator,demo\users
-
+jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,demo\user1,demo\users
+jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,demo\user1,demo\users
 
 
 ```
