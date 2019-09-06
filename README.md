@@ -55,14 +55,18 @@ windows hosts `c:\NetApp\XCP\xcp.exe`
 The interaction is done using the following python CLI command (need root access)
 
 ```
+[root@rhel1 xcption]# ./xcption.py  -h
 usage: xcption.py [-h] [-d]
-                  {status,asses,load,baseline,sync,syncnow,pause,resume,delete} ...
+
+                  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,verify,delete,nomad}
+                  ...
 
 positional arguments:
-  {status,asess,load,baseline,sync,syncnow,pause,resume,delete}
+  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,verify,delete,nomad}
                         sub commands that can be used
+    nodestatus          display cluster nodes status
     status              display status
-    asses               asses filesystem and create csv file
+    asses               asses fielsystem and create csv file
     load                load/update configuration from csv file
     baseline            start baseline (xcp copy)
     sync                start schedule updates (xcp sync)
@@ -70,13 +74,12 @@ positional arguments:
     pause               disable sync schedule
     resume              resume sync schedule
     verify              start verify to validate consistency between source
-                        and destination (xcp verify)    
+                        and destination (xcp verify)
     delete              delete existing config
 
 optional arguments:
   -h, --help            show this help message and exit
   -d, --debug           log debug messages to console
-
 ```
 
 **There are 2 options to create xcption jobs:**
