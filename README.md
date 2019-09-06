@@ -316,22 +316,6 @@ cifsjob,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800
 
 ```
 
-
-**example for the CSV file created by the assess command:**
-
-```
-#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-src_job,192.168.100.2:/xcp/src/folder2/subfolder2,192.168.100.2:/xcp/dst/folder2/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder2/subfolder3,192.168.100.2:/xcp/dst/folder2/subfolder3,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder2/subfolder1,192.168.100.2:/xcp/dst/folder2/subfolder1,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder2,192.168.100.2:/xcp/dst/folder1/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder3,192.168.100.2:/xcp/dst/folder1/subfolder3,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder1,192.168.100.2:/xcp/dst/folder1/subfolder1,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder3/subfolder2,192.168.100.2:/xcp/dst/folder3/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder3/subfolder1,192.168.100.2:/xcp/dst/folder3/subfolder1,0 0 * * * *,3000,800
-```
-
-
 **Following the creation of the csv file, the file should be loaded and validated using the `load` command:**
 
 ```
@@ -352,13 +336,30 @@ optional arguments:
 
 Example:
 ```
-sudo user@master:~/xcption# ./xcption.py load -c example/test.csv
-2019-03-25 07:02:03,217 - INFO - validating src:192.168.100.2:/xcp/src1 and dst:192.168.100.3:/xcp/dst1 are mountable
-2019-03-25 07:02:03,813 - INFO - validating src:192.168.100.2:/xcp/src2 and dst:192.168.100.4:/xcp/dst2 are mountable
-2019-03-25 07:02:04,459 - INFO - validating src:192.168.100.2:/xcp/src3 and dst:192.168.100.4:/xcp/dst3 are mountable
-2019-03-25 07:02:05,116 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src1
-2019-03-25 07:02:05,119 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src2
-2019-03-25 07:02:05,121 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src3
+user@master:~/xcption$ sudo ./xcption.py load -c example/nfsjob.csv
+2019-09-06 15:47:22,956 - INFO - validating src:192.168.0.200:/nfssrc/dir1 and dst:192.168.0.200:/nfsdst/dir1 are mountable
+2019-09-06 15:47:23,024 - INFO - validating src:192.168.0.200:/nfssrc/dir2 and dst:192.168.0.200:/nfsdst/dir2 are mountable
+2019-09-06 15:47:23,094 - INFO - validating src:192.168.0.200:/nfssrc/dir3 and dst:192.168.0.200:/nfsdst/dir3 are mountable
+2019-09-06 15:47:23,166 - INFO - validating src:192.168.0.200:/nfssrc/dir4 and dst:192.168.0.200:/nfsdst/dir4 are mountable
+2019-09-06 15:47:23,251 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir1
+2019-09-06 15:47:23,256 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir3
+2019-09-06 15:47:23,260 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir2
+2019-09-06 15:47:23,266 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir4
+
+
+user@master:~/xcption$ sudo ./xcption.py load -c example/cifsjob.csv
+2019-09-06 15:47:30,400 - INFO - validating src:\\192.168.0.200\src$\dir4 and dst:\\192.168.0.200\dst$\dir4 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:37,485 - INFO - validating src:\\192.168.0.200\src$\dir3 and dst:\\192.168.0.200\dst$\dir3 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:44,586 - INFO - validating src:\\192.168.0.200\src$\dir2 and dst:\\192.168.0.200\dst$\dir2 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:52,677 - INFO - validating src:\\192.168.0.200\src$\dir1 and dst:\\192.168.0.200\dst$\dir1 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:59,766 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir1
+2019-09-06 15:47:59,778 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir3
+2019-09-06 15:47:59,783 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir2
+2019-09-06 15:47:59,787 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir4
+2019-09-06 15:47:59,792 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir3
+2019-09-06 15:47:59,796 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir2
+2019-09-06 15:47:59,799 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir1
+2019-09-06 15:47:59,803 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir4
 
 ```
 
