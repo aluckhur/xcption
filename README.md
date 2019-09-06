@@ -151,24 +151,42 @@ for example if our source file system directory structure up to depth of 2 level
      └── subfolder2  
 ```
 we can use the `asses` command to build this initial directory structure on the destination volume and automatically create the XCPtion CSV file for us.
-XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).
-**directory structure created using rsync will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs 
+XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).  
+
+**directory structure is created using `rsync` on linux and `robocopy` on windows will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs  
 for example if a file is created under /src/folder1/ it should be manually updated to the destination**
 
 ```
-user@master:~/xcption$ sudo ./xcption.py assess -h
-usage: xcption.py assess [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE [-j jobname]
+user@master:~/xcption$ ./xcption.py asses -h
+usage: xcption.py asses [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE
+                        [-p CPU] [-m RAM] [-r] [-u FAILBACKUSER]
+                        [-g FAILBACKGROUP] [-j jobname]
 
 optional arguments:
-  -h, --help                                  show this help message and exit
-  -s SOURCE, --source SOURCE                  source nfs path (nfssrv:/mount)
-  -d DESTINATION, --destination DESTINATION   destintion nfs path (nfssrv:/mount)
-  -l DEPTH, --depth DEPTH                     filesystem depth to create jobs, range of 1-12
-  -c CSVFILE, --csvfile CSVFILE               output CSV file
-  -j jobname, --job jobname                   xcption job name
+  -h, --help            show this help message and exit
+  -s SOURCE, --source SOURCE
+                        source nfs path (nfssrv:/mount)
+  -d DESTINATION, --destination DESTINATION
+                        destintion nfs path (nfssrv:/mount)
+  -l DEPTH, --depth DEPTH
+                        filesystem depth to create jobs, range of 1-12
+  -c CSVFILE, --csvfile CSVFILE
+                        output CSV file
+  -p CPU, --cpu CPU     CPU allocation in MHz for each job
+  -m RAM, --ram RAM     RAM allocation in MB for each job
+  -r, --robocopy        use robocopy instead of xcp for windows jobs
+  -u FAILBACKUSER, --failbackuser FAILBACKUSER
+                        failback user required for xcp for windows jobs, see
+                        xcp.exe copy -h
+  -g FAILBACKGROUP, --failbackgroup FAILBACKGROUP
+                        failback group required for xcp for windows jobs, see
+                        xcp.exe copy -h
+  -j jobname, --job jobname
+                        xcption job name
+
 ```
 
-Example of running asses for the above filesystem:
+Example of running asses on linux:
 
 ```
 user@master:~/xcption$ sudo ./xcption.py assess -s 192.168.100.2:/xcp/src -d 192.168.100.2:/xcp/dst -l 2 -c example/src.csv -j src_job
