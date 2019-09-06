@@ -186,54 +186,118 @@ optional arguments:
 
 ```
 
-Example of running asses on linux:
+Example of running asses on NFS job:
 
 ```
-user@master:~/xcption$ sudo ./xcption.py assess -s 192.168.100.2:/xcp/src -d 192.168.100.2:/xcp/dst -l 2 -c example/src.csv -j src_job
-2019-04-12 10:26:12,044 - INFO - destination dir: 192.168.100.2:/xcp/dst/ for source dir: 192.168.100.2:/xcp/src/ already exists but empty
-2019-04-12 10:26:12,049 - INFO - job csv file:example/src.csv created
-2019-04-12 10:26:12,049 - INFO - rsync can be used to create the destination initial directory structure for xcption jobs
-2019-04-12 10:26:12,049 - INFO - rsync command to sync directory structure for the required depth will be:
-2019-04-12 10:26:12,049 - INFO - rsync -av --stats --exclude="/*/*/*" "/tmp/src_15693/" "/tmp/dst_15693/"
-2019-04-12 10:26:12,050 - INFO - (192.168.100.2:/xcp/src is mounted on:/tmp/src_15693 and 192.168.100.2:/xcp/dst is mounted on:/tmp/dst_15693)
+user@master:~/xcption$ sudo ./xcption.py asses -c example/nfsjob.csv -s 192.168.0.200:/nfssrc -d 192.168.0.200:/nfsdst -l 1 -p 1000 -m 800 -j jobnfs1
+2019-09-06 15:31:39,709 - WARNING - source directory: 192.168.0.200:/nfssrc/ contains 1 files. those files will not be included in the xcption jobs and need to be copied externaly
+please review the warnings above, do you want to continue? [y/N] y
+2019-09-06 15:31:55,143 - INFO - job csv file:example/nfsjob.csv created
+2019-09-06 15:31:55,144 - INFO - rsync can be used to create the destination initial directory structure for xcption jobs
+2019-09-06 15:31:55,144 - INFO - rsync command to sync directory structure for the required depth will be:
+2019-09-06 15:31:55,144 - INFO - rsync -av --exclude ".snapshot" --exclude="/*/*" "/tmp/src_24145/" "/tmp/dst_24145/"
+2019-09-06 15:31:55,144 - INFO - (192.168.0.200:/nfssrc is mounted on:/tmp/src_24145 and 192.168.0.200:/nfsdst is mounted on:/tmp/dst_24145)
 do you want to run rsync ? [y/N] y
-2019-04-12 10:26:13,674 - INFO - =================================================================
-2019-04-12 10:26:13,674 - INFO - ========================Starting rsync===========================
-2019-04-12 10:26:13,675 - INFO - =================================================================
+2019-09-06 15:32:03,808 - INFO - =================================================================
+2019-09-06 15:32:03,808 - INFO - ========================Starting rsync===========================
+2019-09-06 15:32:03,808 - INFO - =================================================================
 sending incremental file list
 ./
-folder1/
-folder1/subfolder1/
-folder1/subfolder2/
-folder1/subfolder3/
-folder2/
-folder2/subfolder1/
-folder2/subfolder2/
-folder2/subfolder3/
-folder3/
-folder3/subfolder1/
-folder3/subfolder2/
+file.txt
+dir1/
+dir2/
+dir3/
+dir4/
 
-Number of files: 12 (dir: 12)
-Number of created files: 11 (dir: 11)
-Number of deleted files: 0
-Number of regular files transferred: 0
-Total file size: 0 bytes
-Total transferred file size: 0 bytes
-Literal data: 0 bytes
-Matched data: 0 bytes
-File list size: 0
-File list generation time: 0.001 seconds
-File list transfer time: 0.000 seconds
-Total bytes sent: 361
-Total bytes received: 63
-
-sent 361 bytes  received 63 bytes  848.00 bytes/sec
+sent 213 bytes  received 58 bytes  542.00 bytes/sec
 total size is 0  speedup is 0.00
-2019-04-12 10:26:13,707 - INFO - =================================================================
-2019-04-12 10:26:13,708 - INFO - ===================rsync ended successfully======================
-2019-04-12 10:26:13,708 - INFO - =================================================================
-2019-04-12 10:26:13,708 - INFO - csv file:example/src.csv is ready to be loaded into xcption
+2019-09-06 15:32:03,825 - INFO - =================================================================
+2019-09-06 15:32:03,825 - INFO - ===================rsync ended successfully======================
+2019-09-06 15:32:03,825 - INFO - =================================================================
+2019-09-06 15:32:03,826 - INFO - csv file:example/nfsjob.csv is ready to be loaded into xcption
+
+```
+
+Example of running asses on CIFS job **(make sure to escape \ when using cifs paths \\SRV\share will be typed as \\\\SRV\\share)**:
+
+```
+user@master:~/xcption$ sudo  ./xcption.py asses -c example/cifsjob.csv -s \\\\192.168.0.200\\src$ -d \\\\192.168.0.200\\dst$ -j cifsjob -l 1 --cpu 2000 --ram 100 --robocopy
+2019-09-06 15:38:44,948 - INFO - validating src:\\192.168.0.200\src$ and dst:\\192.168.0.200\dst$ cifs paths are avaialble from one of the windows server
+2019-09-06 15:39:03,180 - WARNING - source path: \\192.168.0.200\src$ contains 2 files. those files will not be included in the xcption jobs and need to be copied externaly
+please review the warnings above, do you want to continue? [y/N] y
+2019-09-06 15:39:09,498 - INFO - job csv file:example/cifsjob.csv created
+2019-09-06 15:39:09,498 - INFO - robocopy can be used to create the destination initial directory structure for xcption jobs
+2019-09-06 15:39:09,498 - INFO - robocopy command to sync directory structure for the required depth will be:
+2019-09-06 15:39:09,498 - INFO - C:\NetApp\XCP\robocopy_wrapper.cmd /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:2 "\\192.168.0.200\src$" "\\192.168.0.200\dst$" /XF * ------ for directory structure
+2019-09-06 15:39:09,499 - INFO - C:\NetApp\XCP\robocopy_wrapper.cmd /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:1 "\\192.168.0.200\src$" "\\192.168.0.200\dst$" ------ for files
+do you want to run robocopy ? [y/N] y
+2019-09-06 15:39:19,573 - INFO - =================================================================
+2019-09-06 15:39:19,573 - INFO - ========================Starting robocopy========================
+2019-09-06 15:39:19,573 - INFO - =================================================================
+
+C:\NetApp\XCP\lib\alloc\d2a93b8a-2493-45b9-3b84-92c3ac878eda\win_C-_NetApp_XCP_r2481324813>c:\windows\system32\robocopy.exe /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:2 \\192.168.0.200\src$ \\192.168.0.200\dst$ /XF *
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows
+-------------------------------------------------------------------------------
+
+  Started : Friday, September 6, 2019 8:39:02 AM
+   Source : \\192.168.0.200\src$\
+     Dest : \\192.168.0.200\dst$\
+
+    Files : *.*
+
+Exc Files : *
+
+  Options : *.* /TEE /S /E /COPYALL /PURGE /MIR /NP /LEV:2 /MT:16 /R:0 /W:0
+
+------------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         5         5         4         0         0         0
+   Files :        40         0        40         0         0         0
+   Bytes :   5.388 g         0   5.388 g         0         0         0
+   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
+   Ended : Friday, September 6, 2019 8:39:02 AM
+
+
+
+C:\NetApp\XCP\lib\alloc\efd1fe93-61c3-4848-f23e-1b9a32da3b78\win_C-_NetApp_XCP_r2481324813>c:\windows\system32\robocopy.exe /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:1 \\192.168.0.200\src$ \\192.168.0.200\dst$
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows
+-------------------------------------------------------------------------------
+
+  Started : Friday, September 6, 2019 8:39:05 AM
+   Source : \\192.168.0.200\src$\
+     Dest : \\192.168.0.200\dst$\
+
+    Files : *.*
+
+  Options : *.* /TEE /S /E /COPYALL /PURGE /MIR /NP /LEV:1 /MT:16 /R:0 /W:0
+
+------------------------------------------------------------------------------
+
+100%        New File                   0        \\192.168.0.200\src$\file - Copy.txt
+100%        New File                   0        \\192.168.0.200\src$\file.txt
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         1         1         0         0         0         0
+   Files :         2         2         0         0         0         0
+   Bytes :         0         0         0         0         0         0
+   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
+   Ended : Friday, September 6, 2019 8:39:05 AM
+
+
+2019-09-06 15:39:26,677 - INFO - =================================================================
+2019-09-06 15:39:26,677 - INFO - =================robocopy ended successfully=====================
+2019-09-06 15:39:26,677 - INFO - =================================================================
+2019-09-06 15:39:26,677 - INFO - csv file:example/cifsjob.csv is ready to be loaded into xcption
 ```
 
 
