@@ -380,10 +380,17 @@ optional arguments:
 
 Example:
 ```
-user@master:~/xcption# sudo ./xcption.py baseline 
-2019-03-26 21:18:13,519 - INFO - starting/updating job:baseline_test1_192.168.100.2-_xcp_src1
-2019-03-26 21:18:13,578 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src2
-2019-03-26 21:18:13,627 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src3
+user@master:~/xcption# sudo ./xcption.py baseline
+2019-09-06 15:49:30,859 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir1 dst:192.168.0.200:/nfsdst/dir1
+2019-09-06 15:49:30,914 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir3 dst:192.168.0.200:/nfsdst/dir3
+2019-09-06 15:49:30,971 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir2 dst:192.168.0.200:/nfsdst/dir2
+2019-09-06 15:49:31,029 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir4 dst:192.168.0.200:/nfsdst/dir4
+2019-09-06 15:49:31,099 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir3 dst:\\192.168.0.200\dst$\dir3
+2019-09-06 15:49:31,211 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
+2019-09-06 15:49:31,338 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
+2019-09-06 15:49:31,461 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
+
+
 ```
 
 **To schedule the incremental updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
@@ -399,10 +406,14 @@ optional arguments:
                         change the scope of the command to specific path
 ```
 
-Example:
+Example for starting sync on specific job name using the -j option
 ```
-user@master:~/xcption# sudo ./xcption.py sync -s 192.168.100.2:/xcp/src10
-2019-03-14 15:07:18,663 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src10
+user@master:~/xcption# sudo ./xcption.py sync -j cifsjob
+2019-09-06 15:52:27,632 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir3 dst:\\192.168.0.200\dst$\dir3
+2019-09-06 15:52:27,708 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
+2019-09-06 15:52:27,758 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
+2019-09-06 15:52:27,807 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
+
 ```
 
 **verification using xcp verify can be start if a job finished baseline 
