@@ -29,14 +29,23 @@ Deployment of the next linux hosts in the cluster should be done using the comma
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t client -s <Server IP>`
 
 Deployment of windows hosts should be done by pulling system/xcption_deploy_windows.ps1 script to the windows host and specifing the required parameters:
-`PS C:\>.\xcption_deploy_windows.ps1 -XCPServer <Server IP> -ServerInstallDir <Install DIR> -ServerUser <user> -ServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
+`PS C:\>.\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
+
+`XCPtionServer` - IP address or resolvable name of the XCPtion Server 
+`XCPtionServerInstallDir` - The installation path of XCPtion on the server (Ex. /root/xcption)  
+`XCPtionServerUser` - username to access the XCPtion Server using scp to pull install files
+`XCPtionServerPWD` - passwd for the XCPtion Server username 
+`ServiceUser` - Domain Username (Domain\User) to start the XCPtionNomad service, This user will be used to access Source and Destination during the migration (This user need access to all files)
+`ServicePWD` - Password for domain user
 
 Following the installation **on all hosts** the xcp license file should be copied to the following location:
 
-`/opt/NetApp/xFiles/xcp/license`
+linux hosts `/opt/NetApp/xFiles/xcp/license`
+windows hosts `c:\NetApp\XCP\license`
 
 Updates to the xcp binary can be done by replacing the existing file in the following location **on all hosts**
-`/usr/local/bin/xcp`
+linux hosts `/usr/local/bin/xcp`
+windows hosts `c:\NetApp\XCP\xcp.exe`
 
 
 ## How To Use
