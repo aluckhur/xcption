@@ -2,7 +2,7 @@
 
 ## What is XCPtion?
 
-XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS file copy/migration utility
+XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility
 XCPtion will be able to run and manage multiple XCP jobs parallelly in a distributed fashion by using underlying services from Hashi Corp [Nomad](https://www.nomadproject.io/) distributed scheduler.
 
 ## Where do I get XCPtion?
@@ -12,21 +12,24 @@ You will need to apply for XCP license from: [XCP License Site](https://xcp.neta
 
 ## Installation
 
-XCPtion can be installed directly on internet connected Ubuntu/CentOS/RedHat server by pulling the repository using the command:
+XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/RedHat server by pulling the repository using the command:
 
 *ALL instances should be pulled to the same path on all of the servers !!!*
 
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
-Before starting the setup, NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
+Before starting the setup, NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all Linux servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
-Deployment on the 1st host in the cluster should be done using the command (-r should point to the preconfigured repository)
+Deployment of the server role on the 1st linux host in the cluster should be done using the command (-r should point to the preconfigured repository)
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
 
-Deployment of the next hosts in the cluster should be done using the command (pointing to the server IP address):
+Deployment of the next linux hosts in the cluster should be done using the command (pointing to the server IP address):
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t client -s <Server IP>`
+
+Deployment of windows hosts should be done by pulling system/xcption_deploy_windows.ps1 script to the windows host and specifing the required parameters:
+`PS C:\>.\xcption_deploy_windows.ps1 -XCPServer <Server IP> -ServerInstallDir <Install DIR> -ServerUser <user> -ServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
 
 Following the installation **on all hosts** the xcp license file should be copied to the following location:
 
