@@ -505,7 +505,7 @@ TOOL NAME: robocopy
 
 ```
 
-*To see xcp logs for specific phase of a job use the `-p <phase>` argument together with the `-l` argument **
+**To see xcp logs for specific phase of a job use the `-p <phase>` argument together with the `-l` argument **
 
 ```
 user@master:~/xcption# sudo ./xcption.py status -v -s \\\\192.168.0.200\\src$\\dir1 -p verify1 -l
