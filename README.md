@@ -216,6 +216,13 @@ total size is 0  speedup is 0.00
 2019-09-06 15:32:03,825 - INFO - =================================================================
 2019-09-06 15:32:03,826 - INFO - csv file:example/nfsjob.csv is ready to be loaded into xcption
 
+user@master:~/xcption$ sudo cat example/nfsjob.csv
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
+jobnfs1,192.168.0.200:/nfssrc/dir1,192.168.0.200:/nfsdst/dir1,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir2,192.168.0.200:/nfsdst/dir2,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir3,192.168.0.200:/nfsdst/dir3,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir4,192.168.0.200:/nfsdst/dir4,0 0 * * * *,1000,800
+
 ```
 
 Example of running asses on CIFS job **(make sure to escape \ when using cifs paths \\\\SRV\\share will be typed as \\\\\\\\SRV\\\\share)**:
@@ -298,6 +305,15 @@ C:\NetApp\XCP\lib\alloc\efd1fe93-61c3-4848-f23e-1b9a32da3b78\win_C-_NetApp_XCP_r
 2019-09-06 15:39:26,677 - INFO - =================robocopy ended successfully=====================
 2019-09-06 15:39:26,677 - INFO - =================================================================
 2019-09-06 15:39:26,677 - INFO - csv file:example/cifsjob.csv is ready to be loaded into xcption
+
+
+user@master:~/xcption$ sudo cat example/cifsjob.csv
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP
+cifsjob,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800,robocopy,,
+
 ```
 
 
