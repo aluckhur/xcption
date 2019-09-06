@@ -218,7 +218,7 @@ total size is 0  speedup is 0.00
 
 ```
 
-Example of running asses on CIFS job **(make sure to escape \ when using cifs paths \\SRV\share will be typed as \\\\SRV\\share)**:
+Example of running asses on CIFS job **(make sure to escape \ when using cifs paths \\\\SRV\\share will be typed as \\\\\\\\SRV\\\\share)**:
 
 ```
 user@master:~/xcption$ sudo  ./xcption.py asses -c example/cifsjob.csv -s \\\\192.168.0.200\\src$ -d \\\\192.168.0.200\\dst$ -j cifsjob -l 1 --cpu 2000 --ram 100 --robocopy
