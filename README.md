@@ -55,7 +55,7 @@ windows hosts `c:\NetApp\XCP\xcp.exe`
 The interaction is done using the following python CLI command (need root access)
 
 ```
-[root@rhel1 xcption]# ./xcption.py  -h
+[user@master xcption]$ sudo ./xcption.py  -h
 usage: xcption.py [-h] [-d]
 
                   {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,verify,delete,nomad}
@@ -82,9 +82,24 @@ optional arguments:
   -d, --debug           log debug messages to console
 ```
 
+**To display the nodes in the cluster use the `nodestatus` subcommand
+
+[user@master xcption]$ sudo ./xcption.py  -h ./xcption.py nodestatus
+
+```
+ Name      IP             Status  OS                                           Reserved/Total CPU MHz  Reserved/Total RAM MB  # Running Jobs
+ rhel1     192.168.0.61   ready   redhat                                       0/4588 (0.0%)           0/1838 (0.0%)          0
+ DC1       192.168.0.253  ready   Microsoft Windows Server 2012 R2 Datacenter  0/4590 (0.0%)           0/1023 (0.0%)          0
+ WFA       192.168.0.73   ready   Microsoft Windows Server 2016 Datacenter     0/4590 (0.0%)           0/8191 (0.0%)          0
+ rhel2     192.168.0.62   ready   redhat                                       0/4588 (0.0%)           0/1838 (0.0%)          0
+ JUMPHOST  192.168.0.5    ready   Microsoft Windows Server 2012 R2 Datacenter  0/2295 (0.0%)           0/2047 (0.0%)          0
+```
+
+The command display each node in the cluster, its status and amount of resources reserved/available by jobs and the nu,ber of running jobs.
+
 **There are 2 options to create xcption jobs:**
 
-**1.  manual CSV creation**
+**1. manual CSV creation**
 
 a CSV file with the jobs should be created with the following columns:
 
