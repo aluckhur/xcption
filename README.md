@@ -393,7 +393,7 @@ user@master:~/xcption# sudo ./xcption.py baseline
 
 ```
 
-**To schedule the incremental updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
+**To schedule the incremental updates (xcp sync) the `sync` subcommand should be used (sync is possiable only when baseline is complete)**
 
 ```
 usage: xcption.py sync [-h] [-j jobname] [-s srcpath]
@@ -416,13 +416,18 @@ user@master:~/xcption# sudo ./xcption.py sync -j cifsjob
 
 ```
 
-**verification using xcp verify can be start if a job finished baseline 
+**to start verification using xcp (linux and windows) the `verify` subcommand should be used (verify is possiable only when baseline is complete)** 
 
 ```
 user@master:~/xcption$ sudo ./xcption.py verify
-2019-04-15 07:27:23,691 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f3
-2019-04-15 07:27:23,763 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f2
-2019-04-15 07:27:23,826 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f1
+2019-09-06 16:50:05,188 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir1 dst:192.168.0.200:/nfsdst/dir1
+2019-09-06 16:50:05,243 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir3 dst:192.168.0.200:/nfsdst/dir3
+2019-09-06 16:50:05,352 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir2 dst:192.168.0.200:/nfsdst/dir2
+2019-09-06 16:50:05,458 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir4 dst:192.168.0.200:/nfsdst/dir4
+2019-09-06 16:50:05,572 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir3 dst:\\192.168.0.200\dst$\dir3
+2019-09-06 16:50:05,697 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
+2019-09-06 16:50:05,792 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
+2019-09-06 16:50:05,894 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
 
 ```
 
@@ -454,13 +459,17 @@ Example:
 
 user@master:~/xcption# sudo ./xcption.py status
 
-BL=Baseline CY=Sync VR=Verifya
+ BL=Baseline SY=Sync VR=Verify
 
-Job       Source Path                 Dest Path              BL Status  BL Time  BL Sent   SY Status  Next SY   SY Time  SY Sent   SY#  VR Status  VR Start             VR Ratio  VR#
-job29786  192.168.100.2:/xcp/src1/f3  192.168.100.2:/xcp/f3  complete   1s       1023 KiB  idle       16:32:31  0s       54.5 KiB  1    equal      2019-04-15 07:27:23  217/217   2
-job29786  192.168.100.2:/xcp/src1/f2  192.168.100.2:/xcp/f2  complete   1s       60.2 KiB  idle       16:32:31  0s       19.2 KiB  1    equal      2019-04-15 07:27:23  4/4       2
-job29786  192.168.100.2:/xcp/src1/f1  192.168.100.2:/xcp/f1  complete   4s       309 MiB   idle       16:32:31  0s       22.0 KiB  1    diff       2019-04-15 07:27:24  29/30     2
-
+ Job      Source Path                 Dest Path                   BL Status  BL Time  BL Sent    SY Status  Next SY   SY Time  SY Sent  SY#  VR Status  VR Start             VR Ratio     VR#
+ jobnfs1  192.168.0.200:/nfssrc/dir1  192.168.0.200:/nfsdst/dir1  complete   1s       6.58 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:50:05  405/405      1
+ jobnfs1  192.168.0.200:/nfssrc/dir3  192.168.0.200:/nfsdst/dir3  complete   1s       6.37 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:50:05  405/405      1
+ jobnfs1  192.168.0.200:/nfssrc/dir2  192.168.0.200:/nfsdst/dir2  complete   1s       6.53 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  405/405      1
+ jobnfs1  192.168.0.200:/nfssrc/dir4  192.168.0.200:/nfsdst/dir4  complete   1s       6.37 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  405/405      1
+ cifsjob  \\192.168.0.200\src$\dir3   \\192.168.0.200\dst$\dir3   complete   01s      0.0 B      -          07:08:31  -        -        0    equal      2019-09-06 16:49:46  6/6          1
+ cifsjob  \\192.168.0.200\src$\dir2   \\192.168.0.200\dst$\dir2   complete   01s      0.0 B      -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  5/5          1
+ cifsjob  \\192.168.0.200\src$\dir1   \\192.168.0.200\dst$\dir1   complete   22m27s   788.7 MiB  -          07:08:31  -        -        0    running    2019-09-06 16:49:47  1,043/1,043  1
+ cifsjob  \\192.168.0.200\src$\dir4   \\192.168.0.200\dst$\dir4   complete   08m13s   5.44 GiB   -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  276/276      1
 
 ```
 
@@ -468,64 +477,74 @@ verbose output can be seen using the `-v` argument for the `status` command
 
 
 ```
-user@master:~/xcption$ sudo ./xcption.py status -v
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f3
-DST: 192.168.100.2:/xcp/f3
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f3-192.168.100.2-_xcp_f3
+user@master:~/xcption$ sudo ./xcption.py status  -v  -s dir1
+JOB: jobnfs1
+SRC: 192.168.0.200:/nfssrc/dir1
+DST: 192.168.0.200:/nfsdst/dir1
+SYNC CRON: 0 0 * * * * (NEXT RUN 07:07:14)
+XCP INDEX NAME: 192.168.0.200-_nfssrc_dir1-192.168.0.200-_nfsdst_dir1
+OS: LINUX
 
-Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Data Sent             Node    Status
-baseline  2019-04-15 07:25:48  2019-04-15 07:25:49  1s        217      216     0         0        0       1023 KiB(901 KiB/s)   slave2  complete
-sync1     2019-04-15 07:26:14  2019-04-15 07:26:15  0s        0        0       0         0        0       54.5 KiB(101 KiB/s)   slave2  complete
-verify1   2019-04-15 07:26:56  2019-04-15 07:26:57  1s        217/217  0       0         0        0       31.5 KiB(31.0 KiB/s)  slave2  complete
-verify2   2019-04-15 07:27:23  2019-04-15 07:27:24  0s        217/217  0       0         0        0       31.5 KiB(94.9 KiB/s)  slave2  complete
-
-
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f2
-DST: 192.168.100.2:/xcp/f2
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f2-192.168.100.2-_xcp_f2
-
-Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Data Sent             Node    Status
-baseline  2019-04-15 07:25:48  2019-04-15 07:25:49  1s        4        3       0         0        0       60.2 KiB(55.6 KiB/s)  master  complete
-sync1     2019-04-15 07:26:14  2019-04-15 07:26:15  0s        0        0       0         0        0       19.2 KiB(43.0 KiB/s)  master  complete
-verify1   2019-04-15 07:26:56  2019-04-15 07:26:56  0s        4/4      0       0         0        0       2.62 KiB(2.77 KiB/s)  master  complete
-verify2   2019-04-15 07:27:23  2019-04-15 07:27:24  0s        4/4      0       0         0        0       2.62 KiB(9.86 KiB/s)  master  complete
+ Phase     Start Time           End Time             Duration  Scanned  Reviewed  Copied  Modified  Deleted  Errors  Data Sent             Node   Status
+ baseline  2019-09-06 15:49:13  2019-09-06 15:49:14  1s        405      404       404     -         -        -       6.58 MiB(6.42 MiB/s)  rhel2  complete
+ verify1   2019-09-06 16:50:05  2019-09-06 16:50:06  1s        405/405  100%      -       -         -        -       55.7 KiB(46.6 KiB/s)  rhel2  equal
+ sync1     2019-09-06 16:51:54  2019-09-06 16:51:55  1s        -        405       -       -         -        -       87.0 KiB(72.9 KiB/s)  rhel2  complete
 
 
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f1
-DST: 192.168.100.2:/xcp/f1
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f1-192.168.100.2-_xcp_f1
+JOB: cifsjob
+SRC: \\192.168.0.200\src$\dir1
+DST: \\192.168.0.200\dst$\dir1
+SYNC CRON: 0 0 * * * * (NEXT RUN 07:07:14)
+OS: WINDOWS
+TOOL NAME: robocopy
 
-Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors             Data Sent             Node    Status
-baseline  2019-04-15 07:25:48  2019-04-15 07:25:52  4s        29       28      0         0        0                  309 MiB(67.4 MiB/s)   slave1  complete
-sync1     2019-04-15 07:26:15  2019-04-15 07:26:15  0s        0        0       0         0        0                  22.0 KiB(45.3 KiB/s)  slave1  complete
-verify1   2019-04-15 07:26:56  2019-04-15 07:26:57  0s        29/29    0       0         0        0                  7.98 KiB(46.9 KiB/s)  slave1  complete
-verify2   2019-04-15 07:27:24  2019-04-15 07:27:24  0s        29/30    0       0         0        1 (attr:0 time:1)  8.10 KiB(19.5 KiB/s)  slave1  diff
+ Phase     Start Time           End Time             Duration  Scanned      Reviewed  Copied  Modified  Deleted  Errors  Data Sent  Node  Status
+ baseline  2019-09-06 15:49:12  2019-09-06 15:50:33  22m27s    10734        -         10734   -         -        0       788.7 MiB  WFA   complete
+ verify1   2019-09-06 16:49:47  2019-09-06 16:52:09  2m20s     5,372/5,372  5,372     -       -         -        -       -          WFA   equal
+ sync1     2019-09-06 16:51:54  2019-09-06 16:51:59  01m07s    10734        -         10734   -         -        0       788.7 MiB  WFA   complete
 
 ```
 
 *To see xcp logs for specific phase of a job use the `-p <phase>` argument together with the `-l` argument **
 
 ```
-user@master:~/xcption# sudo ./xcption.py status -v -s 192.168.100.2:/xcp/src1/f1 -p verify2 -l
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f1
-DST: 192.168.100.2:/xcp/f1
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:31:56)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f1-192.168.100.2-_xcp_f1
+user@master:~/xcption# sudo ./xcption.py status -v -s \\\\192.168.0.200\\src$\\dir1 -p verify1 -l
+JOB: cifsjob
+SRC: \\192.168.0.200\src$\dir1
+DST: \\192.168.0.200\dst$\dir1
+SYNC CRON: 0 0 * * * * (NEXT RUN 07:05:28)
+OS: WINDOWS
+TOOL NAME: robocopy
 
-Phase    Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors             Data Sent             Node    Status
-verify2  2019-04-15 07:27:24  2019-04-15 07:27:24  0s        29/30    0       0         0        1 (attr:0 time:1)  8.10 KiB(19.5 KiB/s)  slave1  diff
+ Phase    Start Time           End Time             Duration  Scanned      Reviewed  Copied  Modified  Deleted  Errors  Data Sent  Node  Status
+ verify1  2019-09-06 16:49:47  2019-09-06 16:52:09  2m20s     5,372/5,372  5,372     -       -         -        -       -          WFA   equal
 
-XCP 1.4-17914d6; (c) 2019 NetApp, Inc.; Licensed to haim marko [NetApp Inc] until Sat Jun  1 00:44:36 2019
+9 compared, 9 same, 0 different, 0 missing, 5s
+22 compared, 22 same, 0 different, 0 missing, 10s
+38 compared, 38 same, 0 different, 0 missing, 15s
+58 compared, 58 same, 0 different, 0 missing, 20s
+80 compared, 80 same, 0 different, 0 missing, 25s
+105 compared, 105 same, 0 different, 0 missing, 30s
+134 compared, 134 same, 0 different, 0 missing, 35s
+159 compared, 159 same, 0 different, 0 missing, 40s
+194 compared, 194 same, 0 different, 0 missing, 45s
+287 compared, 287 same, 0 different, 0 missing, 50s
+410 compared, 410 same, 0 different, 0 missing, 55s
+455 compared, 455 same, 0 different, 0 missing, 1m0s
+594 compared, 594 same, 0 different, 0 missing, 1m5s
+736 compared, 736 same, 0 different, 0 missing, 1m10s
+1,043 compared, 1,043 same, 0 different, 0 missing, 1m15s
+1,403 compared, 1,403 same, 0 different, 0 missing, 1m20s
+1,581 compared, 1,581 same, 0 different, 0 missing, 1m25s
+1,998 compared, 1,998 same, 0 different, 0 missing, 1m30s
+2,403 compared, 2,403 same, 0 different, 0 missing, 1m35s
+2,666 compared, 2,666 same, 0 different, 0 missing, 1m40s
+3,077 compared, 3,077 same, 0 different, 0 missing, 1m45s
+3,486 compared, 3,486 same, 0 different, 0 missing, 1m50s
+3,758 compared, 3,758 same, 0 different, 0 missing, 1m55s
+4,201 compared, 4,201 same, 0 different, 0 missing, 2m0s
+4,510 compared, 4,510 same, 0 different, 0 missing, 2m5s
+4,664 compared, 4,664 same, 0 different, 0 missing, 2m10s
+4,991 compared, 4,991 same, 0 different, 0 missing, 2m15s
+5,372 compared, 5,372 same, 0 different, 0 missing, 2m20s
 
-xcp: WARNING: CPU count is only 2!
-xcp: mount '192.168.100.2:/xcp/src1/f1': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
-xcp: mount '192.168.100.2:/xcp/f1': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
-xcp: compare1 'file': WARNING: (error) source file not found on target: nfs3 LOOKUP 'file' in '192.168.100.2:/xcp/f1/f2': nfs3 error 2: no such file or directory
-30 scanned, 29 found (3 have data), 1 different mod time, 1 error, 22.0 KiB in (53.0 KiB/s), 8.10 KiB out (19.5 KiB/s), 0s.
