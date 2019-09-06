@@ -82,7 +82,7 @@ optional arguments:
   -d, --debug           log debug messages to console
 ```
 
-**To display the nodes in the cluster use the `nodestatus` subcommand
+**To display the nodes in the cluster use the `nodestatus` subcommand**
 
 [user@master xcption]$ sudo ./xcption.py  -h ./xcption.py nodestatus
 
@@ -97,7 +97,7 @@ optional arguments:
 
 The command display each node in the cluster, its status and amount of resources reserved/available by jobs and the nu,ber of running jobs.
 
-**There are 2 options to create xcption jobs:**
+**There are 2 options to create XCPtion jobs:**
 
 **1. manual CSV creation**
 
@@ -107,15 +107,27 @@ a CSV file with the jobs should be created with the following columns:
 `SOURCE PATH` - Source NFSv3 path. The source should be mountable as root from all instances in the cluster  
 `DEST PATH` - Destination NFSv3 path. The destination should be mountable as root from all instances in the cluster  
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
-`CPU MHz` (optional) - The allocated CPU frequency for the job (DEFAULT:3000)  
-`RAM MB` (optional) - The allocated RAM for the job (DEFAULT:800)  
+`CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
+`RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
+`TOOL` (optional) - For windows jobs it is possiable to chose between `xcp` (default) to `robocopy`  
+`FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user (see xcp.exe help copy for details)  
+`FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)  
+
 
 CSV file example:
 ```
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-test1,192.168.100.2:/xcp/src1,192.168.100.3:/xcp/dst1,*/3 * * * *,100,800
-test2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/4 * * * *,100,800
-test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
+jobnfs1,192.168.0.200:/src/dir1,192.168.0.200:/dst/dir1,10 * * * *,1000,800
+jobnfs1,192.168.0.200:/src/dir2,192.168.0.200:/dst/dir2,20 * * * *,1000,800
+jobnfs2,192.168.0.200:/src/dir3,192.168.0.200:/dst/dir3,30 * * * *,1000,800
+jobnfs2,192.168.0.200:/src/dir4,192.168.0.200:/dst/dir4,40 * * * *,1000,800
+jobwin1,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800,xcp
+jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,xcp
+jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,demo\administrator,demo\users
+jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,demo\administrator,demo\users
+
+
+
 ```
 
 **2. assessment of existing filesystem**
