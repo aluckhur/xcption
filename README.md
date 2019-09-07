@@ -87,7 +87,7 @@ optional arguments:
 
 **To display the nodes in the cluster use the `nodestatus` subcommand**
 
-[user@master xcption]$ sudo ./xcption.py  -h ./xcption.py nodestatus
+[user@master xcption]$ sudo ./xcption.py nodestatus
 
 ```
  Name      IP             Status  OS                                           Reserved/Total CPU MHz  Reserved/Total RAM MB  # Running Jobs
