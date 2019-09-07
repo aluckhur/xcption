@@ -2,8 +2,10 @@
 
 ## What is XCPtion?
 
-XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility
-XCPtion will be able to run and manage multiple XCP jobs parallelly in a distributed fashion by using underlying services from Hashi Corp [Nomad](https://www.nomadproject.io/) distributed scheduler.
+XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility (for CIFS the tool supports also robocopy.exe)  
+XCPtion will be able to parallelly execute and manage multiple XCP jobs on more than one host in a distributed fashion. 
+This is done by utilizing Hashi Corp [Nomad](https://www.nomadproject.io/) distributed scheduler. 
+
 
 ## Where do I get XCPtion?
 
