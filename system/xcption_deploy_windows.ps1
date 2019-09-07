@@ -1,16 +1,37 @@
 
+ param (
+    [string]$XCPtionServer = $(throw "-XCPtionServer is required."), 
+    [string]$XCPtionServerUser = $(throw "-XCPtionServerUser is required."), 
+	[string]$XCPtionServerPwd, 
+	[string]$XCPtionServerInstallDir = $(throw "-XCPtionServerInstallDir is required."), 
+    [string]$XCPtionServiceUser = $(throw "-XCPtionServiceUser is required."),
+	[string]$XCPtionServicePwd
+ )
+
+$XCPtionServerInstallDir += '/'
+
+if (-not $XCPtionServerPwd) {
+	$pwd = Read-Host -AsSecureString "XCPtion Server Passwd"
+	$XCPtionServerPwd = (New-Object PSCredential "user",$pwd).GetNetworkCredential().Password
+}
+
+if (-not $XCPtionServicePwd) {
+	$pwd = Read-Host -AsSecureString "XCPtion Service Passwd"
+	$XCPtionServicePwd = (New-Object PSCredential "user",$pwd).GetNetworkCredential().Password
+}
 
 
 $InstallDir = "C:\NetApp\XCP\"
 $LogDir = $InstallDir+"Log\"
-$XCPtionServer = "192.168.0.61"
-$XCPtionServerInstallDir = "/root/xcption/system/"
-$XCPtionServerUser = 'root'
-$XCPtionServerPWD = 'Netapp1!'
 $XCPtionServiceName = "XCPtionNomad"
-$XCPtionServicePass = 'Netapp1!'
-$XCPtionServiceUser= 'Demo\administrator'
 $LocalDirWithRequiredFiles = $InstallDir
+
+#$XCPtionServer = "192.168.0.61"
+#$XCPtionServerInstallDir = "/root/xcption/system/"
+#$XCPtionServerUser = 'root'
+#$XCPtionServerPWD = 'Netapp1!'
+#$XCPtionServicePWD = 'Netapp1!'
+#$XCPtionServiceUser= 'Demo\administrator'
 
 #$TempDir = $env:TEMP+'\'
 $TempDir = $InstallDir
@@ -190,7 +211,7 @@ $binaryPath = $InstallDir+'nomad_service.cmd'
 & $($InstallDir+'nssm.exe') "install" $XCPtionServiceName $binaryPath
 & $($InstallDir+'nssm.exe') "set" $XCPtionServiceName "DisplayName" $XCPtionServiceName
 & $($InstallDir+'nssm.exe') "set" $XCPtionServiceName "Start" "SERVICE_AUTO_START"
-& $($InstallDir+'nssm.exe') "set" $XCPtionServiceName "ObjectName" $XCPtionServiceUser $XCPtionServicePass
+& $($InstallDir+'nssm.exe') "set" $XCPtionServiceName "ObjectName" $XCPtionServiceUser $XCPtionServicePWD
 
 Write-Host "Starting service:$XCPtionServiceName"
 Start-Service -Name $XCPtionServiceName

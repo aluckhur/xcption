@@ -1,3 +1,3 @@
-mkdir c:\Nomad\log
-del /Q c:\Nomad\log\*
-C:\Nomad\nomad.exe agent -config=c:\nomad\client.hcl > c:\nomad\log\nomadlog.txt
+mkdir c:\NetApp\XCP\log
+del /Q c:\NetApp\XCP\log\NomadLog.txt
+c:\NetApp\XCP\nomad.exe agent -config=c:\NetApp\XCP\client.hcl > c:\NetApp\XCP\log\NomadLog.txt
