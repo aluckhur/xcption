@@ -1,0 +1,5 @@
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
+jobnfs1,192.168.0.200:/nfssrc/dir1,192.168.0.200:/nfsdst/dir1,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir2,192.168.0.200:/nfsdst/dir2,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir3,192.168.0.200:/nfsdst/dir3,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir4,192.168.0.200:/nfsdst/dir4,0 0 * * * *,1000,800
