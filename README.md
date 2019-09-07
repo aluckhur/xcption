@@ -4,7 +4,7 @@
 
 XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility (for CIFS the tool supports also robocopy.exe)  
 XCPtion will be able to parallelly execute and manage multiple XCP jobs on more than one host in a distributed fashion. 
-This is done by utilizing Hashi Corp [Nomad](https://www.nomadproject.io/) distributed scheduler. 
+This is done by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distributed scheduler. 
 
 
 ## Where do I get XCPtion?
@@ -20,7 +20,7 @@ XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/Red
 
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
-Before starting the setup, NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all Linux servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
+Before starting the setup, NFS accessed volume with root access should be created to host the shared XCP repository. This volume should be exported to all Linux servers that are going to be part of the cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
 Deployment of the server role on the 1st linux host in the cluster should be done using the command (-r should point to the preconfigured repository)
 
