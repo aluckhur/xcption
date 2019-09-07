@@ -89,7 +89,7 @@ else
 fi
 
 if ["$INST_ALL" == "yum" ]; then
-	yum install -y epel-release
+  yum install -y epel-release
 fi
 
 $INST_APP install -y \
@@ -118,21 +118,21 @@ pip install graphyte
 
 
 if [ -f ${SCRIPT_DIR}/nomad.zip ]; then
-	unzip ${SCRIPT_DIR}/nomad.zip
-	chmod +x nomad
-	mv -f nomad /usr/local/bin/nomad
+  unzip ${SCRIPT_DIR}/nomad.zip
+  chmod +x nomad
+  mv -f nomad /usr/local/bin/nomad
 else
-	CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
-	NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
+  CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
+  NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
 
-	cd /tmp/
+  cd /tmp/
 
-	echo "Fetching Nomad version ${NOMAD_VERSION} ..."
-	curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
-	echo "Installing Nomad version ${NOMAD_VERSION} ..."
-	unzip nomad.zip
-	chmod +x nomad
-	mv -f nomad /usr/local/bin/nomad
+  echo "Fetching Nomad version ${NOMAD_VERSION} ..."
+  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
+  echo "Installing Nomad version ${NOMAD_VERSION} ..."
+  unzip nomad.zip
+  chmod +x nomad
+  mv -f nomad /usr/local/bin/nomad
 fi
 
 echo "Configuring Nomad"
