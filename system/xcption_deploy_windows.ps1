@@ -26,13 +26,6 @@ $LogDir = $InstallDir+"Log\"
 $XCPtionServiceName = "XCPtionNomad"
 $LocalDirWithRequiredFiles = $InstallDir
 
-#$XCPtionServer = "192.168.0.61"
-#$XCPtionServerInstallDir = "/root/xcption/system/"
-#$XCPtionServerUser = 'root'
-#$XCPtionServerPWD = 'Netapp1!'
-#$XCPtionServicePWD = 'Netapp1!'
-#$XCPtionServiceUser= 'Demo\administrator'
-
 #$TempDir = $env:TEMP+'\'
 $TempDir = $InstallDir
 if (-not $TempDir) {$TempDir = 'C:\Temp\' }
