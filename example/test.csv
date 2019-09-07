@@ -1,6 +1,0 @@
-#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-test1,192.168.0.200:/nfssrc,192.168.0.200:/nfsdst,*/3 * * * *,100,800
-
-
-
-
