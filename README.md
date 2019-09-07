@@ -16,9 +16,9 @@ You will need to apply for XCP license from: [XCP License Site](https://xcp.neta
 
 XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/RedHat server by pulling the repository using the command:
 
-*ALL instances should be pulled to the same path on all of the servers !!!*
-
 `git pull https://gitlab.com/haim.marko/xcption.git`
+
+*ALL instances should be pulled to the same path on all of the servers !!!*
 
 Before starting the setup, NFS accessed volume with root access should be created to host the shared XCP repository. This volume should be exported to all Linux servers that are going to be part of the cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
@@ -150,7 +150,8 @@ for example if our source file system directory structure up to depth of 2 level
  │   └── subfolder3  
  └── folder3  
      ├── subfolder1  
-     └── subfolder2  
+     ├── subfolder2
+     └── file1
 ```
 we can use the `asses` command to build this initial directory structure on the destination volume and automatically create the XCPtion CSV file for us.
 XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).  
