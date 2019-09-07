@@ -2,7 +2,7 @@
 
 ## What is XCPtion?
 
-XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS file copy/migration utility
+XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility
 XCPtion will be able to run and manage multiple XCP jobs parallelly in a distributed fashion by using underlying services from Hashi Corp [Nomad](https://www.nomadproject.io/) distributed scheduler.
 
 ## Where do I get XCPtion?
@@ -12,28 +12,42 @@ You will need to apply for XCP license from: [XCP License Site](https://xcp.neta
 
 ## Installation
 
-XCPtion can be installed directly on internet connected Ubuntu/CentOS/RedHat server by pulling the repository using the command:
+XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/RedHat server by pulling the repository using the command:
 
 *ALL instances should be pulled to the same path on all of the servers !!!*
 
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
-Before starting the setup, NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
+Before starting the setup, NFS accessed volume with root access should be prepared for the XCP repository. The volume should be exported to all Linux servers that are going to be part of the migration cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
-Deployment on the 1st host in the cluster should be done using the command (-r should point to the preconfigured repository)
+Deployment of the server role on the 1st linux host in the cluster should be done using the command (-r should point to the preconfigured repository)
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
 
-Deployment of the next hosts in the cluster should be done using the command (pointing to the server IP address):
+Deployment of the next linux hosts in the cluster should be done using the command (pointing to the server IP address):
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t client -s <Server IP>`
 
+Deployment of windows hosts should be done by pulling system/xcption_deploy_windows.ps1 script to the windows host and specifing the required parameters:
+`PS C:\>.\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
+
+`XCPtionServer` - IP address or resolvable name of the XCPtion Server  
+`XCPtionServerInstallDir` - The installation path of XCPtion on the server (Ex. /root/xcption)  
+`XCPtionServerUser` - username to access the XCPtion Server using scp to pull install files  
+`XCPtionServerPWD` - passwd for the XCPtion Server username  
+`ServiceUser` - Domain Username (Domain\User) to start the XCPtionNomad service,   
+                This user will be used to access Source and Destination during the migration (This user need access to all files)  
+`ServicePWD` - Password for domain user  
+
+
 Following the installation **on all hosts** the xcp license file should be copied to the following location:
 
-`/opt/NetApp/xFiles/xcp/license`
+linux hosts `/opt/NetApp/xFiles/xcp/license`
+windows hosts `c:\NetApp\XCP\license`
 
 Updates to the xcp binary can be done by replacing the existing file in the following location **on all hosts**
-`/usr/local/bin/xcp`
+linux hosts `/usr/local/bin/xcp`
+windows hosts `c:\NetApp\XCP\xcp.exe`
 
 
 ## How To Use
@@ -41,14 +55,18 @@ Updates to the xcp binary can be done by replacing the existing file in the foll
 The interaction is done using the following python CLI command (need root access)
 
 ```
+[user@master xcption]$ sudo ./xcption.py  -h
 usage: xcption.py [-h] [-d]
-                  {status,asses,load,baseline,sync,syncnow,pause,resume,delete} ...
+
+                  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,verify,delete,nomad}
+                  ...
 
 positional arguments:
-  {status,asess,load,baseline,sync,syncnow,pause,resume,delete}
+  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,verify,delete,nomad}
                         sub commands that can be used
+    nodestatus          display cluster nodes status
     status              display status
-    asses               asses filesystem and create csv file
+    asses               asses fielsystem and create csv file
     load                load/update configuration from csv file
     baseline            start baseline (xcp copy)
     sync                start schedule updates (xcp sync)
@@ -56,18 +74,32 @@ positional arguments:
     pause               disable sync schedule
     resume              resume sync schedule
     verify              start verify to validate consistency between source
-                        and destination (xcp verify)    
+                        and destination (xcp verify)
     delete              delete existing config
 
 optional arguments:
   -h, --help            show this help message and exit
   -d, --debug           log debug messages to console
-
 ```
 
-**There are 2 options to create xcption jobs:**
+**To display the nodes in the cluster use the `nodestatus` subcommand**
 
-**1.  manual CSV creation**
+[user@master xcption]$ sudo ./xcption.py  -h ./xcption.py nodestatus
+
+```
+ Name      IP             Status  OS                                           Reserved/Total CPU MHz  Reserved/Total RAM MB  # Running Jobs
+ rhel1     192.168.0.61   ready   redhat                                       0/4588 (0.0%)           0/1838 (0.0%)          0
+ DC1       192.168.0.253  ready   Microsoft Windows Server 2012 R2 Datacenter  0/4590 (0.0%)           0/1023 (0.0%)          0
+ WFA       192.168.0.73   ready   Microsoft Windows Server 2016 Datacenter     0/4590 (0.0%)           0/8191 (0.0%)          0
+ rhel2     192.168.0.62   ready   redhat                                       0/4588 (0.0%)           0/1838 (0.0%)          0
+ JUMPHOST  192.168.0.5    ready   Microsoft Windows Server 2012 R2 Datacenter  0/2295 (0.0%)           0/2047 (0.0%)          0
+```
+
+The command display each node in the cluster, its status and amount of resources reserved/available by jobs and the nu,ber of running jobs.
+
+**There are 2 options to create XCPtion jobs:**
+
+**1. manual CSV creation**
 
 a CSV file with the jobs should be created with the following columns:
 
@@ -75,15 +107,28 @@ a CSV file with the jobs should be created with the following columns:
 `SOURCE PATH` - Source NFSv3 path. The source should be mountable as root from all instances in the cluster  
 `DEST PATH` - Destination NFSv3 path. The destination should be mountable as root from all instances in the cluster  
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
-`CPU MHz` (optional) - The allocated CPU frequency for the job (DEFAULT:3000)  
-`RAM MB` (optional) - The allocated RAM for the job (DEFAULT:800)  
+`CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
+`RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
+`TOOL` (optional) - For windows jobs it is possiable to chose between `xcp` (default) to `robocopy`  
+`FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user (see xcp.exe help copy for details)  
+`FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)  
+
 
 CSV file example:
 ```
-#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-test1,192.168.100.2:/xcp/src1,192.168.100.3:/xcp/dst1,*/3 * * * *,100,800
-test2,192.168.100.2:/xcp/src2,192.168.100.4:/xcp/dst2,*/4 * * * *,100,800
-test2,192.168.100.2:/xcp/src3,192.168.100.4:/xcp/dst3,*/5 * * * *,100,800
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP
+#NFS Jobs 
+jobnfs1,192.168.0.200:/nfssrc/dir1,192.168.0.200:/nfsdst/dir1,10 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir2,192.168.0.200:/nfsdst/dir2,20 * * * *,1000,800
+jobnfs2,192.168.0.200:/nfssrc/dir3,192.168.0.200:/nfsdst/dir3,30 * * * *,1000,800
+jobnfs2,192.168.0.200:/nfssrc/dir4,192.168.0.200:/nfsdst/dir4,40 * * * *,1000,800
+#CIFS jobs 
+jobwin1,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800,xcp
+jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,xcp
+jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,demo\user1,demo\users
+jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,demo\user1,demo\users
+
+
 ```
 
 **2. assessment of existing filesystem**
@@ -106,88 +151,170 @@ for example if our source file system directory structure up to depth of 2 level
      └── subfolder2  
 ```
 we can use the `asses` command to build this initial directory structure on the destination volume and automatically create the XCPtion CSV file for us.
-XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).
-**directory structure created using rsync will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs 
+XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).  
+
+**directory structure is created using `rsync` on linux and `robocopy` on windows will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs  
 for example if a file is created under /src/folder1/ it should be manually updated to the destination**
 
 ```
-user@master:~/xcption$ sudo ./xcption.py assess -h
-usage: xcption.py assess [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE [-j jobname]
+user@master:~/xcption$ ./xcption.py asses -h
+usage: xcption.py asses [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE
+                        [-p CPU] [-m RAM] [-r] [-u FAILBACKUSER]
+                        [-g FAILBACKGROUP] [-j jobname]
 
 optional arguments:
-  -h, --help                                  show this help message and exit
-  -s SOURCE, --source SOURCE                  source nfs path (nfssrv:/mount)
-  -d DESTINATION, --destination DESTINATION   destintion nfs path (nfssrv:/mount)
-  -l DEPTH, --depth DEPTH                     filesystem depth to create jobs, range of 1-12
-  -c CSVFILE, --csvfile CSVFILE               output CSV file
-  -j jobname, --job jobname                   xcption job name
+  -h, --help            show this help message and exit
+  -s SOURCE, --source SOURCE
+                        source nfs path (nfssrv:/mount)
+  -d DESTINATION, --destination DESTINATION
+                        destintion nfs path (nfssrv:/mount)
+  -l DEPTH, --depth DEPTH
+                        filesystem depth to create jobs, range of 1-12
+  -c CSVFILE, --csvfile CSVFILE
+                        output CSV file
+  -p CPU, --cpu CPU     CPU allocation in MHz for each job
+  -m RAM, --ram RAM     RAM allocation in MB for each job
+  -r, --robocopy        use robocopy instead of xcp for windows jobs
+  -u FAILBACKUSER, --failbackuser FAILBACKUSER
+                        failback user required for xcp for windows jobs, see
+                        xcp.exe copy -h
+  -g FAILBACKGROUP, --failbackgroup FAILBACKGROUP
+                        failback group required for xcp for windows jobs, see
+                        xcp.exe copy -h
+  -j jobname, --job jobname
+                        xcption job name
+
 ```
 
-Example of running asses for the above filesystem:
+Example of running asses on NFS job:
 
 ```
-user@master:~/xcption$ sudo ./xcption.py assess -s 192.168.100.2:/xcp/src -d 192.168.100.2:/xcp/dst -l 2 -c example/src.csv -j src_job
-2019-04-12 10:26:12,044 - INFO - destination dir: 192.168.100.2:/xcp/dst/ for source dir: 192.168.100.2:/xcp/src/ already exists but empty
-2019-04-12 10:26:12,049 - INFO - job csv file:example/src.csv created
-2019-04-12 10:26:12,049 - INFO - rsync can be used to create the destination initial directory structure for xcption jobs
-2019-04-12 10:26:12,049 - INFO - rsync command to sync directory structure for the required depth will be:
-2019-04-12 10:26:12,049 - INFO - rsync -av --stats --exclude="/*/*/*" "/tmp/src_15693/" "/tmp/dst_15693/"
-2019-04-12 10:26:12,050 - INFO - (192.168.100.2:/xcp/src is mounted on:/tmp/src_15693 and 192.168.100.2:/xcp/dst is mounted on:/tmp/dst_15693)
+user@master:~/xcption$ sudo ./xcption.py asses -c example/nfsjob.csv -s 192.168.0.200:/nfssrc -d 192.168.0.200:/nfsdst -l 1 -p 1000 -m 800 -j jobnfs1
+2019-09-06 15:31:39,709 - WARNING - source directory: 192.168.0.200:/nfssrc/ contains 1 files. those files will not be included in the xcption jobs and need to be copied externaly
+please review the warnings above, do you want to continue? [y/N] y
+2019-09-06 15:31:55,143 - INFO - job csv file:example/nfsjob.csv created
+2019-09-06 15:31:55,144 - INFO - rsync can be used to create the destination initial directory structure for xcption jobs
+2019-09-06 15:31:55,144 - INFO - rsync command to sync directory structure for the required depth will be:
+2019-09-06 15:31:55,144 - INFO - rsync -av --exclude ".snapshot" --exclude="/*/*" "/tmp/src_24145/" "/tmp/dst_24145/"
+2019-09-06 15:31:55,144 - INFO - (192.168.0.200:/nfssrc is mounted on:/tmp/src_24145 and 192.168.0.200:/nfsdst is mounted on:/tmp/dst_24145)
 do you want to run rsync ? [y/N] y
-2019-04-12 10:26:13,674 - INFO - =================================================================
-2019-04-12 10:26:13,674 - INFO - ========================Starting rsync===========================
-2019-04-12 10:26:13,675 - INFO - =================================================================
+2019-09-06 15:32:03,808 - INFO - =================================================================
+2019-09-06 15:32:03,808 - INFO - ========================Starting rsync===========================
+2019-09-06 15:32:03,808 - INFO - =================================================================
 sending incremental file list
 ./
-folder1/
-folder1/subfolder1/
-folder1/subfolder2/
-folder1/subfolder3/
-folder2/
-folder2/subfolder1/
-folder2/subfolder2/
-folder2/subfolder3/
-folder3/
-folder3/subfolder1/
-folder3/subfolder2/
+file.txt
+dir1/
+dir2/
+dir3/
+dir4/
 
-Number of files: 12 (dir: 12)
-Number of created files: 11 (dir: 11)
-Number of deleted files: 0
-Number of regular files transferred: 0
-Total file size: 0 bytes
-Total transferred file size: 0 bytes
-Literal data: 0 bytes
-Matched data: 0 bytes
-File list size: 0
-File list generation time: 0.001 seconds
-File list transfer time: 0.000 seconds
-Total bytes sent: 361
-Total bytes received: 63
-
-sent 361 bytes  received 63 bytes  848.00 bytes/sec
+sent 213 bytes  received 58 bytes  542.00 bytes/sec
 total size is 0  speedup is 0.00
-2019-04-12 10:26:13,707 - INFO - =================================================================
-2019-04-12 10:26:13,708 - INFO - ===================rsync ended successfully======================
-2019-04-12 10:26:13,708 - INFO - =================================================================
-2019-04-12 10:26:13,708 - INFO - csv file:example/src.csv is ready to be loaded into xcption
-```
+2019-09-06 15:32:03,825 - INFO - =================================================================
+2019-09-06 15:32:03,825 - INFO - ===================rsync ended successfully======================
+2019-09-06 15:32:03,825 - INFO - =================================================================
+2019-09-06 15:32:03,826 - INFO - csv file:example/nfsjob.csv is ready to be loaded into xcption
 
-
-**example for the CSV file created by the assess command:**
-
-```
+user@master:~/xcption$ sudo cat example/nfsjob.csv
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-src_job,192.168.100.2:/xcp/src/folder2/subfolder2,192.168.100.2:/xcp/dst/folder2/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder2/subfolder3,192.168.100.2:/xcp/dst/folder2/subfolder3,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder2/subfolder1,192.168.100.2:/xcp/dst/folder2/subfolder1,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder2,192.168.100.2:/xcp/dst/folder1/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder3,192.168.100.2:/xcp/dst/folder1/subfolder3,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder1/subfolder1,192.168.100.2:/xcp/dst/folder1/subfolder1,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder3/subfolder2,192.168.100.2:/xcp/dst/folder3/subfolder2,0 0 * * * *,3000,800
-src_job,192.168.100.2:/xcp/src/folder3/subfolder1,192.168.100.2:/xcp/dst/folder3/subfolder1,0 0 * * * *,3000,800
+jobnfs1,192.168.0.200:/nfssrc/dir1,192.168.0.200:/nfsdst/dir1,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir2,192.168.0.200:/nfsdst/dir2,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir3,192.168.0.200:/nfsdst/dir3,0 0 * * * *,1000,800
+jobnfs1,192.168.0.200:/nfssrc/dir4,192.168.0.200:/nfsdst/dir4,0 0 * * * *,1000,800
+
 ```
 
+Example of running asses on CIFS job **(make sure to escape \ when using cifs paths \\\\SRV\\share will be typed as \\\\\\\\SRV\\\\share)**:
+
+```
+user@master:~/xcption$ sudo  ./xcption.py asses -c example/cifsjob.csv -s \\\\192.168.0.200\\src$ -d \\\\192.168.0.200\\dst$ -j cifsjob -l 1 --cpu 2000 --ram 100 --robocopy
+2019-09-06 15:38:44,948 - INFO - validating src:\\192.168.0.200\src$ and dst:\\192.168.0.200\dst$ cifs paths are avaialble from one of the windows server
+2019-09-06 15:39:03,180 - WARNING - source path: \\192.168.0.200\src$ contains 2 files. those files will not be included in the xcption jobs and need to be copied externaly
+please review the warnings above, do you want to continue? [y/N] y
+2019-09-06 15:39:09,498 - INFO - job csv file:example/cifsjob.csv created
+2019-09-06 15:39:09,498 - INFO - robocopy can be used to create the destination initial directory structure for xcption jobs
+2019-09-06 15:39:09,498 - INFO - robocopy command to sync directory structure for the required depth will be:
+2019-09-06 15:39:09,498 - INFO - C:\NetApp\XCP\robocopy_wrapper.cmd /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:2 "\\192.168.0.200\src$" "\\192.168.0.200\dst$" /XF * ------ for directory structure
+2019-09-06 15:39:09,499 - INFO - C:\NetApp\XCP\robocopy_wrapper.cmd /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:1 "\\192.168.0.200\src$" "\\192.168.0.200\dst$" ------ for files
+do you want to run robocopy ? [y/N] y
+2019-09-06 15:39:19,573 - INFO - =================================================================
+2019-09-06 15:39:19,573 - INFO - ========================Starting robocopy========================
+2019-09-06 15:39:19,573 - INFO - =================================================================
+
+C:\NetApp\XCP\lib\alloc\d2a93b8a-2493-45b9-3b84-92c3ac878eda\win_C-_NetApp_XCP_r2481324813>c:\windows\system32\robocopy.exe /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:2 \\192.168.0.200\src$ \\192.168.0.200\dst$ /XF *
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows
+-------------------------------------------------------------------------------
+
+  Started : Friday, September 6, 2019 8:39:02 AM
+   Source : \\192.168.0.200\src$\
+     Dest : \\192.168.0.200\dst$\
+
+    Files : *.*
+
+Exc Files : *
+
+  Options : *.* /TEE /S /E /COPYALL /PURGE /MIR /NP /LEV:2 /MT:16 /R:0 /W:0
+
+------------------------------------------------------------------------------
+
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         5         5         4         0         0         0
+   Files :        40         0        40         0         0         0
+   Bytes :   5.388 g         0   5.388 g         0         0         0
+   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
+   Ended : Friday, September 6, 2019 8:39:02 AM
+
+
+
+C:\NetApp\XCP\lib\alloc\efd1fe93-61c3-4848-f23e-1b9a32da3b78\win_C-_NetApp_XCP_r2481324813>c:\windows\system32\robocopy.exe /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:1 \\192.168.0.200\src$ \\192.168.0.200\dst$
+
+-------------------------------------------------------------------------------
+   ROBOCOPY     ::     Robust File Copy for Windows
+-------------------------------------------------------------------------------
+
+  Started : Friday, September 6, 2019 8:39:05 AM
+   Source : \\192.168.0.200\src$\
+     Dest : \\192.168.0.200\dst$\
+
+    Files : *.*
+
+  Options : *.* /TEE /S /E /COPYALL /PURGE /MIR /NP /LEV:1 /MT:16 /R:0 /W:0
+
+------------------------------------------------------------------------------
+
+100%        New File                   0        \\192.168.0.200\src$\file - Copy.txt
+100%        New File                   0        \\192.168.0.200\src$\file.txt
+
+------------------------------------------------------------------------------
+
+               Total    Copied   Skipped  Mismatch    FAILED    Extras
+    Dirs :         1         1         0         0         0         0
+   Files :         2         2         0         0         0         0
+   Bytes :         0         0         0         0         0         0
+   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
+   Ended : Friday, September 6, 2019 8:39:05 AM
+
+
+2019-09-06 15:39:26,677 - INFO - =================================================================
+2019-09-06 15:39:26,677 - INFO - =================robocopy ended successfully=====================
+2019-09-06 15:39:26,677 - INFO - =================================================================
+2019-09-06 15:39:26,677 - INFO - csv file:example/cifsjob.csv is ready to be loaded into xcption
+
+
+user@master:~/xcption$ sudo cat example/cifsjob.csv
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP
+cifsjob,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800,robocopy,,
+
+```
 
 **Following the creation of the csv file, the file should be loaded and validated using the `load` command:**
 
@@ -209,13 +336,30 @@ optional arguments:
 
 Example:
 ```
-sudo user@master:~/xcption# ./xcption.py load -c example/test.csv
-2019-03-25 07:02:03,217 - INFO - validating src:192.168.100.2:/xcp/src1 and dst:192.168.100.3:/xcp/dst1 are mountable
-2019-03-25 07:02:03,813 - INFO - validating src:192.168.100.2:/xcp/src2 and dst:192.168.100.4:/xcp/dst2 are mountable
-2019-03-25 07:02:04,459 - INFO - validating src:192.168.100.2:/xcp/src3 and dst:192.168.100.4:/xcp/dst3 are mountable
-2019-03-25 07:02:05,116 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src1
-2019-03-25 07:02:05,119 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src2
-2019-03-25 07:02:05,121 - INFO - creating/updating relationship configs for src:192.168.100.2:/xcp/src3
+user@master:~/xcption$ sudo ./xcption.py load -c example/nfsjob.csv
+2019-09-06 15:47:22,956 - INFO - validating src:192.168.0.200:/nfssrc/dir1 and dst:192.168.0.200:/nfsdst/dir1 are mountable
+2019-09-06 15:47:23,024 - INFO - validating src:192.168.0.200:/nfssrc/dir2 and dst:192.168.0.200:/nfsdst/dir2 are mountable
+2019-09-06 15:47:23,094 - INFO - validating src:192.168.0.200:/nfssrc/dir3 and dst:192.168.0.200:/nfsdst/dir3 are mountable
+2019-09-06 15:47:23,166 - INFO - validating src:192.168.0.200:/nfssrc/dir4 and dst:192.168.0.200:/nfsdst/dir4 are mountable
+2019-09-06 15:47:23,251 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir1
+2019-09-06 15:47:23,256 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir3
+2019-09-06 15:47:23,260 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir2
+2019-09-06 15:47:23,266 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir4
+
+
+user@master:~/xcption$ sudo ./xcption.py load -c example/cifsjob.csv
+2019-09-06 15:47:30,400 - INFO - validating src:\\192.168.0.200\src$\dir4 and dst:\\192.168.0.200\dst$\dir4 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:37,485 - INFO - validating src:\\192.168.0.200\src$\dir3 and dst:\\192.168.0.200\dst$\dir3 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:44,586 - INFO - validating src:\\192.168.0.200\src$\dir2 and dst:\\192.168.0.200\dst$\dir2 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:52,677 - INFO - validating src:\\192.168.0.200\src$\dir1 and dst:\\192.168.0.200\dst$\dir1 cifs paths are avaialble from one of the windows server
+2019-09-06 15:47:59,766 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir1
+2019-09-06 15:47:59,778 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir3
+2019-09-06 15:47:59,783 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir2
+2019-09-06 15:47:59,787 - INFO - creating/updating relationship configs for src:192.168.0.200:/nfssrc/dir4
+2019-09-06 15:47:59,792 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir3
+2019-09-06 15:47:59,796 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir2
+2019-09-06 15:47:59,799 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir1
+2019-09-06 15:47:59,803 - INFO - creating/updating relationship configs for src:\\192.168.0.200\src$\dir4
 
 ```
 
@@ -236,13 +380,20 @@ optional arguments:
 
 Example:
 ```
-user@master:~/xcption# sudo ./xcption.py baseline 
-2019-03-26 21:18:13,519 - INFO - starting/updating job:baseline_test1_192.168.100.2-_xcp_src1
-2019-03-26 21:18:13,578 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src2
-2019-03-26 21:18:13,627 - INFO - starting/updating job:baseline_test2_192.168.100.2-_xcp_src3
+user@master:~/xcption# sudo ./xcption.py baseline
+2019-09-06 15:49:30,859 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir1 dst:192.168.0.200:/nfsdst/dir1
+2019-09-06 15:49:30,914 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir3 dst:192.168.0.200:/nfsdst/dir3
+2019-09-06 15:49:30,971 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir2 dst:192.168.0.200:/nfsdst/dir2
+2019-09-06 15:49:31,029 - INFO - starting/updating baseline job for src:192.168.0.200:/nfssrc/dir4 dst:192.168.0.200:/nfsdst/dir4
+2019-09-06 15:49:31,099 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir3 dst:\\192.168.0.200\dst$\dir3
+2019-09-06 15:49:31,211 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
+2019-09-06 15:49:31,338 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
+2019-09-06 15:49:31,461 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
+
+
 ```
 
-**To schedule the incremental updates (xcp sync) the `sync` command should be used (sync is possiable only when baseline is complete)**
+**To schedule the incremental updates (xcp sync) the `sync` subcommand should be used (sync is possiable only when baseline is complete)**
 
 ```
 usage: xcption.py sync [-h] [-j jobname] [-s srcpath]
@@ -255,19 +406,28 @@ optional arguments:
                         change the scope of the command to specific path
 ```
 
-Example:
+Example for starting sync on specific job name using the -j option
 ```
-user@master:~/xcption# sudo ./xcption.py sync -s 192.168.100.2:/xcp/src10
-2019-03-14 15:07:18,663 - INFO - starting/updating job:sync_job1_192.168.100.2-_xcp_src10
+user@master:~/xcption# sudo ./xcption.py sync -j cifsjob
+2019-09-06 15:52:27,632 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir3 dst:\\192.168.0.200\dst$\dir3
+2019-09-06 15:52:27,708 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
+2019-09-06 15:52:27,758 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
+2019-09-06 15:52:27,807 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
+
 ```
 
-**verification using xcp verify can be start if a job finished baseline 
+**to start verification using xcp (linux and windows) the `verify` subcommand should be used (verify is possiable only when baseline is complete)** 
 
 ```
 user@master:~/xcption$ sudo ./xcption.py verify
-2019-04-15 07:27:23,691 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f3
-2019-04-15 07:27:23,763 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f2
-2019-04-15 07:27:23,826 - INFO - starting/updating job:verify_job29786_192.168.100.2-_xcp_src1_f1
+2019-09-06 16:50:05,188 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir1 dst:192.168.0.200:/nfsdst/dir1
+2019-09-06 16:50:05,243 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir3 dst:192.168.0.200:/nfsdst/dir3
+2019-09-06 16:50:05,352 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir2 dst:192.168.0.200:/nfsdst/dir2
+2019-09-06 16:50:05,458 - INFO - starting/updating verify job for src:192.168.0.200:/nfssrc/dir4 dst:192.168.0.200:/nfsdst/dir4
+2019-09-06 16:50:05,572 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir3 dst:\\192.168.0.200\dst$\dir3
+2019-09-06 16:50:05,697 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
+2019-09-06 16:50:05,792 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
+2019-09-06 16:50:05,894 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
 
 ```
 
@@ -299,13 +459,17 @@ Example:
 
 user@master:~/xcption# sudo ./xcption.py status
 
-BL=Baseline CY=Sync VR=Verifya
+ BL=Baseline SY=Sync VR=Verify
 
-Job       Source Path                 Dest Path              BL Status  BL Time  BL Sent   SY Status  Next SY   SY Time  SY Sent   SY#  VR Status  VR Start             VR Ratio  VR#
-job29786  192.168.100.2:/xcp/src1/f3  192.168.100.2:/xcp/f3  complete   1s       1023 KiB  idle       16:32:31  0s       54.5 KiB  1    equal      2019-04-15 07:27:23  217/217   2
-job29786  192.168.100.2:/xcp/src1/f2  192.168.100.2:/xcp/f2  complete   1s       60.2 KiB  idle       16:32:31  0s       19.2 KiB  1    equal      2019-04-15 07:27:23  4/4       2
-job29786  192.168.100.2:/xcp/src1/f1  192.168.100.2:/xcp/f1  complete   4s       309 MiB   idle       16:32:31  0s       22.0 KiB  1    diff       2019-04-15 07:27:24  29/30     2
-
+ Job      Source Path                 Dest Path                   BL Status  BL Time  BL Sent    SY Status  Next SY   SY Time  SY Sent  SY#  VR Status  VR Start             VR Ratio     VR#
+ jobnfs1  192.168.0.200:/nfssrc/dir1  192.168.0.200:/nfsdst/dir1  complete   1s       6.58 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:50:05  405/405      1
+ jobnfs1  192.168.0.200:/nfssrc/dir3  192.168.0.200:/nfsdst/dir3  complete   1s       6.37 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:50:05  405/405      1
+ jobnfs1  192.168.0.200:/nfssrc/dir2  192.168.0.200:/nfsdst/dir2  complete   1s       6.53 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  405/405      1
+ jobnfs1  192.168.0.200:/nfssrc/dir4  192.168.0.200:/nfsdst/dir4  complete   1s       6.37 MiB   -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  405/405      1
+ cifsjob  \\192.168.0.200\src$\dir3   \\192.168.0.200\dst$\dir3   complete   01s      0.0 B      -          07:08:31  -        -        0    equal      2019-09-06 16:49:46  6/6          1
+ cifsjob  \\192.168.0.200\src$\dir2   \\192.168.0.200\dst$\dir2   complete   01s      0.0 B      -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  5/5          1
+ cifsjob  \\192.168.0.200\src$\dir1   \\192.168.0.200\dst$\dir1   complete   22m27s   788.7 MiB  -          07:08:31  -        -        0    running    2019-09-06 16:49:47  1,043/1,043  1
+ cifsjob  \\192.168.0.200\src$\dir4   \\192.168.0.200\dst$\dir4   complete   08m13s   5.44 GiB   -          07:08:31  -        -        0    equal      2019-09-06 16:49:47  276/276      1
 
 ```
 
@@ -313,64 +477,74 @@ verbose output can be seen using the `-v` argument for the `status` command
 
 
 ```
-user@master:~/xcption$ sudo ./xcption.py status -v
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f3
-DST: 192.168.100.2:/xcp/f3
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f3-192.168.100.2-_xcp_f3
+user@master:~/xcption$ sudo ./xcption.py status  -v  -s dir1
+JOB: jobnfs1
+SRC: 192.168.0.200:/nfssrc/dir1
+DST: 192.168.0.200:/nfsdst/dir1
+SYNC CRON: 0 0 * * * * (NEXT RUN 07:07:14)
+XCP INDEX NAME: 192.168.0.200-_nfssrc_dir1-192.168.0.200-_nfsdst_dir1
+OS: LINUX
 
-Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Data Sent             Node    Status
-baseline  2019-04-15 07:25:48  2019-04-15 07:25:49  1s        217      216     0         0        0       1023 KiB(901 KiB/s)   slave2  complete
-sync1     2019-04-15 07:26:14  2019-04-15 07:26:15  0s        0        0       0         0        0       54.5 KiB(101 KiB/s)   slave2  complete
-verify1   2019-04-15 07:26:56  2019-04-15 07:26:57  1s        217/217  0       0         0        0       31.5 KiB(31.0 KiB/s)  slave2  complete
-verify2   2019-04-15 07:27:23  2019-04-15 07:27:24  0s        217/217  0       0         0        0       31.5 KiB(94.9 KiB/s)  slave2  complete
-
-
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f2
-DST: 192.168.100.2:/xcp/f2
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f2-192.168.100.2-_xcp_f2
-
-Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors  Data Sent             Node    Status
-baseline  2019-04-15 07:25:48  2019-04-15 07:25:49  1s        4        3       0         0        0       60.2 KiB(55.6 KiB/s)  master  complete
-sync1     2019-04-15 07:26:14  2019-04-15 07:26:15  0s        0        0       0         0        0       19.2 KiB(43.0 KiB/s)  master  complete
-verify1   2019-04-15 07:26:56  2019-04-15 07:26:56  0s        4/4      0       0         0        0       2.62 KiB(2.77 KiB/s)  master  complete
-verify2   2019-04-15 07:27:23  2019-04-15 07:27:24  0s        4/4      0       0         0        0       2.62 KiB(9.86 KiB/s)  master  complete
+ Phase     Start Time           End Time             Duration  Scanned  Reviewed  Copied  Modified  Deleted  Errors  Data Sent             Node   Status
+ baseline  2019-09-06 15:49:13  2019-09-06 15:49:14  1s        405      404       404     -         -        -       6.58 MiB(6.42 MiB/s)  rhel2  complete
+ verify1   2019-09-06 16:50:05  2019-09-06 16:50:06  1s        405/405  100%      -       -         -        -       55.7 KiB(46.6 KiB/s)  rhel2  equal
+ sync1     2019-09-06 16:51:54  2019-09-06 16:51:55  1s        -        405       -       -         -        -       87.0 KiB(72.9 KiB/s)  rhel2  complete
 
 
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f1
-DST: 192.168.100.2:/xcp/f1
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:32:21)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f1-192.168.100.2-_xcp_f1
+JOB: cifsjob
+SRC: \\192.168.0.200\src$\dir1
+DST: \\192.168.0.200\dst$\dir1
+SYNC CRON: 0 0 * * * * (NEXT RUN 07:07:14)
+OS: WINDOWS
+TOOL NAME: robocopy
 
-Phase     Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors             Data Sent             Node    Status
-baseline  2019-04-15 07:25:48  2019-04-15 07:25:52  4s        29       28      0         0        0                  309 MiB(67.4 MiB/s)   slave1  complete
-sync1     2019-04-15 07:26:15  2019-04-15 07:26:15  0s        0        0       0         0        0                  22.0 KiB(45.3 KiB/s)  slave1  complete
-verify1   2019-04-15 07:26:56  2019-04-15 07:26:57  0s        29/29    0       0         0        0                  7.98 KiB(46.9 KiB/s)  slave1  complete
-verify2   2019-04-15 07:27:24  2019-04-15 07:27:24  0s        29/30    0       0         0        1 (attr:0 time:1)  8.10 KiB(19.5 KiB/s)  slave1  diff
+ Phase     Start Time           End Time             Duration  Scanned      Reviewed  Copied  Modified  Deleted  Errors  Data Sent  Node  Status
+ baseline  2019-09-06 15:49:12  2019-09-06 15:50:33  22m27s    10734        -         10734   -         -        0       788.7 MiB  WFA   complete
+ verify1   2019-09-06 16:49:47  2019-09-06 16:52:09  2m20s     5,372/5,372  5,372     -       -         -        -       -          WFA   equal
+ sync1     2019-09-06 16:51:54  2019-09-06 16:51:59  01m07s    10734        -         10734   -         -        0       788.7 MiB  WFA   complete
 
 ```
 
-*To see xcp logs for specific phase of a job use the `-p <phase>` argument together with the `-l` argument **
+**To see xcp logs for specific phase of a job use the `-p <phase>` argument together with the `-l` argument **
 
 ```
-user@master:~/xcption# sudo ./xcption.py status -v -s 192.168.100.2:/xcp/src1/f1 -p verify2 -l
-JOB: job29786
-SRC: 192.168.100.2:/xcp/src1/f1
-DST: 192.168.100.2:/xcp/f1
-SYNC CRON: 0 0 * * * * (NEXT RUN 16:31:56)
-XCP INDEX NAME: 192.168.100.2-_xcp_src1_f1-192.168.100.2-_xcp_f1
+user@master:~/xcption# sudo ./xcption.py status -v -s \\\\192.168.0.200\\src$\\dir1 -p verify1 -l
+JOB: cifsjob
+SRC: \\192.168.0.200\src$\dir1
+DST: \\192.168.0.200\dst$\dir1
+SYNC CRON: 0 0 * * * * (NEXT RUN 07:05:28)
+OS: WINDOWS
+TOOL NAME: robocopy
 
-Phase    Start Time           End Time             Duration  Scanned  Copied  Modified  Deleted  Errors             Data Sent             Node    Status
-verify2  2019-04-15 07:27:24  2019-04-15 07:27:24  0s        29/30    0       0         0        1 (attr:0 time:1)  8.10 KiB(19.5 KiB/s)  slave1  diff
+ Phase    Start Time           End Time             Duration  Scanned      Reviewed  Copied  Modified  Deleted  Errors  Data Sent  Node  Status
+ verify1  2019-09-06 16:49:47  2019-09-06 16:52:09  2m20s     5,372/5,372  5,372     -       -         -        -       -          WFA   equal
 
-XCP 1.4-17914d6; (c) 2019 NetApp, Inc.; Licensed to haim marko [NetApp Inc] until Sat Jun  1 00:44:36 2019
+9 compared, 9 same, 0 different, 0 missing, 5s
+22 compared, 22 same, 0 different, 0 missing, 10s
+38 compared, 38 same, 0 different, 0 missing, 15s
+58 compared, 58 same, 0 different, 0 missing, 20s
+80 compared, 80 same, 0 different, 0 missing, 25s
+105 compared, 105 same, 0 different, 0 missing, 30s
+134 compared, 134 same, 0 different, 0 missing, 35s
+159 compared, 159 same, 0 different, 0 missing, 40s
+194 compared, 194 same, 0 different, 0 missing, 45s
+287 compared, 287 same, 0 different, 0 missing, 50s
+410 compared, 410 same, 0 different, 0 missing, 55s
+455 compared, 455 same, 0 different, 0 missing, 1m0s
+594 compared, 594 same, 0 different, 0 missing, 1m5s
+736 compared, 736 same, 0 different, 0 missing, 1m10s
+1,043 compared, 1,043 same, 0 different, 0 missing, 1m15s
+1,403 compared, 1,403 same, 0 different, 0 missing, 1m20s
+1,581 compared, 1,581 same, 0 different, 0 missing, 1m25s
+1,998 compared, 1,998 same, 0 different, 0 missing, 1m30s
+2,403 compared, 2,403 same, 0 different, 0 missing, 1m35s
+2,666 compared, 2,666 same, 0 different, 0 missing, 1m40s
+3,077 compared, 3,077 same, 0 different, 0 missing, 1m45s
+3,486 compared, 3,486 same, 0 different, 0 missing, 1m50s
+3,758 compared, 3,758 same, 0 different, 0 missing, 1m55s
+4,201 compared, 4,201 same, 0 different, 0 missing, 2m0s
+4,510 compared, 4,510 same, 0 different, 0 missing, 2m5s
+4,664 compared, 4,664 same, 0 different, 0 missing, 2m10s
+4,991 compared, 4,991 same, 0 different, 0 missing, 2m15s
+5,372 compared, 5,372 same, 0 different, 0 missing, 2m20s
 
-xcp: WARNING: CPU count is only 2!
-xcp: mount '192.168.100.2:/xcp/src1/f1': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
-xcp: mount '192.168.100.2:/xcp/f1': WARNING: This NFS server only supports 1-second timestamp granularity. This may cause sync to fail because changes will often be undetectable.
-xcp: compare1 'file': WARNING: (error) source file not found on target: nfs3 LOOKUP 'file' in '192.168.100.2:/xcp/f1/f2': nfs3 error 2: no such file or directory
-30 scanned, 29 found (3 have data), 1 different mod time, 1 error, 22.0 KiB in (53.0 KiB/s), 8.10 KiB out (19.5 KiB/s), 0s.
