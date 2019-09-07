@@ -1,4 +1,0 @@
-#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-job28072,192.168.100.2:/xcp/src2/folder2,192.168.100.4:/xcp/folder2,0 0 * * * *,3000,800
-job28072,192.168.100.2:/xcp/src2/folder1,192.168.100.4:/xcp/folder1,0 0 * * * *,3000,800
-job28072,192.168.100.2:/xcp/src2/folder3,192.168.100.4:/xcp/folder3,0 0 * * * *,3000,800
