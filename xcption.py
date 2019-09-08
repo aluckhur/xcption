@@ -2108,10 +2108,8 @@ def parse_nomad_jobs_to_files ():
 def list_dirs_linux(startpath,depth):
 	num_sep = startpath.count(os.path.sep)
 	for root, dirs, files in os.walk(startpath):
-		#print root, dirs, files
 		#dir1 = root.lstrip(startpath)
 		dir1 = root[len(startpath)+1:]
-		print "kkkkk", root, dir1, startpath
 		if (dir1.startswith('.snapshot')):
 			del dirs[:]
 			continue
