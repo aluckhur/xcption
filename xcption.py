@@ -2108,18 +2108,21 @@ def parse_nomad_jobs_to_files ():
 def list_dirs_linux(startpath,depth):
 	num_sep = startpath.count(os.path.sep)
 	for root, dirs, files in os.walk(startpath):
-		dir = root.lstrip(startpath)
-		if (dir.startswith('.snapshot')):
+		#print root, dirs, files
+		#dir1 = root.lstrip(startpath)
+		dir1 = root[len(startpath)+1:]
+		print "kkkkk", root, dir1, startpath
+		if (dir1.startswith('.snapshot')):
 			del dirs[:]
 			continue
 		else:
-			dir = './'+dir
-			yield dir,len(dirs),len(files),dirs
+			dir1 = './'+dir1
+			yield dir1,len(dirs),len(files),dirs
 			num_sep_this = root.count(os.path.sep)
 			if num_sep + depth <= num_sep_this:
 				del dirs[:]
 
-
+#unmount filesystem
 def unmountdir(dir):
 	if subprocess.call( [ 'umount', dir ], stderr=subprocess.STDOUT):
 		logging.error("cannot unmount:"+dir)
@@ -2148,9 +2151,9 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 			logging.error("cpu allocation is illegal:"+defaultcpu)
 			exit(1)	
 	if args.ram: 
-		defaultram = args.ram
-		if defaultram < 0 or defaultram > 20000:
-			logging.error("cpu allocation is illegal:"+defaultram)
+		defaultmemory = args.ram
+		if defaultmemory < 0 or defaultmemory > 20000:
+			logging.error("cpu allocation is illegal:"+defaultmemory)
 			exit(1)	
 
 	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
@@ -2176,7 +2179,7 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, tempmountpointdst ],stderr=subprocess.STDOUT):
 		logging.error("cannot mount dst using nfs: " + dst)
 		subprocess.call( [ 'umount', tempmountpointsrc ],stderr=subprocess.STDOUT)
-		exit(1)	
+		exit(1)
 
 
 	if (depth < 1 or depth > 12):
