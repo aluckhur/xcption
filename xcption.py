@@ -2199,9 +2199,8 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 	#will set to true if Ctrl-C been pressed during os.walk
 	end = False
 
-
-
 	srcdirstructure = list_dirs_linux(tempmountpointsrc,depth-1)
+
 	try:
 		for o in srcdirstructure:
 			path = o[0]
@@ -2243,6 +2242,10 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 			#create xcption job entry
 			#print depth,currentdepth,dircount,nfssrcpath,path
 			if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
+				if nfssrcpath == src+"/" and nfsdstpath == dst+"/": 
+					nfssrcpath = src
+					nfsdstpath = dst
+
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
 				#append data to csv 
 				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
@@ -2337,7 +2340,7 @@ def list_dirs_windows(startpath,depth):
 			pathtype = matchObj.group(1)
 
 
-			matchObj = re.search(r"(.+)\\.*$", path, re.M|re.I)
+			matchObj = re.search(r"(.+)\\.+$", path, re.M|re.I)
 			if matchObj:
 				basedir = matchObj.group(1)
 			else:
@@ -2432,9 +2435,8 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 
 	#will set to true if Ctrl-C been pressed during os.walk
 	end = True
-
-	srcdirstructure = list_dirs_windows(src,depth)
-	dstdirstructure = list_dirs_windows(dst,depth+1)
+	srcdirstructure = list_dirs_windows(src,depth-1)
+	dstdirstructure = list_dirs_windows(dst,depth)
 
 	excludedir = ''
 
@@ -2448,18 +2450,22 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		srcpath = src+path.replace('.','',1)
 		dstpath = dst+path.replace('.','',1)
 
-		if filecount > 0 and currentdepth < depth and dircount > 0:
+
+		if filecount > 0 and dircount > 0 and currentdepth < depth :
 			logging.warning("source path: "+srcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
 
 			warning=True 
-		else:
-			if path in dstdirstructure.keys():
-				if (dstdirstructure[path]['filecount']  > 0 or dstdirstructure[path]['dircount'] >0) and ((currentdepth < depth and dstdirstructure[path]['dircount'] == 0)
-						or (currentdepth == depth and (dstdirstructure[path]['dircount'] > 0 or dstdirstructure[path]['filecount'] >0))):
-					logging.error("destination path: "+dstpath+ " for source dir: "+srcpath+" exists and contains files")
-					exit(1)
-				else:
-					logging.info("destination path: "+dstpath+ " for source dir: "+srcpath+" exists but empty")
+
+		if path in dstdirstructure.keys():
+			dstdircount = dstdirstructure[path]['dircount']
+			dstfilecount = dstdirstructure[path]['filecount']		
+
+			if (dstfilecount  > 0 or dstdircount >0) and ((currentdepth < depth-1 and dstdircount == 0)
+					or (currentdepth == depth-1 and (dstdircount > 0 or dstfilecount >0))):
+				logging.error("destination path: "+dstpath+ " for source dir: "+srcpath+" exists and contains files")
+				exit(1)
+			#elsif :
+			#	logging.info("destination path: "+dstpath+ " for source dir: "+srcpath+" exists but empty")
 
 		#check if destination have tomuch directories 
 		if dircount > 20:
@@ -2468,20 +2474,22 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 
 		#create xcption job entry
 		
-		if (currentdepth < depth and dircount == 0) or (currentdepth == depth and currentdepth > 0) or (depth == 0):
-			logging.debug("src path: "+srcpath+" and dst path: "+dstpath+ "will be configured as xcp job")
+		if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth-1 == 0):
+			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ "will be configured as xcp job")
 
 			#append data to csv 
 			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup})
 
 			#exlude copy of files in this dir 
-			if currentdepth < depth:
+			if currentdepth < depth-1:
 				if excludedir == '': excludedir = " /XD "
 				excludedir += "\""+srcpath+"\" "
 
 	if warning:
 		if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
-	
+	else:
+		end = False
+
 	if not end:
 		try:
 		    with open(csvfile, 'w') as c:
@@ -2494,11 +2502,11 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 			logging.error("could not write data to csv file:"+csvfile)
 			exit(1)	
 
-		if depth > 0:
+		if depth-1 > 0:
 			depthxcpcopy = ''
 
-			pscmd1 = robocopywinpath+robocopyargs+" /LEV:"+str(depth+1)+" \""+src+"\" \""+dst+"\" /XF *"
-			pscmd2 = robocopywinpath+robocopyargs+" /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\""+excludedir
+			pscmd1 = robocopywinpath+robocopyargs+" /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
+			pscmd2 = robocopywinpath+robocopyargs+" /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
 
 			logging.info("robocopy can be used to create the destination initial directory structure for xcption jobs")
 			logging.info("robocopy command to sync directory structure for the required depth will be:")
