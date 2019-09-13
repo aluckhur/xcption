@@ -808,28 +808,29 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 
 	if type == 'file':
 		logfilepath = name
-
-
 		try:
 			with open(logfilepath, 'r') as f:
 				content = f.read()
 				lines = content.splitlines()
 				if lines: 
-					#lastline = lines[-1]
 					results['content'] = content
 		except:
 			logging.error("cannot read log file:"+logfilepath)	
 
-#future optimization for status 
-#		logjsonfile = re.sub('\.log$', '.json', logfilepath)
-#		if jobstatus == 'complete' and os.path.isfile(logjsonfile):
-#			logging.debug("reading data from json file:"+logjsonfile)								
-#			try:
-#				with open(logjsonfile, 'r') as f:
-#					results = json.load(f)
-#    				return results
-#			except:
-#				logging.debug("reading data from json file:"+logjsonfile+" failed")								
+		#store also other logtype
+		otherlogfilepath = name
+		if logtype == 'stderr':
+			otherlogfilepath = otherlogfilepath.replace('stderr','stdout',1) 
+		else:
+			otherlogfilepath = otherlogfilepath.replace('stdout','stderr',1) 
+		try:
+			with open(otherlogfilepath, 'r') as f:
+				content = f.read()
+				lines = content.splitlines()
+				if lines: 
+					results['contentotherlog'] = content
+		except:
+			logging.debug("cannot read other log file:"+otherlogfilepath)							
 
 
 	elif type == 'alloc':						
@@ -846,7 +847,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			logging.debug("log for job:"+allocid+" is not avaialble using api")																								
 
 	if results['content'] != '':
-
 		#for robocopy logs 
 		matchObj = re.search("Robust File Copy for Windows", results['content'], re.M|re.I)
 		if matchObj: 
@@ -1465,7 +1465,8 @@ def create_status (reporttype,displaylogs=False):
 								jobstructure['logs']={}								
 							jobstructure['logs'].update(verifyjobsstructure['logs'])
 
-					 	#for each periodic 					 	synccounter = 1
+					 	#for each periodic 					 	
+					 	synccounter = 1
 					 	verifycounter = 1
 					 	if 'periodics' in jobstructure.keys():
 						 	for periodic in sorted(jobstructure['periodics'].keys()):
@@ -1485,9 +1486,7 @@ def create_status (reporttype,displaylogs=False):
 						 				if periodic.startswith('verify'): 
 						 					task = 'verify'+str(verifycounter)
 						 					verifycounter+=1
-						 					tasktype = 'verify'
-
-						 				
+						 					tasktype = 'verify'						 				
 
 							 			try:
 							 				starttime = currentalloc['TaskStates'][tasktype]['StartedAt']
@@ -1588,11 +1587,23 @@ def create_status (reporttype,displaylogs=False):
 												print verbosetable.get_string(sortby="Start Time")
 												print ""
 												try:
+													print "Log type:"+logtype
 													print currentlog['content']
 												except:
-													print "log is not avaialble"
+													print "log:"+logtype+" is not avaialble"
 												print ""
 												print ""
+												try:
+													otherlogtype = 'stdout'
+													if logtype == 'stdout': otherlogtype = 'stderr'
+
+													print "Log type:"+otherlogtype
+													print currentlog['contentotherlog']
+
+												except:
+													print "log:"+otherlogtype+" is not avaialble"
+												print ""
+												print ""												
 												verbosetable = PrettyTable()
 												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
