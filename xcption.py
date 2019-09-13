@@ -311,7 +311,7 @@ def parse_csv(csv_path):
 							logging.error("dst path format is incorrect: " + dst)
 							exit(1)	
 
-						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
+						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows servers") 
 						
 						pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
 						psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
