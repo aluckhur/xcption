@@ -2143,15 +2143,18 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 		logging.error("destination format is incorrect: " + dst)
 		exit(1)	
 
+	defaultprocessor = defaultcpu
 	if args.cpu: 
-		defaultcpu = args.cpu 
-		if defaultcpu < 0 or defaultcpu > 20000:
-			logging.error("cpu allocation is illegal:"+defaultcpu)
+		defaultprocessor = args.cpu 
+		if defaultprocessor < 0 or defaultprocessor > 20000:
+			logging.error("cpu allocation is illegal:"+defaultprocessor)
 			exit(1)	
+
+	defaultram = defaultmemory
 	if args.ram: 
-		defaultmemory = args.ram
-		if defaultmemory < 0 or defaultmemory > 20000:
-			logging.error("cpu allocation is illegal:"+defaultmemory)
+		defaultram = args.ram
+		if defaultram < 0 or defaultram > 20000:
+			logging.error("cpu allocation is illegal:"+defaultram)
 			exit(1)	
 
 	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
@@ -2248,7 +2251,7 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
 				#append data to csv 
-				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory})
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram})
 
 
 		if warning:
@@ -2381,16 +2384,20 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		logging.error("dst path format is incorrect: " + dst)
 		exit(1)	
 
+	defaultprocessor = defaultcpu
 	if args.cpu: 
-		defaultcpu = args.cpu 
-		if defaultcpu < 0 or defaultcpu > 20000:
-			logging.error("cpu allocation is illegal:"+defaultcpu)
+		defaultprocessor = args.cpu 
+		if defaultprocessor < 0 or defaultprocessor > 20000:
+			logging.error("cpu allocation is illegal:"+defaultprocessor)
 			exit(1)	
+
+	defaultram = defaultmemory
 	if args.ram: 
 		defaultram = args.ram
 		if defaultram < 0 or defaultram > 20000:
 			logging.error("cpu allocation is illegal:"+defaultram)
 			exit(1)	
+
 
 	tool = defaultwintool
 	if args.robocopy:
@@ -2478,7 +2485,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ "will be configured as xcp job")
 
 			#append data to csv 
-			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultcpu,"RAM MB":defaultmemory,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup})
+			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup})
 
 			#exlude copy of files in this dir 
 			if currentdepth < depth-1:
