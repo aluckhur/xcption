@@ -34,8 +34,8 @@ Deployment of the next linux hosts in the cluster should be done using the comma
 
 `sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t client -s <Server IP>`
 
-Deployment of windows hosts should be done by pulling system/xcption_deploy_windows.ps1 script to the windows host and specifing the required parameters:
-`PS C:\>.\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
+Deployment of windows hosts should be done by coping all files from the windows directory in the repository to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:
+`PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
 
 `XCPtionServer` - IP address or resolvable name of the XCPtion Server  
 `XCPtionServerInstallDir` - The installation path of XCPtion on the server (Ex. /root/xcption)  
