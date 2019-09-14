@@ -18,9 +18,11 @@ XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/Red
 
 `git pull https://gitlab.com/haim.marko/xcption.git`
 
-or by downloading the [xcption-master.tar.gz](https://gitlab.com/haim.marko/xcption/-/archive/master/xcption-master.tar.gz) and extracting it to the requested directory.
-
 *ALL instances should be pulled to the same path on all of the servers !!!*
+
+The XCPtion package can be downloaded from the following location [xcption-master.tar.gz](https://gitlab.com/haim.marko/xcption/-/archive/master/xcption-master.tar.gz).
+
+
 
 Before starting the setup, NFS accessed volume with root access should be created to host the shared XCP repository. This volume should be exported to all Linux servers that are going to be part of the cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
