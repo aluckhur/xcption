@@ -16,7 +16,7 @@ You will need to apply for XCP license from: [XCP License Site](https://xcp.neta
 
 XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/RedHat server by pulling the repository using the command:
 
-`git pull https://gitlab.com/haim.marko/xcption.git`
+`git clone https://gitlab.com/haim.marko/xcption.git`
 
 *ALL instances should be pulled to the same path on all of the servers !!!*
 
