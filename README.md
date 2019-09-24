@@ -20,7 +20,7 @@ XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/Red
 
 *ALL instances should be pulled to the same path on all of the servers !!!*
 
-The XCPtion package can be downloaded from the following location [xcption-2.0.4.tar.gz](https://gitlab.com/haim.marko/xcption/-/archive/v2.0.4/xcption-v2.0.4.tar.gz).
+The XCPtion package can be downloaded from the following location [xcption-master.tar.gz](https://gitlab.com/haim.marko/xcption/-/archive/master/xcption-master.tar.gz).
 
 
 

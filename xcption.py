@@ -797,6 +797,23 @@ def start_nomad_jobs(action):
 					elif action == 'baseline' and job:
 						logging.warning("baseline job already exists and cannot be updated") 
 
+#tail n lines of a file 
+def tail(file, n=1, bs=1024):
+    f = open(file)
+    f.seek(0,2)
+    l = 1-f.read(1).count('\n')
+    B = f.tell()
+    while n >= l and B > 0:
+            block = min(bs, B)
+            B -= block
+            f.seek(B, 0)
+            l += f.read(block).count('\n')
+    f.seek(B, 0)
+    l = min(l,n)
+    lines = f.readlines()[-l:]
+    f.close()
+    return lines
+
 
 #parse stats from xcp logs, logs can be retrived from api or file in the repo
 def parse_stats_from_log (type,name,logtype,task='none'):
@@ -808,12 +825,17 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 
 	if type == 'file':
 		logfilepath = name
+		logfilesize = 0
+
 		try:
-			with open(logfilepath, 'r') as f:
-				content = f.read()
-				lines = content.splitlines()
-				if lines: 
-					results['content'] = content
+			logfilesize = os.path.getsize(logfilepath)			
+
+			lines = tail(logfilepath,1000)
+			seperator = ""
+			results['content'] = seperator.join(lines)
+			results['logfilepath'] = logfilepath
+			results['logfilesize'] = logfilesize
+
 		except:
 			logging.error("cannot read log file:"+logfilepath)	
 
@@ -824,11 +846,13 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		else:
 			otherlogfilepath = otherlogfilepath.replace('stdout','stderr',1) 
 		try:
-			with open(otherlogfilepath, 'r') as f:
-				content = f.read()
-				lines = content.splitlines()
-				if lines: 
-					results['contentotherlog'] = content
+			logfilesize = os.path.getsize(otherlogfilepath)			
+
+			lines = tail(otherlogfilepath,1000)
+			seperator = ""
+			results['contentotherlog'] = seperator.join(lines)
+			results['logfileotherpath'] = otherlogfilepath
+			results['logfileothersize'] = logfilesize
 		except:
 			logging.debug("cannot read other log file:"+otherlogfilepath)							
 
@@ -848,14 +872,14 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 
 	if results['content'] != '':
 		#for robocopy logs 
-		matchObj = re.search("Robust File Copy for Windows", results['content'], re.M|re.I)
+		matchObj = re.search("Total    Copied   Skipped  Mismatch    FAILED    Extras", results['content'], re.M|re.I)
 		if matchObj: 
-			matchObj = re.search("Times\s+\:\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)
+			matchObj = re.search("Times\s+\:\s+(\d+)\:(\d+)\:(\d+)\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)
 			if matchObj:
 				results['time'] = '';
-				if int( matchObj.group(1)) > 0: results['time'] += matchObj.group(1)+"h"
-				if int( matchObj.group(2)) > 0: results['time'] += matchObj.group(2)+"m"
-				results['time'] += matchObj.group(3)+"s"
+				if int( matchObj.group(4)) > 0: results['time'] += matchObj.group(4)+"h"
+				if int( matchObj.group(5)) > 0: results['time'] += matchObj.group(5)+"m"
+				results['time'] += matchObj.group(6)+"s"
 
 			matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
 			if matchObj:
@@ -1441,10 +1465,35 @@ def create_status (reporttype,displaylogs=False):
 									verbosetable.align = 'l'
 									print verbosetable
 									print ""
+
 									try:
+										print "Log type:"+logtype
 										print baselinestatsresults['content']
-									except:										
-										print "log is not avaialble"
+							 			try:
+							 				print ""
+							 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
+							 			except:
+							 				logging.debug("logfilepath wasnt found in results ")
+									except:
+										print "log:"+logtype+" is not avaialble"
+									print ""
+									print ""
+
+									try:
+										otherlogtype = 'stdout'
+										if logtype == 'stdout': otherlogtype = 'stderr'
+
+										print "Log type:"+otherlogtype
+										print baselinestatsresults['contentotherlog']
+							 			try:
+							 				print ""
+							 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
+							 			except:
+							 				logging.debug("logfilepath wasnt found in results ")													
+
+									except:
+										print "log:"+otherlogtype+" is not avaialble"
+
 									print ""
 									print ""
 									verbosetable = PrettyTable()
@@ -1589,6 +1638,11 @@ def create_status (reporttype,displaylogs=False):
 												try:
 													print "Log type:"+logtype
 													print currentlog['content']
+										 			try:
+										 				print ""
+										 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
+										 			except:
+										 				logging.debug("logfilepath wasnt found in results ")
 												except:
 													print "log:"+logtype+" is not avaialble"
 												print ""
@@ -1599,6 +1653,11 @@ def create_status (reporttype,displaylogs=False):
 
 													print "Log type:"+otherlogtype
 													print currentlog['contentotherlog']
+										 			try:
+										 				print ""
+										 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
+										 			except:
+										 				logging.debug("logfilepath wasnt found in results ")													
 
 												except:
 													print "log:"+otherlogtype+" is not avaialble"
