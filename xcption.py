@@ -240,7 +240,12 @@ def parse_csv(csv_path):
 					cron    = ''
 					if 3 < len(row): cron    = row[3] 
 					if cron == '':   cron    = defaultjobcron 
-
+					try:
+						now = datetime.datetime.now()
+						cront = croniter.croniter(cron, now)
+					except:
+						logging.error("cron format: "+cron+ " for src: "+ src + " is incorrect")
+						exit(1)	
 
 					cpu     = '' 
 					if 4 < len(row): cpu     = row[4] 
