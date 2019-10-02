@@ -26,13 +26,13 @@ The XCPtion package can be downloaded from the following location [xcption-maste
 
 Before starting the setup, NFS accessed volume with root access should be created to host the shared XCP repository. This volume should be exported to all Linux servers that are going to be part of the cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
-Deployment of the server role on the 1st linux host in the cluster should be done using the command (-r should point to the preconfigured repository)
+Deployment of the server role on the first linux host in the cluster should be done using the command (-r should point to the preconfigured repository)
 
-`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t server`
+`sudo ./xcption/system/xcption_deploy.sh -r <netapp_ip:/xcp_repo_vol> -t server`
 
 Deployment of the next linux hosts in the cluster should be done using the command (pointing to the server IP address):
 
-`sudo ./xcption/system/xcption_deploy.sh -r x.x.x.x:/vol/folder -t client -s <Server IP>`
+`sudo ./xcption/system/xcption_deploy.sh -r <netapp_ip:/xcp_repo_vol> -t client -s <server ip>`
 
 Deployment of windows hosts should be done by coping all files from the windows directory in the repository to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:  
 `PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
