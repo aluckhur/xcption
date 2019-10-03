@@ -35,15 +35,15 @@ Deployment of the next linux hosts in the cluster should be done using the comma
 `sudo ./xcption/system/xcption_deploy.sh -r <netapp_ip:/xcp_repo_vol> -t client -s <server ip>`
 
 Deployment of windows hosts should be done by coping all files from the windows directory in the repository to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:  
-`PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -ServiceUser <Domain\user> -ServicePWD <passwd>`
+`PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -XCPtionServiceUser <Domain\user> -XCPtionServicePWD <passwd>`
 
 `XCPtionServer` - IP address or resolvable name of the XCPtion Server  
 `XCPtionServerInstallDir` - The installation path of XCPtion on the server (Ex. /root/xcption)  
 `XCPtionServerUser` - username to access the XCPtion Server using scp to pull install files  
 `XCPtionServerPWD` - passwd for the XCPtion Server username  
-`ServiceUser` - Domain Username (Domain\User) to start the XCPtionNomad service,   
+`XCPtionServiceUser` - Domain Username (Domain\User) to start the XCPtionNomad service,   
                 This user will be used to access Source and Destination during the migration (This user need access to all files)  
-`ServicePWD` - Password for service user  
+`XCPtionServicePWD` - Password for service user  
 
 
 After installing XCPtion **on all hosts**, xcp license file should be copied to the following location:  
