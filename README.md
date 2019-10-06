@@ -28,11 +28,11 @@ Before starting the setup, NFS accessed volume with root access should be create
 
 Deployment of the server role on the first linux host in the cluster should be done using the command (-r should point to the preconfigured repository)
 
-`sudo ./xcption/system/xcption_deploy.sh -r <netapp_ip:/xcp_repo_vol> -t server`
+`sudo ./xcption/system/xcption_deploy.sh -r <nfsserver:/xcp_repo_vol> -t server`
 
 Deployment of the next linux hosts in the cluster should be done using the command (pointing to the server IP address):
 
-`sudo ./xcption/system/xcption_deploy.sh -r <netapp_ip:/xcp_repo_vol> -t client -s <server ip>`
+`sudo ./xcption/system/xcption_deploy.sh -r <nfsserver:/xcp_repo_vol> -t client -s <server ip>`
 
 Deployment of windows hosts should be done by coping all files from the windows directory in the repository to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:  
 `PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -XCPtionServiceUser <Domain\user> -XCPtionServicePWD <passwd>`
