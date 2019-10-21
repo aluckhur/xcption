@@ -528,7 +528,7 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 
 	psjobstatus = 'not started'
 	if start_nomad_job_from_hcl(powershell_job_file, psjobname):
-		retrycount = 20
+		retrycount = 50
 		while retrycount > 0:
 			results = check_job_status(psjobname,log)
 			retrycount =  retrycount - 1
