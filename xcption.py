@@ -2061,14 +2061,14 @@ def parse_nomad_jobs_to_files ():
 
 	lockcounter = 0
 	lockfile = os.path.join(cachedir,'nomadlock')
-	while os.path.exists(lockfile) and lockcounter <= 3:
+	while os.path.exists(lockfile) and lockcounter <= 2:
 		logging.debug("delaying cache update since another update is running (lock file:"+lockfile+" exists)")
 		time.sleep(1)
 		lockcounter+=1
 
 	#creating the lock file 
 	try:
-		open(lockfile, 'w').close()
+		open(lockfile,'w').close()
 	except:
 		logging.debug("cannot create lock file:"+lockfile)
 
@@ -2093,9 +2093,28 @@ def parse_nomad_jobs_to_files ():
 			jobdir = os.path.join(cachedir,'job_'+job['ID'].split('/')[0])
 
 		jobjsonfile = os.path.join(jobdir,'job_'+job['ID']+'.json')		
-		
+		cachecompletefile = os.path.join(jobdir,'complete.job_'+job['ID']+'.json')
 		if len(job['ID'].split('/')) > 1:
 			jobjsonfile = os.path.join(jobdir,job['ID'].split('/')[1])
+			cachecompletefile = os.path.join(jobdir,'complete.'+job['ID'].split('/')[1])
+
+		#validating if final update from job already exists in cache 
+		jobcomplete = False 
+		try:
+			if job['JobSummary']['Summary'][job['ID'].split('/')[0]]['Complete'] == 1 or job['JobSummary']['Summary'][job['ID'].split('/')[0]]['Failed'] == 1:
+				jobcomplete = True	
+		except:
+			logging.debug("could not validate job status:"+job['ID'])
+
+		#validting if cache done 
+		cachecomplete = False 		
+		if os.path.isfile(cachecompletefile):
+			cachecomplete = True
+
+		#skip caching if complete file found 
+		if cachecomplete:
+			logging.debug("cache for job:"+job['ID']+" is complete, skipping")
+			continue
 
 		try:
 			with open(jobjsonfile, 'w') as fp:
@@ -2123,54 +2142,75 @@ def parse_nomad_jobs_to_files ():
 				if alloc['TaskGroup'].startswith('baseline'): task='baseline'
 				if alloc['TaskGroup'].startswith('verify'): task='verify'
 
-				#get stderr logs
-				logtype = '&type=stderr'
-				#try to get the log file using api
-				response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
-				if response.ok and re.search("\d", response.content, re.M|re.I):
-					logging.debug("stderr log for job:"+alloc['ID']+" is avaialble using api")
-					alloclogfile = os.path.join(jobdir,'stderrlog_'+alloc['ID']+'.log')
-					try:
-						with open(alloclogfile, 'w') as fp:
-							fp.write(response.content)
-							logging.debug("dumping log to log file:"+alloclogfile)		
-					except:
-						logging.error("cannot create file:"+alloclogfile)
-						exit(1)
-
-				#get stderr logs
-				logtype = '&type=stdout'
-				#try to get the log file using api
-				response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
-				if response.ok and re.search("\d", response.content, re.M|re.I):
-					logging.debug("stdout log for job:"+alloc['ID']+" is avaialble using api")
-					alloclogfile = os.path.join(jobdir,'stdoutlog_'+alloc['ID']+'.log')
-					try:
-						with open(alloclogfile, 'w') as fp:
-							fp.write(response.content)
-							logging.debug("dumping log to log file:"+alloclogfile)		
-					except:
-						logging.error("cannot create file:"+alloclogfile)
-						exit(1)						
-
-				if alloc['TaskGroup'].startswith('verify'): 
-					#get stderr logs for verify
-					logtype = '&type=stdout'						
+				#get stderr and stdout logs
+				for logtype in ['stderr','stdout']:
 					#try to get the log file using api
-					response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
-					if response.ok and re.search("\d", response.content, re.M|re.I):
+					response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+'&type='+logtype+'&plain=true')
+					if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
 						logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
-						alloclogfile = os.path.join(jobdir,'log_'+alloc['ID']+'.log')
+						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
 						try:
-							with open(alloclogfile, 'a+') as fp:
-								fp.write(response.content)
-								logging.debug("appending log to log file:"+alloclogfile)		
+							if not os.path.isfile(alloclogfile):
+								with open(alloclogfile, 'w') as fp:
+									logging.debug("dumping log to log file:"+alloclogfile)
+									fp.write(response.content)
+									fp.close()
+									
+							else:
+								#this is used to be able to add delta to the cahce file to enable tail to work
+								tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
+								with open(tmpalloclogfile, 'w') as fp:
+									logging.debug("dumping log to temp log file:"+tmpalloclogfile)
+									fp.write(response.content)
+									fp.close()								
+
+								logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfile)
+								apendtologfile = open(alloclogfile, 'a')
+								DEVNULL = open(os.devnull, 'wb')
+								subprocess.call( ['comm','-13',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
+								apendtologfile.close()
+								os.remove(tmpalloclogfile)	
 						except:
 							logging.error("cannot create file:"+alloclogfile)
 							exit(1)
 
+				# #get stderr logs
+				# logtype = '&type=stdout'
+				# #try to get the log file using api
+				# response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
+				# if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
+				# 	logging.debug("stdout log for job:"+alloc['ID']+" is avaialble using api")
+				# 	alloclogfile = os.path.join(jobdir,'stdoutlog_'+alloc['ID']+'.log')
+				# 	try:
+				# 		with open(alloclogfile, 'w') as fp:
+				# 			fp.write(response.content)
+				# 			logging.debug("dumping log to log file:"+alloclogfile)		
+				# 	except:
+				# 		logging.error("cannot create file:"+alloclogfile)
+				# 		exit(1)						
+
+				# if alloc['TaskGroup'].startswith('verify'): 
+				# 	#get stderr logs for verify
+				# 	logtype = '&type=stdout'						
+				# 	#try to get the log file using api
+				# 	response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
+				# 	if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
+				# 		logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
+				# 		alloclogfile = os.path.join(jobdir,'log_'+alloc['ID']+'.log')
+				# 		try:
+				# 			with open(alloclogfile, 'a+') as fp:
+				# 				fp.write(response.content)
+				# 				logging.debug("appending log to log file:"+alloclogfile)		
+				# 		except:
+				# 			logging.error("cannot create file:"+alloclogfile)
+				# 			exit(1)
+
 				logging.debug("caching alloc:"+alloc['ID'])
 
+		if jobcomplete and not cachecomplete:
+			logging.debug("creating file:"+cachecompletefile+" to preven further caching of the job")
+			subprocess.call(['touch', cachecompletefile])
+			
 	#removing the lock file 
 	try:
 		logging.debug("removing lock file:"+lockfile)
