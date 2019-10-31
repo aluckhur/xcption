@@ -104,7 +104,7 @@ parser_nomad        = subparser.add_parser('nomad',    description='hidden comma
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
-parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (baseline,sync#,verify#)", required=False,type=str,metavar='phase')
+parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (baseline,sync#,verify#,lastsync", required=False,type=str,metavar='phase')
 parser_status.add_argument('-l','--logs',help="display xcp logs", required=False,action='store_true')
 
 parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
@@ -1504,6 +1504,10 @@ def create_status (reporttype,displaylogs=False):
 									verbosetable = PrettyTable()
 									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
+
+						#get the last sync number will be used for lastsync filter 
+						lastsync = len(syncjobsstructure['periodics'])
+
 						#merge sync and verify data 
 						jobstructure=syncjobsstructure.copy()
 						if 'periodics' in verifyjobsstructure.keys():
@@ -1633,7 +1637,7 @@ def create_status (reporttype,displaylogs=False):
 										if jobstatus == 'running':
 											endtime = '-' 
 										
-										if not phasefilter or task.startswith(phasefilter):
+										if (not phasefilter or task.startswith(phasefilter)) or (phasefilter == 'lastsync' and task == 'sync'+str(lastsync)):
 						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
 							 				if displaylogs:
 												verbosetable.border = False
