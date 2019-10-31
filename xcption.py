@@ -318,13 +318,13 @@ def parse_csv(csv_path):
 
 						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows servers") 
 						
-						pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
+						pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
 						psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 						if  psstatus != 'complete':
 							logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
 							exit(1)								
 						
-						pscmd = 'if (test-path '+dst+') {exit 0} else {exit 1}'
+						pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
 						psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 
 						if  psstatus != 'complete':
@@ -618,8 +618,10 @@ def create_nomad_jobs():
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
 					logging.info("creating/updating relationship configs for src:"+src)
 					logging.debug("creating baseline job file: " + baseline_job_file)				
+
 					
 					if ostype == 'linux':  cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+
 					if ostype == 'windows' and tool == 'xcp': 
 						cmdargs = escapestr(xcpwinpath+" copy -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
 					if ostype == 'windows' and tool == 'robocopy': 
@@ -664,7 +666,7 @@ def create_nomad_jobs():
 					logging.debug("creating verify job file: " + verify_job_file)	
 					
 					if ostype == 'linux':  cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
-					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+" verify -v -l -preserve-atime "+src+" "+dst)								
+					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+' verify -v -l -preserve-atime "'+src+'" "'+dst+'"')								
 					
 					with open(verify_job_file, 'w') as fh:
 						fh.write(verify_template.render(
@@ -2435,7 +2437,7 @@ def list_dirs_windows(startpath,depth):
 		logging.error("unexpected format for path:"+startpath)
 		exit(1)
 
-	pscmd = xcpwinpath+' scan -l -depth '+str(depth)+' '+startpath
+	pscmd = xcpwinpath+' scan -l -depth '+str(depth)+' "'+startpath+'"'
 	results = run_powershell_cmd_on_windows_agent(pscmd,True)
 
 	if results['status'] != 'complete':
@@ -2532,12 +2534,12 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		failbackgroup = args.failbackgroup		
 
 	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
-	pscmd = 'if (test-path '+src+') {exit 0} else {exit 1}'
+	pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
 	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 	if  psstatus != 'complete':
 		logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
 		exit(1)								
-	pscmd = 'if (test-path '+dst+') {exit 0} else {exit 1}'
+	pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
 	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 	if  psstatus != 'complete':
 		logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
@@ -2601,7 +2603,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		#create xcption job entry
 		
 		if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth-1 == 0):
-			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ "will be configured as xcp job")
+			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ " will be configured as xcp job")
 
 			#append data to csv 
 			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup})
