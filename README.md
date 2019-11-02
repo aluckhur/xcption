@@ -456,7 +456,7 @@ optional arguments:
   -v, --verbose         provide detailed information
   -p phase, --phase phase
                         change the scope of the command to specific phase
-                        (basline,sync#)
+                        (basline,sync#,lastsync)
   -l, --logs            display xcp logs
 ```
 
