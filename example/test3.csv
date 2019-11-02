@@ -1,6 +1,2 @@
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-l1,192.168.0.200:/nfssrc/blat104,192.168.0.200:/nfsdst/blat104,* * * * * *,2000,800
-l1,192.168.0.200:/nfssrc/kok101,192.168.0.200:/nfsdst/kok101,* * * * * *,2000,800
-l1,192.168.0.200:/nfssrc/kok102,192.168.0.200:/nfsdst/kok102,* * * * * *,2000,800
-l1,192.168.0.200:/nfssrc/koko103,192.168.0.200:/nfsdst/koko103,* * * * * *,2000,800
-l1,192.168.0.200:/nfssrc/kok100,192.168.0.200:/nfsdst/kok100,* * * * * *,2000,800
+l1,192.168.0.200:/nfssrc/with space,192.168.0.200:/nfsdst/with space,* * * * * *,2000,800

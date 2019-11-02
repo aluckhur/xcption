@@ -1,5 +1,5 @@
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP
-cifsjob,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,
-cifsjob,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,,
-cifsjob,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,robocopy,,
-cifsjob,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,200,80,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,200,80,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,200,80,robocopy,,
+cifsjob,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,200,80,robocopy,,

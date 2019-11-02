@@ -1,0 +1,3 @@
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP
+cifs,\\192.168.0.200\c$\cifssrc\with space 1,\\192.168.0.200\c$\cifsdst\with space 1,* * * * * *,300,800,robocopy,,
+cifs,\\192.168.0.200\c$\cifssrc\dir1,\\192.168.0.200\c$\cifsdst\dir1,* * * * * *,300,800,robocopy,,
