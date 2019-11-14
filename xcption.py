@@ -38,7 +38,7 @@ xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 
 #robocopy windows location
 robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.cmd'
-robocopyargs = ' /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE'
+robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:64 /R:0 /W:0 /TEE'
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -53,13 +53,15 @@ xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 #cachedir = os.path.join(xcprepopath,'nomadcache')
 cachedir = os.path.join(root,'nomadcache')
 
-#file containing loaded jobs 
-jobdictjson = os.path.join(cachedir,'jobs.json')
+
 #path to nomad bin 
 nomadpath = '/usr/local/bin/nomad'
 
 #location for the jobs dir
 jobsdir = os.path.join(xcprepopath,'jobs') 
+
+#file containing loaded jobs 
+jobdictjson = os.path.join(jobsdir,'jobs.json')
 
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
