@@ -921,7 +921,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			return results
 			#results['scanned'] = matchObj.group(1)		
 
-		# for xcp logs
+		
 
 		#correct regex 
 		#matchObj = re.search("(.+?([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(scanned|reviewed).+)$",results['content'],re.M|re.I)
@@ -939,6 +939,8 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		#		print lastline
 		#	results['lastline'] = lastline
 
+		# for xcp logs
+		
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b).+)",results['content'],re.M|re.I):
 			lastline = match.group(0)
 		results['lastline'] = lastline
