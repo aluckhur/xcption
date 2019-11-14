@@ -922,41 +922,56 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			#results['scanned'] = matchObj.group(1)		
 
 		# for xcp logs
-		matchObj = re.finditer("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S? [scanned|reviewed].+)$",results['content'],re.M|re.I)
-		if matchObj:
-			for matchNum, match in enumerate(matchObj, start=1):
-				lastline = match.group()
-			results['lastline'] = lastline
+
+		#correct regex 
+		#matchObj = re.search("(.+?([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(scanned|reviewed).+)$",results['content'],re.M|re.I)
+		#if matchObj:
+		#	lastline = matchObj.group(1)
+		#	results['lastline'] = lastline
+		#	print lastline
+		#	print "koko"
+
+		#matchObj = re.finditer("(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b).+)",results['content'],re.M|re.I)
+		#if matchObj:
+		#	print "yyyyyyy"
+		#	for matchNum, match in enumerate(matchObj, start=1):
+		#		lastline = match.group()
+		#		print lastline
+		#	results['lastline'] = lastline
+
+		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b).+)",results['content'],re.M|re.I):
+			lastline = match.group(0)
+		results['lastline'] = lastline
 
 	#for xcp logs 	
 	if lastline:
-		matchObj = re.search("\s+(\S*\d+[s|m])(\.)?$", lastline, re.M|re.I)
+		matchObj = re.search("\s+(\S*\d+[s|m|h])(\.)?$", lastline, re.M|re.I)
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 				#reviewed in xcp linux, compared xcp windows
-                matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) [reviewed|compared]", lastline, re.M|re.I)
+                matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(reviewed|compared)", lastline, re.M|re.I)
                 if matchObj:
                         results['reviewed'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) scanned", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj: 
 			results['scanned'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) copied", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) copied", lastline, re.M|re.I)
 		if matchObj: 
 			results['copied'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) indexed", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) indexed", lastline, re.M|re.I)
 		if matchObj: 
 			results['indexed'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) gone", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) gone", lastline, re.M|re.I)
 		if matchObj: 
 			results['gone'] = matchObj.group(1)	
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) modification", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) modification", lastline, re.M|re.I)
 		if matchObj: 
 			results['modification'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) error", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) error", lastline, re.M|re.I)
 		if matchObj: 
 			results['errors'] = matchObj.group(1)
 
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) file.gone", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) file.gone", lastline, re.M|re.I)
 		if matchObj: 
 			results['filegone'] = matchObj.group(1)
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
@@ -973,7 +988,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['bwout'] = matchObj.group(1)	
 
 		#matches for verify job
-		matchObj = re.search("(\d+\%?) found \((\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) have data\)", lastline, re.M|re.I)
+		matchObj = re.search("(\d+\%?) found \(([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) have data\)", lastline, re.M|re.I)
 		if matchObj: 
 			results['found'] = matchObj.group(1)
 			results['withdata'] = matchObj.group(2)
@@ -997,10 +1012,10 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['diffmodtime'] = matchObj.group(1)
 
 		#xcp verify for windows 
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) compared", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) compared", lastline, re.M|re.I)
 		if matchObj:
 			results['scanned'] = matchObj.group(1)
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?\S?) same", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) same", lastline, re.M|re.I)
 		if matchObj:		
 			results['found'] = matchObj.group(1)
 			if results['scanned'] == results['found']: results['verified']='yes'
