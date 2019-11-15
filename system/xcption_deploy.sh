@@ -250,6 +250,12 @@ if [ -f ${SCRIPT_DIR}/xcp.zip ]; then
         mv -f xcp /usr/local/bin/xcp
 fi
 
+if [ -f ${SCRIPT_DIR}/../windows/xcp_windows_mp.z01 ]; then
+	cat ${SCRIPT_DIR}/../windows/xcp_windows_mp.z* > ${SCRIPT_DIR}/../windows/xcp_windows.zip
+        unzip ${SCRIPT_DIR}/../windows/xcp_windows.zip -d ${SCRIPT_DIR}/../windows
+fi
+
+
 mkdir -p ${SCRIPT_DIR}/xcp_repo
 chmod 770 ${SCRIPT_DIR}/xcp_repo
 
