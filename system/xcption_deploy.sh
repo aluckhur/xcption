@@ -127,12 +127,14 @@ else
 
   cd /tmp/
 
-  echo "Fetching Nomad version ${NOMAD_VERSION} ..."
+  echo "Fetching Nomad for linux version ${NOMAD_VERSION} ..."
   curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
-  echo "Installing Nomad version ${NOMAD_VERSION} ..."
+  echo "Installing Nomad linux version ${NOMAD_VERSION} ..."
   unzip nomad.zip
-  chmod +x nomad
-  mv -f nomad /usr/local/bin/nomad
+  echo "Fetching Nomad for windows version ${NOMAD_VERSION} ..."
+  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o windows/nomad_windows.zip
+  echo "Installing Nomad windows version ${NOMAD_VERSION} ..."
+  unzip windows/nomad_windows.zip -d windows
 fi
 
 echo "Configuring Nomad"
