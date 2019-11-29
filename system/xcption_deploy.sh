@@ -49,16 +49,22 @@ if [ "$INSTALLTYPE" == "client" -a -z "$SERVERIP" ]; then
   exit 1
 fi
 
+wget -q --spider http://google.com
+if [ $? -eq 0 ]; then
+  export ONLINE=true    
+  echo "This is ONLINE installation"
+else
+  export ONLINE=false
+  echo "This is OFFLINE installation"
+fi
+
 if [ "$INSTALLTYPE" == "client" ]; then
   echo Server IP address: $SERVERIP 
 fi
 
-
-
-
 echo "Repo path: $XCPREPO Mount Point will be:${REPO_MOUNT_POINT}"
 
-#set -x
+set -x
 
 #Bringing the Information
 echo "Determining local IP address"
@@ -77,10 +83,10 @@ echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement"
 export APT=`command -v apt`
 export YUM=`command -v yum`
 
-if [ -n $YUM ]; then
+if [ -n "$YUM" ]; then
     yum -y update
     INST_APP="yum"
-elif [ -n $YUM ]; then
+elif [ -n "$YUM" ]; then
     apt -y update
     INST_APP="apt"  
 else
@@ -88,7 +94,7 @@ else
     exit 1;
 fi
 
-if ["$INST_ALL" == "yum" ]; then
+if ["$INST_APP" == "yum" ]; then
   yum install -y epel-release
 fi
 
@@ -104,38 +110,50 @@ $INST_APP install -y \
     nfs-common \
     python-pip 
 
-pip install python-nomad
-pip install jinja2
-pip install csv
-pip install argparse
-pip install logging
-pip install pprint
-pip install requests
-pip install prettytable
-pip install croniter
-pip install hurry.filesize
-pip install graphyte
 
-
-if [ -f ${SCRIPT_DIR}/nomad.zip ]; then
-  unzip ${SCRIPT_DIR}/nomad.zip
-  chmod +x nomad
-  mv -f nomad /usr/local/bin/nomad
+if [ "$ONLINE" == "true" ]; then
+  pip install python-nomad
+  pip install jinja2
+  pip install csv
+  pip install argparse
+  pip install logging
+  pip install pprint
+  pip install requests
+  pip install prettytable
+  pip install croniter
+  pip install hurry.filesize
+  pip install graphyte
 else
+  mkdir -p /tmp/pip_unzip_loc
+  unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
+  pip install /tmp/pip_unzip_loc
+  rm -rf /tmp/pip_unzip_loc
+fi
+
+if [ "$ONLINE" == "true" ]; then
   CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
   NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
 
   cd /tmp/
 
   echo "Fetching Nomad for linux version ${NOMAD_VERSION} ..."
-  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o nomad.zip
+  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o ${SCRIPT_DIR}/nomad.zip
   echo "Installing Nomad linux version ${NOMAD_VERSION} ..."
-  unzip nomad.zip
+  unzip -o ${SCRIPT_DIR}/nomad.zip
   echo "Fetching Nomad for windows version ${NOMAD_VERSION} ..."
-  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o windows/nomad_windows.zip
+  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip
   echo "Installing Nomad windows version ${NOMAD_VERSION} ..."
-  unzip windows/nomad_windows.zip -d windows
+  unzip -o windows/nomad_windows.zip -d ${SCRIPT_DIR}/../windows
+else
+
+  if [ -f ${SCRIPT_DIR}/../windows/xcp_windows_mp.z01 ]; then
+    cat ${SCRIPT_DIR}/../windows/xcp_windows_mp.z* > ${SCRIPT_DIR}/../windows/xcp_windows.zip
+  fi  
+  unzip -o ${SCRIPT_DIR}/../windows/xcp_windows.zip -d ${SCRIPT_DIR}/../windows
 fi
+
+unzip -o ${SCRIPT_DIR}/nomad.zip -d /usr/local/bin
+chmod +x /usr/local/bin/nomad
 
 echo "Configuring Nomad"
 mkdir -p /var/lib/nomad /etc/nomad.d
@@ -247,14 +265,9 @@ sysctl -p
 
 
 if [ -f ${SCRIPT_DIR}/xcp.zip ]; then
-        unzip ${SCRIPT_DIR}/xcp.zip
+        unzip -o ${SCRIPT_DIR}/xcp.zip
         chmod +x xcp
         mv -f xcp /usr/local/bin/xcp
-fi
-
-if [ -f ${SCRIPT_DIR}/../windows/xcp_windows_mp.z01 ]; then
-	cat ${SCRIPT_DIR}/../windows/xcp_windows_mp.z* > ${SCRIPT_DIR}/../windows/xcp_windows.zip
-        unzip ${SCRIPT_DIR}/../windows/xcp_windows.zip -d ${SCRIPT_DIR}/../windows
 fi
 
 
