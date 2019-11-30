@@ -8,7 +8,7 @@
 	[string]$XCPtionServicePwd
  )
 
-$XCPtionServerInstallDir += '/'
+$XCPtionServerInstallDir += '/windows/'
 
 if (-not $XCPtionServerPwd) {
 	$pwd = Read-Host -AsSecureString "XCPtion Server Passwd"
