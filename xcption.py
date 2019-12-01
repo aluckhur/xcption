@@ -24,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 pp = pprint.PrettyPrinter(indent=1)
 
 #version 
-version = '2.0.4.100'
+version = '2.0.5.100'
 
 #general settings
 dcname = 'DC1'
@@ -35,10 +35,13 @@ defaultwintool = 'xcp'
 xcppath = '/usr/local/bin/xcp'
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
+xcpwincopyparam = "-preserve-atime -acl -parallel 8"
+xcpwinsyncparam = "-nodata -preserve-atime -acl -parallel 8"
 
 #robocopy windows location
-robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.cmd'
-robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:64 /R:0 /W:0 /TEE'
+robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
+robocopywinpathasses = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
+robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /V '
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -82,6 +85,8 @@ if not os.path.isdir(logdirpath):
 defaultjobcron = "0 0 * * * *" #nightly @ midnight
 defaultcpu = 3000
 defaultmemory = 800
+
+maxloglinestodisplay = 200
 
 
 parser = argparse.ArgumentParser()
@@ -628,7 +633,7 @@ def create_nomad_jobs():
 					if ostype == 'linux':  cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
 
 					if ostype == 'windows' and tool == 'xcp': 
-						cmdargs = escapestr(xcpwinpath+" copy -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+						cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
 					if ostype == 'windows' and tool == 'robocopy': 
 						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
 					
@@ -650,7 +655,7 @@ def create_nomad_jobs():
 					
 					if ostype == 'linux':  cmdargs = "sync\",\"-id\",\""+xcpindexname
 					if ostype == 'windows' and tool == 'xcp': 
-						cmdargs = escapestr(xcpwinpath+" sync -preserve-atime -acl -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
 					if ostype == 'windows' and tool == 'robocopy': 
 						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
 
@@ -842,7 +847,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		try:
 			logfilesize = os.path.getsize(logfilepath)			
 
-			lines = tail(logfilepath,1000)
+			lines = tail(logfilepath,maxloglinestodisplay)
 			seperator = ""
 			results['content'] = seperator.join(lines)
 			results['logfilepath'] = logfilepath
@@ -860,7 +865,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		try:
 			logfilesize = os.path.getsize(otherlogfilepath)			
 
-			lines = tail(otherlogfilepath,1000)
+			lines = tail(otherlogfilepath,maxloglinestodisplay)
 			seperator = ""
 			results['contentotherlog'] = seperator.join(lines)
 			results['logfileotherpath'] = otherlogfilepath
@@ -884,43 +889,42 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 
 	if results['content'] != '':
 		#for robocopy logs 
-		matchObj = re.search("Total    Copied   Skipped  Mismatch    FAILED    Extras", results['content'], re.M|re.I)
-		if matchObj: 
-			matchObj = re.search("Times\s+\:\s+(\d+)\:(\d+)\:(\d+)\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)
-			if matchObj:
-				results['time'] = '';
-				if int( matchObj.group(4)) > 0: results['time'] += matchObj.group(4)+"h"
-				if int( matchObj.group(5)) > 0: results['time'] += matchObj.group(5)+"m"
-				results['time'] += matchObj.group(6)+"s"
+		# matchObj = re.search("Total    Copied   Skipped  Mismatch    FAILED    Extras", results['content'], re.M|re.I)
+		# if matchObj: 
+		# 	matchObj = re.search("Times\s+\:\s+(\d+)\:(\d+)\:(\d+)\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)
+		# 	if matchObj:
+		# 		results['time'] = '';
+		# 		if int( matchObj.group(4)) > 0: results['time'] += matchObj.group(4)+"h"
+		# 		if int( matchObj.group(5)) > 0: results['time'] += matchObj.group(5)+"m"
+		# 		results['time'] += matchObj.group(6)+"s"
 
-			matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
-			if matchObj:
-				results['scanned'] = int(matchObj.group(1))
-				results['copied'] = int(matchObj.group(2))
-				results['errors'] = int(matchObj.group(5))
+		# 	matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
+		# 	if matchObj:
+		# 		results['scanned'] = int(matchObj.group(1))
+		# 		results['copied'] = int(matchObj.group(2))
+		# 		results['errors'] = int(matchObj.group(5))
 
-			matchObj = re.search(r"Bytes\s+\:\s+(\d+([\,]\d+)*([\.]\d+)?)\s+([g|m|k|t])?", results['content'], re.M|re.I)
-			if matchObj:
-				results['bwout'] = str(round(float(matchObj.group(1)),2))
-				quantifier = ''
-				if not matchObj.group(4): quantifier= ' B'
-				elif matchObj.group(4) == 'k': quantifier= ' KiB'
-				elif matchObj.group(4) == 'm': quantifier= ' MiB'
-				elif matchObj.group(4) == 'g': quantifier= ' GiB'
-				elif matchObj.group(4) == 't': quantifier= ' TiB'
-				results['bwout'] += quantifier
+		# 	matchObj = re.search(r"Bytes\s+\:\s+(\d+([\,]\d+)*([\.]\d+)?)\s+([g|m|k|t])?", results['content'], re.M|re.I)
+		# 	if matchObj:
+		# 		results['bwout'] = str(round(float(matchObj.group(1)),2))
+		# 		quantifier = ''
+		# 		if not matchObj.group(4): quantifier= ' B'
+		# 		elif matchObj.group(4) == 'k': quantifier= ' KiB'
+		# 		elif matchObj.group(4) == 'm': quantifier= ' MiB'
+		# 		elif matchObj.group(4) == 'g': quantifier= ' GiB'
+		# 		elif matchObj.group(4) == 't': quantifier= ' TiB'
+		# 		results['bwout'] += quantifier
 
-			matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
-			if matchObj:
-				results['scanned'] += int(matchObj.group(1))				
-				results['copied'] += int(matchObj.group(2))				
-				results['errors'] = int(matchObj.group(5))
+		# 	matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
+		# 	if matchObj:
+		# 		results['scanned'] += int(matchObj.group(1))				
+		# 		results['copied'] += int(matchObj.group(2))				
+		# 		results['errors'] = int(matchObj.group(5))
 
-			matchObj = re.search("Times \:\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)	
+		# 	matchObj = re.search("Times \:\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)	
 
-			return results
-			#results['scanned'] = matchObj.group(1)		
-
+		# 	return results
+		#end of robocopy parsing 
 		
 
 		#correct regex 
@@ -940,7 +944,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		#	results['lastline'] = lastline
 
 		# for xcp logs
-		
+
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b).+)",results['content'],re.M|re.I):
 			lastline = match.group(0)
 		results['lastline'] = lastline
@@ -1500,7 +1504,7 @@ def create_status (reporttype,displaylogs=False):
 										print baselinestatsresults['content']
 							 			try:
 							 				print ""
-							 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
+							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
 							 			except:
 							 				logging.debug("logfilepath wasnt found in results ")
 									except:
@@ -1516,7 +1520,7 @@ def create_status (reporttype,displaylogs=False):
 										print baselinestatsresults['contentotherlog']
 							 			try:
 							 				print ""
-							 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
+							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
 							 			except:
 							 				logging.debug("logfilepath wasnt found in results ")													
 
@@ -1673,7 +1677,7 @@ def create_status (reporttype,displaylogs=False):
 													print currentlog['content']
 										 			try:
 										 				print ""
-										 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
+										 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
 										 			except:
 										 				logging.debug("logfilepath wasnt found in results ")
 												except:
@@ -1688,7 +1692,7 @@ def create_status (reporttype,displaylogs=False):
 													print currentlog['contentotherlog']
 										 			try:
 										 				print ""
-										 				print "maximum 1000 lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
+										 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
 										 			except:
 										 				logging.debug("logfilepath wasnt found in results ")													
 
@@ -1745,6 +1749,7 @@ def update_nomad_job_status(action):
 					job = {}
 					try:	
 						job = n.job.get_job(nomadjobname)
+
 					except:
 						job = ''
 					
@@ -1762,7 +1767,7 @@ def update_nomad_job_status(action):
 
 						jobfile = os.path.join(jobdir,nomadjobname+'.hcl')		
 						if not os.path.exists(jobfile): 
-							logging.warning("log file"+jobfile+" for job:"+nomadjobname+" could not be found, please run init again") 
+							logging.error("job file"+jobfile+" for job:"+nomadjobname+" could not be found, please load csv again") 
 							exit (1)
 
 						nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
@@ -1786,35 +1791,49 @@ def update_nomad_job_status(action):
 						elif action in ['pause','resume'] and currentstopstatus == action:
 							logging.info("job name:"+nomadjobname+" is already:"+action) 
 						elif action == 'syncnow':
+							already_running = False
 							if baselinestatus != 'Baseline Is Complete':
 								logging.warning("cannot syncnow since baseline status for:"+nomadjobname+' is:'+baselinestatus)
 							else:
-								logging.info("starting sync src:"+src+" dst:"+dst) 
-								if currentstopstatus == 'pause':									
-									logging.debug("temporary resuming job:"+nomadjobname+" to allow syncnow") 
-									nomadjobdict["Job"]["Stop"] = False
-									nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
-									try:
-										job = n.job.get_job(nomadjobname)
-									except:
-										logging.error("job:"+nomadjobname+" update failed") 
-										exit(1)
+								try:
+									response = requests.get(nomadapiurl+'jobs?prefix='+nomadjobname)
+									prefixjobs = json.loads(response.content)
 
-								logging.debug("issuing periodic force update on job:"+nomadjobname)
-								response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
-								if not response.ok:
-									logging.error("job:"+nomadjobname+" syncnow failed") 
-									exit(1)		
+									for prefixjob in prefixjobs:
+										if prefixjob["Status"] == 'running' and '/periodic-' in prefixjob["ID"]:
+											already_running = True 
+								except:
+									logging.debug("could not get job periodics for job:"+nomadjobname) 
 
-								if currentstopstatus == 'pause':									
-									logging.debug("returning job:"+nomadjobname+" to pause state") 
-									nomadjobdict["Job"]["Stop"] = True
-									nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
-									try:
-										job = n.job.get_job(nomadjobname)
-									except:
-										logging.error("job:"+nomadjobname+" update failed") 
-										exit(1)
+								if already_running:
+									logging.warning("cannot syncnow for src:"+src+" because it is already running")	
+								else:
+									logging.info("starting sync for src:"+src+" dst:"+dst) 
+									if currentstopstatus == 'pause':									
+										logging.debug("temporary resuming job:"+nomadjobname+" to allow syncnow") 
+										nomadjobdict["Job"]["Stop"] = False
+										nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
+										try:
+											job = n.job.get_job(nomadjobname)
+										except:
+											logging.error("job:"+nomadjobname+" update failed") 
+											exit(1)
+
+									logging.debug("issuing periodic force update on job:"+nomadjobname)
+									response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
+									if not response.ok:
+										logging.error("job:"+nomadjobname+" syncnow failed") 
+										exit(1)		
+
+									if currentstopstatus == 'pause':									
+										logging.debug("returning job:"+nomadjobname+" to pause state") 
+										nomadjobdict["Job"]["Stop"] = True
+										nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
+										try:
+											job = n.job.get_job(nomadjobname)
+										except:
+											logging.error("job:"+nomadjobname+" update failed") 
+											exit(1)
 
 #query user for yes no question
 def query_yes_no(question, default="no"):
@@ -2655,8 +2674,8 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		if depth-1 > 0:
 			depthxcpcopy = ''
 
-			pscmd1 = robocopywinpath+" /E /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
-			pscmd2 = robocopywinpath+" /E /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
+			pscmd1 = robocopywinpathasses+" /E /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
+			pscmd2 = robocopywinpathasses+" /E /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
 
 			logging.info("robocopy can be used to create the destination initial directory structure for xcption jobs")
 			logging.info("robocopy command to sync directory structure for the required depth will be:")
