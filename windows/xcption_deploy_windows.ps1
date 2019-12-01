@@ -60,6 +60,7 @@ function Unzip
 {
     Param([string]$zipfile, [string]$outpath)
 
+    Write-Host "Extracting file: $zipfile to directory: $outpath"
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) 
 }
 
