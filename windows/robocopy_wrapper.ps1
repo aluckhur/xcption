@@ -9,7 +9,7 @@ $RobocopyErrorCodes[-1] = "Robocopy been termintaed unexpectedly"
 
 $oInfo = New-Object System.Diagnostics.ProcessStartInfo
 $oInfo.FileName  = "robocopy"
-$oInfo.Arguments = $args
+$oInfo.Arguments = $args +" /log:c:\temp\rb.log"
 $oInfo.UseShellExecute = $False
 $oInfo.RedirectStandardOutput = $True
 
@@ -28,6 +28,8 @@ $filegone = 0
 $dirgone = 0
 $errors = 0
 $same = 0
+
+$newbytes = 0
 
 while (!$bDone)
 {
@@ -53,15 +55,23 @@ while (!$bDone)
             if ($line -match '\s+Modified\s+(\d+)') {
                 $modified += 1
             } elseif ($line -match '\s+Newer\s+(\d+)') {
-                $modified += 1                                             
+                $modified += 1
+                $newbytes += $matches[1]
+            } elseif ($line -match '\s+Older\s+(\d+)') {
+                $modified += 1
+                $newbytes += $matches[1]                                                   
             } elseif ($line -match '\s+New File\s+(\d+)') {
-                $new += 1  
+                $new += 1 
+                $newbytes += $matches[1]
             } elseif ($line -match '\s+New Dir\s+(\d+)') {
                 $new += 1 
-                                    } elseif ($line -match '(^|\s+)same\s+(\d+)') {
+            } elseif ($line -match '\s+same\s+(\d+)') {
+                $same += 1                 
+            } elseif ($line -match '(^|\s+)same\s+') {
+                in some cases lines with same are splited (robocopy bug)
                 $same += 1               
-                                    } elseif ($line -match '\s+tweaked\s+(\d+)') {
-                $same += 1                                       
+            } elseif ($line -match '\s+tweaked\s+(\d+)') {
+                $modified += 1                                       
             } elseif ($line -match '^\s*\*EXTRA File\s+(\d+)') {
                 $filegone += 1 
             } elseif ($line -match '^\s*\*EXTRA Dir\s+-?(\d+)') {
@@ -72,7 +82,7 @@ while (!$bDone)
                 Write-Host $line 
                 $errors += 1
             } elseif ($line -match '^\s*\\\\') {
-                #skip split lines                                             
+                #skip split                                       
             } elseif ($line -match '^\s*(\d+)%\s*$') {
                 #skipp
             } elseif ($line -match '^\s*$') {
@@ -88,9 +98,19 @@ while (!$bDone)
 
         $time = [string]$hours+'h'+[string]$minutes+'m'+[string]$seconds+'s'      
 
+        if ($seconds -eq 0 ) {$seconds = 1}
+        $newmb = [math]::Round($newbytes/1024/1024,2)
+        $newmbs = [math]::Round($newmb/($hours*3600+$minutes*60+$seconds),2)
+
         $scanned = $modified + $new + $same   
-        Write-Host $('{0:N0}' -f ($scanned)) 'scanned' $('{0:N0}' -f ($new)) 'copied' $('{0:N0}' -f ($modified)) 'modification' $('{0:N0}' -f ($errors)) 'error' $('{0:N0}' -f ($filegone)) 'file.gone' $('{0:N0}' -f ($dirgone)) 'dir.gone' $time
-        #Write-Host "errors: $errors modified: $modified new: $new extra file: $extrafile $time"
+
+        #add new line before the final line 
+        if ($processexited) {
+            Write-Host ""
+            Write-Host ""
+        }
+        
+        Write-Host $('{0:N0}' -f ($scanned)) 'scanned,' $('{0:N0}' -f ($new)) 'copied,' $('{0:N0}' -f ($modified)) 'modification,' $('{0:N0}' -f ($errors)) 'error,' $('{0:N0}' -f ($filegone)) 'file.gone,' $('{0:N0}' -f ($dirgone)) 'dir.gone,' "$($newmb)MiB ($($newmbs)MiB/s)," $time
     }
     
     if ($processexited)
@@ -98,7 +118,7 @@ while (!$bDone)
         $exitcode = $oProcess.ExitCode 
         if ($exitcode -le 16 -and $exitcode -ge 0) {
             $exitmessage = $RobocopyErrorCodes[$exitcode]
-                                    Write-Host "Original Exit Code: $exitcode"
+            #Write-Host "Original Exit Code: $exitcode"
             $exitcode = 0
         } else {                 
             $exitmessage = $RobocopyErrorCodes[$exitcode]
