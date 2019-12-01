@@ -9,7 +9,7 @@ $RobocopyErrorCodes[-1] = "Robocopy been termintaed unexpectedly"
 
 $oInfo = New-Object System.Diagnostics.ProcessStartInfo
 $oInfo.FileName  = "robocopy"
-$oInfo.Arguments = $args +" /log:c:\temp\rb.log"
+$oInfo.Arguments = $args
 $oInfo.UseShellExecute = $False
 $oInfo.RedirectStandardOutput = $True
 

@@ -41,7 +41,7 @@ xcpwinsyncparam = "-nodata -preserve-atime -acl -parallel 8"
 #robocopy windows location
 robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
 robocopywinpathasses = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
-robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /V '
+robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /V /BYTES /NDL '
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
