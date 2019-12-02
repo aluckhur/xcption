@@ -99,8 +99,27 @@ while (!$bDone)
         $time = [string]$hours+'h'+[string]$minutes+'m'+[string]$seconds+'s'      
 
         if ($seconds -eq 0 ) {$seconds = 1}
-        $newmb = [math]::Round($newbytes/1024/1024,2)
-        $newmbs = [math]::Round($newmb/($hours*3600+$minutes*60+$seconds),2)
+        $bw = [math]::Round($newbytes/1024/1024,2)
+        $bwqunatifier = "MiB"
+        
+        $bws = [math]::Round($bw/($hours*3600+$minutes*60+$seconds),2)
+        $bwsquantifier = "MiB/s"
+
+        if ($bw -ge 1000 -and $bw -lt 1000000) {
+            $bw = [math]::Round($bw/1024,2)
+            $bwqunatifier = "GiB" 
+        } elseif ($bw -ge 1000000) {
+            $bw = [math]::Round($bw/1024/1024,2)
+            $bwqunatifier = "TiB" 
+        }
+
+        if ($bws -ge 1000 -and $bws -lt 1000000) {
+            $bws = [math]::Round($bws/1024,2)
+            $bwsqunatifier = "GiB/s" 
+        } elseif ($bws -ge 1000000) {
+            $bws = [math]::Round($bws/1024/1024,2)
+            $bwsqunatifier = "TiB" 
+        }        
 
         $scanned = $modified + $new + $same   
 
@@ -110,7 +129,7 @@ while (!$bDone)
             Write-Host ""
         }
         
-        Write-Host $('{0:N0}' -f ($scanned)) 'scanned,' $('{0:N0}' -f ($new)) 'copied,' $('{0:N0}' -f ($modified)) 'modification,' $('{0:N0}' -f ($errors)) 'error,' $('{0:N0}' -f ($filegone)) 'file.gone,' $('{0:N0}' -f ($dirgone)) 'dir.gone,' "$($newmb)MiB ($($newmbs)MiB/s)," $time
+        Write-Host $('{0:N0}' -f ($scanned)) 'scanned,' $('{0:N0}' -f ($new)) 'copied,' $('{0:N0}' -f ($modified)) 'modification,' $('{0:N0}' -f ($errors)) 'error,' $('{0:N0}' -f ($filegone)) 'file.gone,' $('{0:N0}' -f ($dirgone)) 'dir.gone,' "$($bw)$($bwqunatifier) ($($bws)$($bwsquantifier))," $time
     }
     
     if ($processexited)
