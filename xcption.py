@@ -24,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 pp = pprint.PrettyPrinter(indent=1)
 
 #version 
-version = '2.0.5.100'
+version = '2.0.6.5'
 
 #general settings
 dcname = 'DC1'
@@ -1980,7 +1980,7 @@ def nomadstatus():
 	else:
 		#build the table object
 		table = PrettyTable()
-		table.field_names = ["Name","IP","Status","OS","Reserved/Total CPU MHz","Reserved/Total RAM MB","# Running Jobs"]		
+		table.field_names = ["Name","IP","Status","OS","Reserved/Total CPU MHz","Used CPU %","Reserved/Total RAM MB","Used RAM %","# Running Jobs"]		
 		nodes = json.loads(response.content)
 		
 		for node in nodes:
@@ -1996,10 +1996,24 @@ def nomadstatus():
 				exit(1)
 			else:
 				nodedetails = json.loads(response.content)
-				ostype = nodedetails['Attributes']['os.name']
+				ostype = nodedetails['Attributes']['os.name'].capitalize() 
 				ip = nodedetails['Attributes']['unique.network.ip-address']
 				totalcpu = nodedetails['Resources']['CPU']
 				totalram = nodedetails['Resources']['MemoryMB']
+
+				response = requests.get(nomadapiurl+'client/stats?node_id='+nodeid)
+				if not response.ok:
+					logging.error("could not get client stats information for node:"+name+" id:"+nodeid)
+					exit(1)
+
+				clientdetails = json.loads(response.content)
+				usedmemory = str(round(float(clientdetails["Memory"]["Used"])/(clientdetails["Memory"]["Total"]),2)*100)+'%'
+				
+				usedcpu = ''
+				i = 0 
+				for cpu in clientdetails["CPU"]:
+					i+=1
+					usedcpu += 'CPU'+str(i)+':'+str(int(100-cpu['Idle']))+'% '
 
 			logging.debug("getting node allocations:"+name)
 			response = requests.get(nomadapiurl+'node/'+nodeid+'/allocations')
@@ -2019,7 +2033,7 @@ def nomadstatus():
 						reservedram += alloc['Resources']['MemoryMB']
 			cpuinfo = str(reservedcpu)+'/'+str(totalcpu) + ' ('+str(round(float(reservedcpu)/float(totalcpu)*100))+'%)'
 			raminfo = str(reservedram)+'/'+str(totalram) + ' ('+str(round(float(reservedram)/float(totalram)*100))+'%)'						
-			table.add_row([name,ip,status,ostype,cpuinfo,raminfo,alloccounter])
+			table.add_row([name,ip,status,ostype,cpuinfo,usedcpu,raminfo,usedmemory,alloccounter])
 		
 		table.border = False
 		table.align = 'l'
