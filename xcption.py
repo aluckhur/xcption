@@ -24,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 pp = pprint.PrettyPrinter(indent=1)
 
 #version 
-version = '2.0.6.5'
+version = '2.0.6.7'
 
 #general settings
 dcname = 'DC1'
@@ -113,9 +113,12 @@ parser_nomad        = subparser.add_parser('nomad',    description='hidden comma
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
 parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (baseline,sync#,verify#,lastsync", required=False,type=str,metavar='phase')
-parser_status.add_argument('-l','--logs',help="display xcp logs", required=False,action='store_true')
+parser_status.add_argument('-n','--node',help="change the scope of the command to specific node", required=False,type=str,metavar='node')
+parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
+parser_status.add_argument('-e','--error',help="change the scope of the command to failed jobs or jobs completed with errors", required=False,action='store_true')
+parser_status.add_argument('-r','--running',help="change the scope of the command to currently runnning jobs", required=False,action='store_true')
+parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
 parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_asses.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
@@ -1397,8 +1400,16 @@ def create_status (reporttype,displaylogs=False):
 
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
 					syncsentshort = re.sub("\(.+\)","",syncsent)
-					table.add_row([jobname,src,truncate_middle(dst,30),baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter])
-					rowcount += 1
+
+					#work on error filter 
+					addrow = True
+					if args.error and (baselinestatus != 'failed' and syncstatus != 'failed' and verifystatus != 'failed'):
+						addrow = False 
+				
+
+					if addrow:
+						table.add_row([jobname,src,truncate_middle(dst,30),baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter])
+						rowcount += 1
 
 
 					#printing verbose information
@@ -1489,48 +1500,52 @@ def create_status (reporttype,displaylogs=False):
 								baselinestatus = '-'
 							if baselinestatus == 'running': endtime = '-' 
 
-
-
 							if not phasefilter or task.startswith(phasefilter):
-				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus])
-				 				if displaylogs:
-									verbosetable.border = False
-									verbosetable.align = 'l'
-									print verbosetable
-									print ""
+								if (args.node and not nodename.startswith(args.node)):
+									addrow = False
+								if (args.running and not baselinestatus == 'running'):
+									addrow = False 
 
-									try:
-										print "Log type:"+logtype
-										print baselinestatsresults['content']
-							 			try:
-							 				print ""
-							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
-							 			except:
-							 				logging.debug("logfilepath wasnt found in results ")
-									except:
-										print "log:"+logtype+" is not avaialble"
-									print ""
-									print ""
+								if addrow:								
+					 				verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus])
+					 				if displaylogs:
+										verbosetable.border = False
+										verbosetable.align = 'l'
+										print verbosetable
+										print ""
 
-									try:
-										otherlogtype = 'stdout'
-										if logtype == 'stdout': otherlogtype = 'stderr'
+										try:
+											print "Log type:"+logtype
+											print baselinestatsresults['content']
+								 			try:
+								 				print ""
+								 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
+								 			except:
+								 				logging.debug("logfilepath wasnt found in results ")
+										except:
+											print "log:"+logtype+" is not avaialble"
+										print ""
+										print ""
 
-										print "Log type:"+otherlogtype
-										print baselinestatsresults['contentotherlog']
-							 			try:
-							 				print ""
-							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
-							 			except:
-							 				logging.debug("logfilepath wasnt found in results ")													
+										try:
+											otherlogtype = 'stdout'
+											if logtype == 'stdout': otherlogtype = 'stderr'
 
-									except:
-										print "log:"+otherlogtype+" is not avaialble"
+											print "Log type:"+otherlogtype
+											print baselinestatsresults['contentotherlog']
+								 			try:
+								 				print ""
+								 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
+								 			except:
+								 				logging.debug("logfilepath wasnt found in results ")													
 
-									print ""
-									print ""
-									verbosetable = PrettyTable()
-									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+										except:
+											print "log:"+otherlogtype+" is not avaialble"
+
+										print ""
+										print ""
+										verbosetable = PrettyTable()
+										verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 
 						#get the last sync number will be used for lastsync filter 
@@ -1661,47 +1676,53 @@ def create_status (reporttype,displaylogs=False):
 										except:
 											jobstatus = '-'
 
-
 										if jobstatus == 'running':
 											endtime = '-' 
 										
 										if (not phasefilter or task.startswith(phasefilter)) or (phasefilter == 'lastsync' and task == 'sync'+str(lastsync)):
-						 					verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
-							 				if displaylogs:
-												verbosetable.border = False
-												verbosetable.align = 'l'
-												print verbosetable.get_string(sortby="Start Time")
-												print ""
-												try:
-													print "Log type:"+logtype
-													print currentlog['content']
-										 			try:
-										 				print ""
-										 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
-										 			except:
-										 				logging.debug("logfilepath wasnt found in results ")
-												except:
-													print "log:"+logtype+" is not avaialble"
-												print ""
-												print ""
-												try:
-													otherlogtype = 'stdout'
-													if logtype == 'stdout': otherlogtype = 'stderr'
+											addrow = True 
+											if (args.node and not nodename.startswith(args.node)):
+												addrow = False
+											if (args.running and not jobstatus == 'running'):
+												addrow = False 								
+																
+											if addrow:
+						 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
+								 				if displaylogs:
+													verbosetable.border = False
+													verbosetable.align = 'l'
+													print verbosetable.get_string(sortby="Start Time")
+													print ""
+													try:
+														print "Log type:"+logtype
+														print currentlog['content']
+											 			try:
+											 				print ""
+											 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
+											 			except:
+											 				logging.debug("logfilepath wasnt found in results ")
+													except:
+														print "log:"+logtype+" is not avaialble"
+													print ""
+													print ""
+													try:
+														otherlogtype = 'stdout'
+														if logtype == 'stdout': otherlogtype = 'stderr'
 
-													print "Log type:"+otherlogtype
-													print currentlog['contentotherlog']
-										 			try:
-										 				print ""
-										 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
-										 			except:
-										 				logging.debug("logfilepath wasnt found in results ")													
+														print "Log type:"+otherlogtype
+														print currentlog['contentotherlog']
+											 			try:
+											 				print ""
+											 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
+											 			except:
+											 				logging.debug("logfilepath wasnt found in results ")													
 
-												except:
-													print "log:"+otherlogtype+" is not avaialble"
-												print ""
-												print ""												
-												verbosetable = PrettyTable()
-												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+													except:
+														print "log:"+otherlogtype+" is not avaialble"
+													print ""
+													print ""												
+													verbosetable = PrettyTable()
+													verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 						#print the table 
 						verbosetable.border = False
