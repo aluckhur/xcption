@@ -24,7 +24,7 @@ from jinja2 import Environment, FileSystemLoader
 pp = pprint.PrettyPrinter(indent=1)
 
 #version 
-version = '2.0.6.7'
+version = '2.0.6.8'
 
 #general settings
 dcname = 'DC1'
