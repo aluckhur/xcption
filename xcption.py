@@ -113,11 +113,11 @@ parser_nomad        = subparser.add_parser('nomad',    description='hidden comma
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase (baseline,sync#,verify#,lastsync", required=False,type=str,metavar='phase')
-parser_status.add_argument('-n','--node',help="change the scope of the command to specific node", required=False,type=str,metavar='node')
-parser_status.add_argument('-v','--verbose',help="provide detailed information", required=False,action='store_true')
-parser_status.add_argument('-e','--error',help="change the scope of the command to failed jobs or jobs completed with errors", required=False,action='store_true')
-parser_status.add_argument('-r','--running',help="change the scope of the command to currently runnning jobs", required=False,action='store_true')
+parser_status.add_argument('-t','--jobstatus',help="change the scope of the command to specific job status ex:complete,running,failed,pending", required=False,type=str,metavar='jobstatus')
+parser_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
+parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)", required=False,type=str,metavar='phase')
+parser_status.add_argument('-n','--node',help="change the scope of the command to specific node (requires -v/--verbose)", required=False,type=str,metavar='node')
+parser_status.add_argument('-e','--error',help="change the scope of the command to jobs with errors (requires -v/--verbose)", required=False,action='store_true')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
 parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
@@ -1403,7 +1403,7 @@ def create_status (reporttype,displaylogs=False):
 
 					#work on error filter 
 					addrow = True
-					if args.error and (baselinestatus != 'failed' and syncstatus != 'failed' and verifystatus != 'failed'):
+					if args.jobstatus and not baselinestatus.startswith(args.jobstatus) and not syncstatus.startswith(args.jobstatus) and not verifystatus.startswith(args.jobstatus):
 						addrow = False 
 				
 
@@ -1503,7 +1503,7 @@ def create_status (reporttype,displaylogs=False):
 							if not phasefilter or task.startswith(phasefilter):
 								if (args.node and not nodename.startswith(args.node)):
 									addrow = False
-								if (args.running and not baselinestatus == 'running'):
+								if args.jobstatus and not baselinestatus.startswith(args.jobstatus):
 									addrow = False 
 
 								if addrow:								
@@ -1683,8 +1683,14 @@ def create_status (reporttype,displaylogs=False):
 											addrow = True 
 											if (args.node and not nodename.startswith(args.node)):
 												addrow = False
-											if (args.running and not jobstatus == 'running'):
-												addrow = False 								
+											if args.jobstatus and not jobstatus.startswith(args.jobstatus):
+												addrow = False 
+											
+											if args.error and errors.isdigit():
+												if int(errors) == 0:
+													addrow = False
+											if args.error and errors == '-':
+												addrow = False
 																
 											if addrow:
 						 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
