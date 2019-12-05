@@ -680,7 +680,7 @@ def create_nomad_jobs():
 					logging.debug("creating verify job file: " + verify_job_file)	
 					
 					if ostype == 'linux':  cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
-					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+' '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
+					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
 					
 					with open(verify_job_file, 'w') as fh:
 						fh.write(verify_template.render(
@@ -892,64 +892,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			logging.debug("log for job:"+allocid+" is not avaialble using api")																								
 
 	if results['content'] != '':
-		#for robocopy logs 
-		# matchObj = re.search("Total    Copied   Skipped  Mismatch    FAILED    Extras", results['content'], re.M|re.I)
-		# if matchObj: 
-		# 	matchObj = re.search("Times\s+\:\s+(\d+)\:(\d+)\:(\d+)\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)
-		# 	if matchObj:
-		# 		results['time'] = '';
-		# 		if int( matchObj.group(4)) > 0: results['time'] += matchObj.group(4)+"h"
-		# 		if int( matchObj.group(5)) > 0: results['time'] += matchObj.group(5)+"m"
-		# 		results['time'] += matchObj.group(6)+"s"
-
-		# 	matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
-		# 	if matchObj:
-		# 		results['scanned'] = int(matchObj.group(1))
-		# 		results['copied'] = int(matchObj.group(2))
-		# 		results['errors'] = int(matchObj.group(5))
-
-		# 	matchObj = re.search(r"Bytes\s+\:\s+(\d+([\,]\d+)*([\.]\d+)?)\s+([g|m|k|t])?", results['content'], re.M|re.I)
-		# 	if matchObj:
-		# 		results['bwout'] = str(round(float(matchObj.group(1)),2))
-		# 		quantifier = ''
-		# 		if not matchObj.group(4): quantifier= ' B'
-		# 		elif matchObj.group(4) == 'k': quantifier= ' KiB'
-		# 		elif matchObj.group(4) == 'm': quantifier= ' MiB'
-		# 		elif matchObj.group(4) == 'g': quantifier= ' GiB'
-		# 		elif matchObj.group(4) == 't': quantifier= ' TiB'
-		# 		results['bwout'] += quantifier
-
-		# 	matchObj = re.search("Files\s+\:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)", results['content'], re.M|re.I)
-		# 	if matchObj:
-		# 		results['scanned'] += int(matchObj.group(1))				
-		# 		results['copied'] += int(matchObj.group(2))				
-		# 		results['errors'] = int(matchObj.group(5))
-
-		# 	matchObj = re.search("Times \:\s+(\d+)\:(\d+)\:(\d+)", results['content'], re.M|re.I)	
-
-		# 	return results
-		#end of robocopy parsing 
-		
-
-		#correct regex 
-		#matchObj = re.search("(.+?([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(scanned|reviewed).+)$",results['content'],re.M|re.I)
-		#if matchObj:
-		#	lastline = matchObj.group(1)
-		#	results['lastline'] = lastline
-		#	print lastline
-		#	print "koko"
-
-		#matchObj = re.finditer("(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b).+)",results['content'],re.M|re.I)
-		#if matchObj:
-		#	print "yyyyyyy"
-		#	for matchNum, match in enumerate(matchObj, start=1):
-		#		lastline = match.group()
-		#		print lastline
-		#	results['lastline'] = lastline
-
-		# for xcp logs
-
-		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b).+)",results['content'],re.M|re.I):
+		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['content'],re.M|re.I):
 			lastline = match.group(0)
 		results['lastline'] = lastline
 
@@ -1021,10 +964,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if matchObj:
 			results['diffmodtime'] = matchObj.group(1)
 
-		#xcp verify for windows 
+		#xcp verify for windows 	
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) compared", lastline, re.M|re.I)
 		if matchObj:
-			results['scanned'] = matchObj.group(1)
+			results['scanned'] = matchObj.group(1)		
+			
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) same", lastline, re.M|re.I)
 		if matchObj:		
 			results['found'] = matchObj.group(1)
@@ -1381,13 +1325,15 @@ def create_status (reporttype,displaylogs=False):
 						if 'found' in verifystatsresults.keys(): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
+
 						try:
+							if verifystatus == 'complete': verifystatus = 'idle'
+
 							#linux
 							if verifystatus == 'failed' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
 							#windows
 							if ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
-
-							if verifystatus == 'complete': verifystatus = 'idle'
+							
 							if verifystatus == 'idle' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
 						except:
 							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
@@ -2047,11 +1993,16 @@ def nomadstatus():
 				clientdetails = json.loads(response.content)
 				usedmemory = str(round(float(clientdetails["Memory"]["Used"])/(clientdetails["Memory"]["Total"]),2)*100)+'%'
 				
-				usedcpu = ''
-				i = 0 
+				usedcpupercent = 0
+				firstcpu = True 
 				for cpu in clientdetails["CPU"]:
-					i+=1
-					usedcpu += 'CPU'+str(i)+':'+str(int(100-cpu['Idle']))+'% '
+					if firstcpu:
+						usedcpupercent = 100-int(cpu['Idle'])
+					else:
+						usedcpupercent = int((usedcpupercent+ 100-int(cpu['Idle']))/2)
+
+					firstcpu = False
+				usedcpu = str(usedcpupercent)+'% '
 
 			logging.debug("getting node allocations:"+name)
 			response = requests.get(nomadapiurl+'node/'+nodeid+'/allocations')
