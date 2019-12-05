@@ -16,6 +16,7 @@ import croniter
 import datetime
 import time
 import copy
+import fnmatch
 
 from hurry.filesize import size
 from prettytable import PrettyTable
@@ -24,7 +25,7 @@ from jinja2 import Environment, FileSystemLoader
 pp = pprint.PrettyPrinter(indent=1)
 
 #version 
-version = '2.0.6.8'
+version = '2.0.6.9'
 
 #general settings
 dcname = 'DC1'
@@ -249,7 +250,7 @@ def parse_csv(csv_path):
 				src     = row[1]
 				dst     = row[2]
 
-				if (jobfilter == '' or jobfilter == jobname) and (srcfilter == '' or srcfilter in src):
+				if (jobfilter == '' or jobfilter == jobname) and (srcfilter == '' or fnmatch.fnmatch(src, srcfilter)):
 	
 					cron    = ''
 					if 3 < len(row): cron    = row[3] 
@@ -607,7 +608,7 @@ def create_nomad_jobs():
 					exit(1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter in src:
+				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	              = jobdetails['dst']
@@ -750,7 +751,7 @@ def start_nomad_jobs(action):
 				exit (1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter in src:
+				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
@@ -1071,7 +1072,7 @@ def create_status (reporttype,displaylogs=False):
 				exit (1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter in src:
+				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
@@ -1721,7 +1722,7 @@ def update_nomad_job_status(action):
 				exit (1)
 					
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter in src:
+				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
@@ -1886,7 +1887,7 @@ def delete_jobs(forceparam):
 				logging.warning("job config directory:" + jobdir + " not exists. please init first") 
 			
 			for src in jobsdict[jobname]:
-				if srcfilter == '' or srcfilter in src:
+				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
 					dst	          = jobdetails['dst']
@@ -2742,6 +2743,9 @@ srcfilter = ''
 if hasattr(args, 'source'): 
 	if args.source != None:
 		srcfilter = args.source
+if srcfilter != '' and not '*' in srcfilter:
+	srcfilter = '*'+srcfilter+'*'
+
 
 #filter by phase (relevant to status)
 phasefilter = ''
