@@ -36,7 +36,8 @@ xcppath = '/usr/local/bin/xcp'
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 xcpwincopyparam = "-preserve-atime -acl -parallel 8"
-xcpwinsyncparam = "-nodata -preserve-atime -acl -parallel 8"
+xcpwinsyncparam = "-preserve-atime -acl -parallel 8"
+xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime -parallel 8"
 
 #robocopy windows location
 robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
@@ -679,7 +680,7 @@ def create_nomad_jobs():
 					logging.debug("creating verify job file: " + verify_job_file)	
 					
 					if ostype == 'linux':  cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
-					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+' verify -v -l -preserve-atime "'+src+'" "'+dst+'"')								
+					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+' '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
 					
 					with open(verify_job_file, 'w') as fh:
 						fh.write(verify_template.render(
