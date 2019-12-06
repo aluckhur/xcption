@@ -17,6 +17,7 @@ import datetime
 import time
 import copy
 import fnmatch
+import socket
 
 from hurry.filesize import size
 from prettytable import PrettyTable
@@ -37,7 +38,7 @@ xcppath = '/usr/local/bin/xcp'
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 xcpwincopyparam = "-preserve-atime -acl -parallel 8"
-xcpwinsyncparam = "-preserve-atime -acl -parallel 8"
+xcpwinsyncparam = "-nodata -preserve-atime -acl -parallel 8"
 xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime -parallel 8"
 
 #robocopy windows location
@@ -2086,6 +2087,8 @@ def check_nomad():
 
 #used to parse nomad jobs to files, will be used as a cache in case of nomad GC removed ended jobs 
 def parse_nomad_jobs_to_files ():
+	
+
 	#get nomad allocations 
 	jobs = {}
 	allocs = {}
@@ -2106,6 +2109,27 @@ def parse_nomad_jobs_to_files ():
 	except:
 		logging.error('cannot get node list')
 		exit(1)
+
+	nomadserver = ''
+	try:
+		response = requests.get(nomadapiurl+'agent/members')
+		if response.ok:
+			agentinfo = json.loads(response.content)
+			nomadserver = agentinfo["ServerName"]
+	except:
+		logging.error("could not get nomad server name")
+		exit(1)
+	try:
+		hostname = socket.gethostname()
+	except:
+		logging.error("could not get hostname")
+		exit(1)	
+
+	if hostname != nomadserver:
+		logging.info("current server:"+hostname+" is not the nomad server:"+nomadserver)
+		exit(0)
+	else:
+		logging.debug("current server:"+hostname+" is the nomad server")
 
 	if not os.path.isdir(cachedir):
 		os.mkdir(cachedir)
