@@ -26,7 +26,7 @@ from jinja2 import Environment, FileSystemLoader
 pp = pprint.PrettyPrinter(indent=1)
 
 #version 
-version = '2.0.6.9'
+version = '2.0.6.10'
 
 #general settings
 dcname = 'DC1'
@@ -56,8 +56,8 @@ xcprepopath = os.path.join(root,'system','xcp_repo')
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 
 #cache dir for current state 
-#cachedir = os.path.join(xcprepopath,'nomadcache')
-cachedir = os.path.join(root,'nomadcache')
+cachedir = os.path.join(xcprepopath,'nomadcache')
+#cachedir = os.path.join(root,'nomadcache')
 
 
 #path to nomad bin 
@@ -2126,8 +2126,8 @@ def parse_nomad_jobs_to_files ():
 		exit(1)	
 
 	if hostname != nomadserver:
-		logging.info("current server:"+hostname+" is not the nomad server:"+nomadserver)
-		exit(0)
+		logging.debug("current server:"+hostname+" is not the nomad server:"+nomadserver)
+		return
 	else:
 		logging.debug("current server:"+hostname+" is the nomad server")
 
