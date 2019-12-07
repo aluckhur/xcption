@@ -445,7 +445,8 @@ can be filtered by specific job (-j), source (-s) and phase (-p)
 
 ```
 user@master:~/xcption$ sudo ./xcption.py status -h
-usage: xcption.py status [-h] [-j jobname] [-s srcpath] [-v] [-p phase] [-l]
+uusage: xcption.py status [-h] [-j jobname] [-s srcpath] [-t jobstatus] [-v]
+                         [-p phase] [-n node] [-e] [-l]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -453,11 +454,20 @@ optional arguments:
                         change the scope of the command to specific job
   -s srcpath, --source srcpath
                         change the scope of the command to specific path
-  -v, --verbose         provide detailed information
+  -t jobstatus, --jobstatus jobstatus
+                        change the scope of the command to specific job status
+                        ex:complete,running,failed,pending
+  -v, --verbose         provide verbose per phase info
   -p phase, --phase phase
                         change the scope of the command to specific phase
-                        (basline,sync#,lastsync)
-  -l, --logs            display xcp logs
+                        ex:baseline,sync#,verify#,lastsync (requires
+                        -v/--verbose)
+  -n node, --node node  change the scope of the command to specific node
+                        (requires -v/--verbose)
+  -e, --error           change the scope of the command to jobs with errors
+                        (requires -v/--verbose)
+  -l, --logs            display job logs
+
 ```
 
 
