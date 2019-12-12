@@ -46,7 +46,7 @@ Deployment of windows hosts should be done by coping all files from the windows 
 `XCPtionServicePWD` - Password for service user  
 
 
-After installing XCPtion **on all hosts**, xcp license file should be copied to the following location:  
+After installing XCPtion xcp license file should be copied to the following location **on all hosts in the cluster**:  
 
 linux hosts `/opt/NetApp/xFiles/xcp/license`  
 windows hosts `c:\NetApp\XCP\license`  
