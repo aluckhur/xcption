@@ -112,6 +112,8 @@ parser_pause        = subparser.add_parser('pause',    help='disable sync schedu
 parser_resume       = subparser.add_parser('resume',   help='resume sync schedule')
 parser_verify       = subparser.add_parser('verify',   help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete       = subparser.add_parser('delete',   help='delete existing config')
+parser_modifyjob    = subparser.add_parser('modifyjob',help='move tasks to diffrent group')
+
 parser_nomad        = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -138,7 +140,6 @@ parser_load.add_argument('-c','--csvfile',help="input CSV file with the followin
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
-
 parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
@@ -157,10 +158,14 @@ parser_resume.add_argument('-s','--source',help="change the scope of the command
 parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
-
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
+
+parser_modifyjob.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_modifyjob.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_modifyjob.add_argument('-t','--tojob',help="move selected tasks to this job", required=True,type=str,metavar='tojob')
+parser_modifyjob.add_argument('-f','--force',help="force move", required=False,action='store_true')
 
 args = parser.parse_args()
 
@@ -298,6 +303,20 @@ def parse_csv(csv_path):
 					dstbase = dstbase.replace('\\','_')
 					dstbase = dstbase.replace('$','_dollar')
 
+					#validate no duplicate src and destination 
+					for j in jobsdict:
+						for s in jobsdict[j]:
+							if s == src and jobsdict[j][s]["dst"] != dst:
+								logging.warning("duplicate source found:" + src+"->"+dst)
+								#exit(1)
+
+							if dst == jobsdict[j][s]["dst"]:
+								logging.error("duplicate dst path: " + dst)
+								exit(1)					
+
+					if not jobname in jobsdict:
+						jobsdict[jobname]={}
+
 					if ostype == 'linux':
 						if not re.search("\S+\:\/\S+", src):
 							logging.error("src path format is incorrect: " + src) 
@@ -350,22 +369,11 @@ def parse_csv(csv_path):
 						srchost = src.split('\\')[2]
 						srcpath = src.replace('\\\\'+srchost,'')
 						dsthost = dst.split('\\')[2]
-						dstpath = dst.replace('\\\\'+dsthost,'')
-						
-					#validate no duplicate src and destination 
-					if not jobname in jobsdict:
-						jobsdict[jobname]={}
-					if src in jobsdict[jobname] and dst != jobsdict[jobname][src]['dst']:
-						logging.error("cannot load diffrent dst to existing src:" + src+"->"+dst)
-						exit(1)
-					if dst in dstdict:
-						logging.error("duplicate dst path: " + dst)
-						exit(1)
-							
+						dstpath = dst.replace('\\\\'+dsthost,'')			
 					
-					baseline_job_name = 'baseline_'+jobname+'_'+srcbase
-					sync_job_name     = 'sync_'+jobname+'_'+srcbase
-					verify_job_name     = 'verify_'+jobname+'_'+srcbase
+					baseline_job_name = 'baseline_'+'_'+srcbase
+					sync_job_name     = 'sync_'+'_'+srcbase
+					verify_job_name     = 'verify_'+'_'+srcbase
 					
 					xcpindexname = srcbase +'-'+dstbase	
 					
@@ -1947,6 +1955,10 @@ def delete_jobs(forceparam):
 
 						#delete entry from jobdict
 						del jobsdictcopy[jobname][src]
+						#delete job when empty 
+						if len(jobsdictcopy[jobname]) == 0:
+							del jobsdictcopy[jobname]
+
 						#dumping jobsdict to json file 
 						try:
 							with open(jobdictjson, 'w') as fp:
@@ -2744,6 +2756,82 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 	
 
 
+#move job 
+def move_job(tojob,forceparam):
+
+	jobsdictcopy = copy.deepcopy(jobsdict)
+	for jobname in jobsdict:
+		if jobfilter == '' or jobfilter == jobname:			
+			for src in jobsdict[jobname]:
+				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
+					jobdetails = jobsdict[jobname][src]
+
+					force = forceparam
+
+					if jobname == tojob:
+						logging.info("src:"+src+" is already in job:"+tojob+",skipping")
+						continue 
+
+					if not force: force = query_yes_no("move source:"+src+" from job:"+jobname+" to:"+tojob,'no')
+					if force:					
+						logging.info("moving src:"+src+" to job:"+tojob+" from jobname:"+jobname)
+						#delete entry from jobdict
+						del jobsdictcopy[jobname][src]
+						#delete job when empty 
+						if len(jobsdictcopy[jobname]) == 0:
+							del jobsdictcopy[jobname]
+						if not tojob in jobsdictcopy:
+							jobsdictcopy[tojob] = {}
+
+						jobsdictcopy[tojob][src] = jobdetails
+						
+						srcjobdir = os.path.join(jobsdir,jobname) 
+						dstjobdir = os.path.join(jobsdir,tojob) 
+
+						baseline_job_file = jobdetails['baseline_job_name']+'.hcl'
+						sync_job_file     = jobdetails['sync_job_name']+'.hcl'
+						verify_job_file   = jobdetails['verify_job_name']+'.hcl'				
+
+						#creating new job dir
+						if not os.path.isdir(dstjobdir):
+							try:
+								logging.debug("tryin to create new job dir:"+dstjobdir)
+								os.mkdir(dstjobdir)
+							except:
+								logging.error("could not create new job dir:" + dstjobdir)
+								exit (1)
+
+						#moving files 
+						try:
+							logging.debug("tring to move:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
+							shutil.copy(os.path.join(srcjobdir,baseline_job_file),os.path.join(dstjobdir,baseline_job_file))
+						except:
+							logging.error("could not move file:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
+							exit (1)						
+
+						try:
+							logging.debug("tring to move:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
+							shutil.copy(os.path.join(srcjobdir,sync_job_file),os.path.join(dstjobdir,sync_job_file))
+						except:
+							logging.error("could not move file:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
+							exit (1)	
+
+						try:
+							logging.debug("tring to move:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
+							shutil.copy(os.path.join(srcjobdir,verify_job_file),os.path.join(dstjobdir,verify_job_file))
+						except:
+							logging.error("could not move file:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
+							exit (1)	
+
+						#dumping jobsdict to json file 
+						try:
+							with open(jobdictjson, 'w') as fp:
+								json.dump(jobsdictcopy, fp)
+							fp.close()
+						except:
+							logging.error("cannot write job json file:"+jobdictjson)
+							exit(1)	
+
 
 #####################################################################################################
 ###################                        MAIN                                        ##############
@@ -2822,3 +2910,7 @@ if args.subparser_name in ['pause','resume','syncnow']:
 
 if args.subparser_name == 'delete':
 	delete_jobs(args.force)
+
+if args.subparser_name == 'modifyjob':
+	move_job(args.tojob,args.force)
+	parse_nomad_jobs_to_files()
