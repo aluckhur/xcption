@@ -306,6 +306,9 @@ def parse_csv(csv_path):
 					#validate no duplicate src and destination 
 					for j in jobsdict:
 						for s in jobsdict[j]:
+							if s==src and jobsdict[j][s]["dst"] == dst:
+								continue 
+
 							if s == src and jobsdict[j][s]["dst"] != dst:
 								logging.warning("duplicate source found:" + src+"->"+dst)
 								#exit(1)
