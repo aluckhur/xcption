@@ -133,7 +133,7 @@ fi
 if [ "$ONLINE" == "true" ]; then
   CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
   NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
-  
+
   echo "Fetching Nomad for linux version ${NOMAD_VERSION} ..."
   curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o ${SCRIPT_DIR}/nomad.zip
   echo "Installing Nomad linux version ${NOMAD_VERSION} ..."
@@ -142,13 +142,13 @@ if [ "$ONLINE" == "true" ]; then
   curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip
   echo "Installing Nomad windows version ${NOMAD_VERSION} ..."
   unzip -o windows/nomad_windows.zip -d ${SCRIPT_DIR}/../windows
-else
-
-  if [ -f ${SCRIPT_DIR}/../windows/xcp_windows_mp.z01 ]; then
-    cat ${SCRIPT_DIR}/../windows/xcp_windows_mp.z* > ${SCRIPT_DIR}/../windows/xcp_windows.zip
-  fi  
-  unzip -o ${SCRIPT_DIR}/../windows/xcp_windows.zip -d ${SCRIPT_DIR}/../windows
 fi
+
+if [ -f ${SCRIPT_DIR}/../windows/xcp_windows_mp.z01 ]; then
+  cat ${SCRIPT_DIR}/../windows/xcp_windows_mp.z* > ${SCRIPT_DIR}/../windows/xcp_windows.zip
+fi  
+unzip -o ${SCRIPT_DIR}/../windows/xcp_windows.zip -d ${SCRIPT_DIR}/../windows
+
 
 unzip -o ${SCRIPT_DIR}/nomad.zip -d /usr/local/bin
 chmod +x /usr/local/bin/nomad
