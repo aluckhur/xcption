@@ -306,7 +306,7 @@ def parse_csv(csv_path):
 					#validate no duplicate src and destination 
 					for j in jobsdict:
 						for s in jobsdict[j]:
-							if s==src and jobsdict[j][s]["dst"] == dst:
+							if j == jobname and s==src and jobsdict[j][s]["dst"] == dst:
 								continue 
 
 							if s == src and jobsdict[j][s]["dst"] != dst:
@@ -400,7 +400,7 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["tool"] = tool
 					jobsdict[jobname][src]["failbackuser"] = failbackuser
 					jobsdict[jobname][src]["failbackgroup"] = failbackgroup
-
+					jobsdict[jobname][src]["dcname"] = dcname
 
 					logging.debug("parsed the following relation:"+src+" -> "+dst)
 
