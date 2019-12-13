@@ -34,7 +34,7 @@ Deployment of the next linux hosts in the cluster should be done using the comma
 
 `sudo ./xcption/system/xcption_deploy.sh -r <nfsserver:/xcp_repo_vol> -t client -s <server ip>`
 
-Deployment of windows hosts should be done by coping all files from the windows directory in the repository to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:  
+Deployment of windows hosts should be done by coping all files from the windows directory on the server **(must be done after deploying the server)** to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:  
 `PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -XCPtionServiceUser <Domain\user> -XCPtionServicePWD <passwd>`
 
 `XCPtionServer` - IP address or resolvable name of the XCPtion Server  
@@ -46,7 +46,7 @@ Deployment of windows hosts should be done by coping all files from the windows 
 `XCPtionServicePWD` - Password for service user  
 
 
-After installing XCPtion **on all hosts**, xcp license file should be copied to the following location:  
+After installing XCPtion xcp license file should be copied to the following location **on all hosts in the cluster**:  
 
 linux hosts `/opt/NetApp/xFiles/xcp/license`  
 windows hosts `c:\NetApp\XCP\license`  
