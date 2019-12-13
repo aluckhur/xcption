@@ -7,9 +7,22 @@ $RobocopyErrorCodes[8] = "Some files or directories could not be copied and the 
 $RobocopyErrorCodes[16] = "Robocopy did not copy any files.  Check the command line parameters and verify that Robocopy has enough rights to write to the destination folder"
 $RobocopyErrorCodes[-1] = "Robocopy been termintaed unexpectedly"
 
+$i = 0
+$arguments = ''
+foreach ($a in $args) {
+    if ($i -eq 0 -or $i -eq 1) {
+        $arguments += '"'+$a+'" '
+    } else {
+        $arguments += $a+' '
+    }
+    $i++
+    
+}
+
+
 $oInfo = New-Object System.Diagnostics.ProcessStartInfo
 $oInfo.FileName  = "robocopy"
-$oInfo.Arguments = $args
+$oInfo.Arguments = $arguments
 $oInfo.UseShellExecute = $False
 $oInfo.RedirectStandardOutput = $True
 
@@ -54,6 +67,7 @@ while (!$bDone)
         if ($line) {
             if ($line -match '\s+Modified\s+(\d+)') {
                 $modified += 1
+                $newbytes += $matches[1]
             } elseif ($line -match '\s+Newer\s+(\d+)') {
                 $modified += 1
                 $newbytes += $matches[1]
@@ -68,7 +82,7 @@ while (!$bDone)
             } elseif ($line -match '\s+same\s+(\d+)') {
                 $same += 1                 
             } elseif ($line -match '(^|\s+)same\s+') {
-                in some cases lines with same are splited (robocopy bug)
+                #in some cases lines with same are splited (robocopy bug)
                 $same += 1               
             } elseif ($line -match '\s+tweaked\s+(\d+)') {
                 $modified += 1                                       
