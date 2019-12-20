@@ -1,4 +1,12 @@
 #!/usr/bin/python
+
+# XCPtion - NetApp XCP wrapper 
+# Written by Haim Marko 
+# Enjoy
+
+#version 
+version = '2.0.6.16'
+
 import csv
 import argparse
 import re
@@ -25,8 +33,7 @@ from jinja2 import Environment, FileSystemLoader
 
 pp = pprint.PrettyPrinter(indent=1)
 
-#version 
-version = '2.0.6.16'
+
 
 #general settings
 dcname = 'DC1'
@@ -94,7 +101,7 @@ maxloglinestodisplay = 200
 
 parser = argparse.ArgumentParser()
 
-#parser.add_argument('-c','--csvfile', help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
+parser.add_argument('-v','--version', help="print version information", action='store_true')
 parser.add_argument('-d','--debug',   help="log debug messages to console", action='store_true')
 
 
@@ -715,48 +722,36 @@ def create_nomad_jobs():
 
 
 def check_baseline_job_status (baselinejobname):
+
+	baselinecachedir = os.path.join(cachedir,'job_'+baselinejobname)
+
 	baselinejob = {}
 	try:	
 		baselinejob = n.job.get_job(baselinejobname)
 	except:
 		baselinejob = None
 
-	if not baselinejob:
-		logging.debug("baseline job:"+baselinejobname+" does not exist")
+	if not baselinejob and not os.path.exists(baselinecachedir):
+		logging.debug("baseline job:"+baselinejobname+" does not exist and cahced folder:"+baselinecachedir+" does not exists")
 		return('Baseline Not Exists')
 
-	#if job exists validated it been completed
-	if baselinejob:
-		response = requests.get(nomadapiurl+'jobs?prefix='+baselinejobname+'/periodic')	
-		if not response.ok:
-			logging.debug("could not get job:"+baselinejobname+" periodic details") 
-			baselinejob = None
-		else:
-			baselinejob = json.loads(response.content)
-			baselinejobcompleted = 0
-			try:
-				baselinejobcompleted = baselinejob[0]['JobSummary']['Summary'][baselinejobname]['Complete']
-			except:
-				baselinejobcompleted = 0
-				logging.debug("could not get periodic baseline job, trying on files")
+	baselinejobcompleted = 0 
+	for file in os.listdir(baselinecachedir):
+		if file.startswith("periodic-"):
+			baselinecachefile = os.path.join(baselinecachedir,file)
+			with open(baselinecachefile) as f:
+				logging.debug('loading cached info periodic file:'+baselinecachefile)
+				jobdata = json.load(f)
+				
+				if jobdata['Status'] == 'dead' and not jobdata['Stop'] and jobdata['JobSummary']['Summary'][baselinejobname]['Complete'] == 1: baselinejobcompleted = 1
 
-				baselinecachedir = os.path.join(cachedir,'job_'+baselinejobname)
-				if not os.path.exists(baselinecachedir): 
-					logging.debug('cannot find job cache dir:'+baselinecachedir)
-				else:			
-					for file in os.listdir(baselinecachedir):
-						if file.startswith("periodic-"):
-							baselinecachefile = os.path.join(baselinecachedir,file)
-							with open(baselinecachefile) as f:
-								logging.debug('loading cached info periodic file:'+baselinecachefile)
-								jobdata = json.load(f)
-								baselinejobcompleted = 0
-								baselinejobcompleted = jobdata['JobSummary']['Summary'][baselinejobname]['Complete']				
-			if baselinejobcompleted != 1: 
-				logging.debug("baseline job:"+baselinejobname+" exists but did not completed") 
-				baselinejob = None
-				return('Baseline Is Not Complete')
-	return('Baseline Is Complete')
+	if baselinejobcompleted != 1: 
+		logging.debug("baseline job:"+baselinejobname+" exists but did not completed") 
+		baselinejob = None
+		return('Baseline Is Not Complete')
+	else:
+		return('Baseline Is Complete')
+	
 
 #start nomand job
 def start_nomad_jobs(action, force):
@@ -778,6 +773,8 @@ def start_nomad_jobs(action, force):
 					dstbase       = jobdetails['dstbase']
 					nomadjobname  = jobdetails[action+'_job_name']
 					xcpindexname  = jobdetails['xcpindexname']	
+					ostype        = jobdetails['ostype']
+					tool          = jobdetails['tool']
 				
 					try:	
 						job = n.job.get_job(nomadjobname)
@@ -793,7 +790,13 @@ def start_nomad_jobs(action, force):
 							logging.warning("baseline job already exists and cannot be updated. use --force to force new baseline") 
 							continue
 						else:
-							if query_yes_no("are you sure you want o rebaseline "+src+" to "+dst+" ? existing baseline job will be deleted !! ",'no'):
+							if query_yes_no("are you sure you want o rebaseline "+src+" to "+dst+" ?",'no'):
+								if ostype == 'linux' and tool == 'xcp':
+									logging.info("destroying xcp index for aborted job")
+									logging.debug("running the command:"+xcppath+' diag -rmid '+xcpindexname)
+									DEVNULL = open(os.devnull, 'wb')
+									if subprocess.call( [ xcppath, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
+										logging.debug("failed to delete xcp index:"+xcpindexname)								
 								forcebaseline=True
 
 					if (action != 'baseline' and job) or forcebaseline or not job:
@@ -885,7 +888,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['logfilesize'] = logfilesize
 
 		except:
-			logging.error("cannot read log file:"+logfilepath)	
+			logging.debug("cannot read log file:"+logfilepath)	
 
 		#store also other logtype
 		otherlogfilepath = name
@@ -1129,6 +1132,7 @@ def create_status (reporttype,displaylogs=False):
 					baselinejob={}
 					baselinealloc={}
 					basleinelog={}
+					allocperiodiccounter = 0
 
 					if not os.path.exists(baselinecachedir): 
 						logging.debug('cannot find job cache dir:'+baselinecachedir)
@@ -1137,22 +1141,25 @@ def create_status (reporttype,displaylogs=False):
 						for file in os.listdir(baselinecachedir):
 							if file.startswith("periodic-"):
 								baselinecachefile = os.path.join(baselinecachedir,file)
-								print baselinecachefile
 								with open(baselinecachefile) as f:
 									logging.debug('loading cached info periodic file:'+baselinecachefile)
 									jobdata = json.load(f)
-									baselinejobstatus = jobdata['Status']
-									if baselinejobstatus == 'dead' and jobdata['Stop']:
+
+									if jobdata['Status'] == 'dead' and jobdata['Stop'] and baselinejobstatus != 'dead':
 										baselinejobstatus = 'aborted'
-									baselinejob = jobdata
+									else:
+										baselinejob = jobdata
+										baselinejobstatus = jobdata['Status']
 							if file.startswith("alloc_"):
 								baselinealloccachefile = os.path.join(baselinecachedir,file)
 								with open(baselinealloccachefile) as f:
 									logging.debug('loading cached info alloc file:'+baselinealloccachefile)
 									allocdata = json.load(f)
-									baselinestatus =  allocdata['ClientStatus']
-									baselinefound  = True
-									baselinealloc = allocdata
+									if allocdata['CreateTime'] > allocperiodiccounter:
+										allocperiodiccounter = allocdata['CreateTime'] 
+										baselinestatus = allocdata['ClientStatus']
+										baselinefound  = True
+										baselinealloc = allocdata
 							if file.startswith(logtype+"log_"):
 								baselinelogcachefile = os.path.join(baselinecachedir,file)
 								logging.debug('loading cached info log file:'+baselinelogcachefile) 
@@ -1234,12 +1241,11 @@ def create_status (reporttype,displaylogs=False):
 								logallocid = file.replace(logtype+'log_','').replace('.log','')
 								logging.debug('loading cached info log file:'+synclogcachefile)
 								statsresults = parse_stats_from_log('file',synclogcachefile,logtype)
-								if 'time' in statsresults.keys(): 
-									synctime = statsresults['time']
-								if 'bwout' in statsresults.keys(): 
-									syncsent = statsresults['bwout']								
-								if not syncjobsstructure.has_key('logs'):
-									syncjobsstructure['logs'] = {}
+								#if 'time' in statsresults.keys(): 
+								#	synctime = statsresults['time']
+								#if 'bwout' in statsresults.keys(): 
+								#	syncsent = statsresults['bwout']								
+								if not syncjobsstructure.has_key('logs'): syncjobsstructure['logs'] = {}
 								syncjobsstructure['logs'][logallocid] = {}										
 								syncjobsstructure['logs'][logallocid] = statsresults
 
@@ -1251,6 +1257,7 @@ def create_status (reporttype,displaylogs=False):
 						synclogcachefile = os.path.join(synccachedir,logtype+'log_'+alloclastdetails['ID']+'.log')
 						statsresults = parse_stats_from_log('file',synclogcachefile,logtype)
 						if 'time' in statsresults.keys(): synctime = statsresults['time']
+						if 'bwout' in statsresults.keys(): syncsent = statsresults['bwout']
 						if 'lastline' in statsresults.keys(): synclastline = statsresults['lastline']
 						
 						syncstatus =  alloclastdetails['ClientStatus']
@@ -1819,7 +1826,7 @@ def update_nomad_job_status(action):
 						elif action == 'syncnow':
 							already_running = False
 							if baselinestatus != 'Baseline Is Complete':
-								logging.warning("cannot syncnow since baseline status for:"+nomadjobname+' is:'+baselinestatus)
+								logging.warning("cannot syncnow for:"+src+" since "+baselinestatus.lower())
 							else:
 								try:
 									response = requests.get(nomadapiurl+'jobs?prefix='+nomadjobname+"/")
@@ -2921,7 +2928,8 @@ def abort_jobs(jobtype, forceparam):
 									if jobtype == 'baseline' and ostype == 'linux' and tool == 'xcp':
 										logging.info("destroying xcp index for aborted job")
 										logging.debug("running the command:"+xcppath+' diag -rmid '+xcpindexname)
-										if subprocess.call( [ xcppath, 'diag', '-rmid', xcpindexname ],stderr=subprocess.STDOUT):
+										DEVNULL = open(os.devnull, 'wb')
+										if subprocess.call( [ xcppath, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
 											logging.debug("failed to delete xcp index:"+xcpindexname)
 
 									jobaborted = True
@@ -2970,6 +2978,8 @@ phasefilter = ''
 if hasattr(args,'phase'):
 	if args.phase != None:
 		phasefilter = args.phase
+
+if args.version: print "XCPtion version:"+version
 
 #check nomad avaialbility
 check_nomad()
