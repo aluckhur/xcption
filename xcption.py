@@ -1348,9 +1348,11 @@ def create_status (reporttype,displaylogs=False):
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
 
-						print verify_job_name
-						print verifyjoblastdetails['Status']
+						print verifyjoblastdetails['ID']
+						print verifyjoblastdetails['Status'] 
 						print verifyjoblastdetails['Stop']
+						#aborted 
+						if verifyjoblastdetails['Status'] == 'dead' and verifyjoblastdetails['Stop']: verifystatus = 'aborted'
 
 						try:
 							if verifystatus == 'complete': verifystatus = 'idle'
@@ -1469,6 +1471,8 @@ def create_status (reporttype,displaylogs=False):
 				 			try:
 					 			baselinestatus =  baselinealloc['ClientStatus']
 								if baselinejob['Status'] in ['pending','running']: baselinestatus =  baselinejob['Status']
+								if baselinejob['Status'] == 'dead' and baselinejob['Stop']: baselinestatus = 'aborted'
+
 							except:
 								baselinestatus = '-'
 							if baselinestatus == 'running': endtime = '-' 
@@ -1552,6 +1556,17 @@ def create_status (reporttype,displaylogs=False):
 					 	if 'periodics' in jobstructure.keys():
 						 	for periodic in sorted(jobstructure['periodics'].keys()):
 						 		currentperiodic = jobstructure['periodics'][periodic]
+				 				
+				 				tasktype = ''
+				 				if periodic.startswith('sync'):   
+				 					task = 'sync' + str(synccounter)
+				 					tasktype = 'sync'
+				 					synccounter+=1
+				 				if periodic.startswith('verify'): 
+				 					task = 'verify'+str(verifycounter)
+				 					verifycounter+=1
+				 					tasktype = 'verify'		
+
 						 		for allocid in jobstructure['allocs']:
 						 			if jobstructure['allocs'][allocid]['JobID'] == periodic:
 						 				currentalloc = jobstructure['allocs'][allocid]
@@ -1559,15 +1574,7 @@ def create_status (reporttype,displaylogs=False):
 						 				if allocid in jobstructure['logs'].keys():
 						 					currentlog = jobstructure['logs'][allocid]
 
-						 				tasktype = ''
-						 				if periodic.startswith('sync'):   
-						 					task = 'sync' + str(synccounter)
-						 					tasktype = 'sync'
-						 					synccounter+=1
-						 				if periodic.startswith('verify'): 
-						 					task = 'verify'+str(verifycounter)
-						 					verifycounter+=1
-						 					tasktype = 'verify'						 				
+				 				
 
 							 			try:
 							 				starttime = currentalloc['TaskStates'][tasktype]['StartedAt']
@@ -1652,66 +1659,69 @@ def create_status (reporttype,displaylogs=False):
 
 												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 
-												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'										
+												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'																				
 										except:
 											jobstatus = '-'
 
-										if jobstatus == 'running':
-											endtime = '-' 
-										
-										#filter results
-										addrow = True 
-										if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
-											addrow = False
-										if phasefilter == 'lastsync' and task != 'sync'+str(lastsync):
-											addrow = False 											
-										if args.node and not nodename.startswith(args.node):
-											addrow = False
-										if args.jobstatus and not jobstatus.startswith(args.jobstatus):
-											addrow = False 
-										if args.error and errors.isdigit():
-											if int(errors) == 0:
-												addrow = False
-										if args.error and errors == '-':
-											addrow = False
-															
-										if addrow:
-					 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
-							 				if displaylogs:
-												verbosetable.border = False
-												verbosetable.align = 'l'
-												print verbosetable.get_string(sortby="Start Time")
-												print ""
-												try:
-													print "Log type:"+logtype
-													print currentlog['content']
-										 			try:
-										 				print ""
-										 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
-										 			except:
-										 				logging.debug("logfilepath wasnt found in results ")
-												except:
-													print "log:"+logtype+" is not avaialble"
-												print ""
-												print ""
-												try:
-													otherlogtype = 'stdout'
-													if logtype == 'stdout': otherlogtype = 'stderr'
+								#handle aborted jobs 
+								if currentperiodic['Status'] == 'dead' and currentperiodic['Stop']: jobstatus = 'aborted'											
 
-													print "Log type:"+otherlogtype
-													print currentlog['contentotherlog']
-										 			try:
-										 				print ""
-										 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
-										 			except:
-										 				logging.debug("logfilepath wasnt found in results ")													
+								#validate aborted time 
+								if jobstatus == 'running': endtime = '-' 
+								
+								#filter results
+								addrow = True 
+								if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
+									addrow = False
+								if phasefilter == 'lastsync' and task != 'sync'+str(lastsync):
+									addrow = False 											
+								if args.node and not nodename.startswith(args.node):
+									addrow = False
+								if args.jobstatus and not jobstatus.startswith(args.jobstatus):
+									addrow = False 
+								if args.error and errors.isdigit():
+									if int(errors) == 0:
+										addrow = False
+								if args.error and errors == '-':
+									addrow = False
+													
+								if addrow:
+			 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
+					 				if displaylogs:
+										verbosetable.border = False
+										verbosetable.align = 'l'
+										print verbosetable.get_string(sortby="Start Time")
+										print ""
+										try:
+											print "Log type:"+logtype
+											print currentlog['content']
+								 			try:
+								 				print ""
+								 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
+								 			except:
+								 				logging.debug("logfilepath wasnt found in results ")
+										except:
+											print "log:"+logtype+" is not avaialble"
+										print ""
+										print ""
+										try:
+											otherlogtype = 'stdout'
+											if logtype == 'stdout': otherlogtype = 'stderr'
 
-												except:
-													print "log:"+otherlogtype+" is not avaialble"
-												print ""
-												print ""												
-												verbosetable = PrettyTable()
-												verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+											print "Log type:"+otherlogtype
+											print currentlog['contentotherlog']
+								 			try:
+								 				print ""
+								 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
+								 			except:
+								 				logging.debug("logfilepath wasnt found in results ")													
+
+										except:
+											print "log:"+otherlogtype+" is not avaialble"
+										print ""
+										print ""												
+										verbosetable = PrettyTable()
+										verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 						#print the table 
 						verbosetable.border = False
