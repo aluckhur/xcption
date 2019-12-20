@@ -119,7 +119,7 @@ parser_nomad        = subparser.add_parser('nomad',    description='hidden comma
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_status.add_argument('-t','--jobstatus',help="change the scope of the command to specific job status ex:complete,running,failed,pending", required=False,type=str,metavar='jobstatus')
+parser_status.add_argument('-t','--jobstatus',help="change the scope of the command to specific job status ex:complete,running,failed,pending,aborted", required=False,type=str,metavar='jobstatus')
 parser_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
 parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)", required=False,type=str,metavar='phase')
 parser_status.add_argument('-n','--node',help="change the scope of the command to specific node (requires -v/--verbose)", required=False,type=str,metavar='node')
@@ -143,6 +143,7 @@ parser_load.add_argument('-s','--source',help="change the scope of the command t
 
 parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_baseline.add_argument('-f','--force',help="force re-baseline", required=False,action='store_true')
 
 parser_sync.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_sync.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -159,7 +160,7 @@ parser_resume.add_argument('-s','--source',help="change the scope of the command
 parser_abort.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_abort.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_abort.add_argument('-t','--type',help="spefify the type of job to abort, can be baseline,sync or verify", choices=['baseline','sync','verify'],required=True,type=str,metavar='type')
-parser_abort.add_argument('-f','--force',help="force move", required=False,action='store_true')
+parser_abort.add_argument('-f','--force',help="force abort", required=False,action='store_true')
 
 parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -758,7 +759,7 @@ def check_baseline_job_status (baselinejobname):
 	return('Baseline Is Complete')
 
 #start nomand job
-def start_nomad_jobs(action):
+def start_nomad_jobs(action, force):
 	for jobname in jobsdict:
 		if jobfilter == '' or jobfilter == jobname:
 			jobdir = os.path.join(jobsdir,jobname)
@@ -785,11 +786,20 @@ def start_nomad_jobs(action):
 					
 					if job:
 						logging.debug("job name:"+nomadjobname+" already exists") 
-					
-					if (action != 'baseline' and job) or not job:
+
+					forcebaseline = False 
+					if action == 'baseline' and job:
+						if not force:
+							logging.warning("baseline job already exists and cannot be updated. use --force to force new baseline") 
+							continue
+						else:
+							if query_yes_no("are you sure you want o rebaseline "+src+" to "+dst+" ? existing baseline job will be deleted !! ",'no'):
+								forcebaseline=True
+
+					if (action != 'baseline' and job) or forcebaseline or not job:
 						jobfile = os.path.join(jobdir,nomadjobname+'.hcl')		
 						if not os.path.exists(jobfile): 
-							logging.warning("log file"+jobfile+" for job:"+nomadjobname+" could not be found, please load first") 
+							logging.warning("job:"+nomadjobname+" could not be found, please load first") 
 						else:
 							logging.info("starting/updating "+action+" job for src:" + src+ " dst:"+dst) 
 							nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
@@ -834,8 +844,6 @@ def start_nomad_jobs(action):
 								if not response.ok:
 									logging.error("job:"+nomadjobname+" force start failed") 
 									exit(1)
-					elif action == 'baseline' and job:
-						logging.warning("baseline job already exists and cannot be updated") 
 
 #tail n lines of a file 
 def tail(file, n=1, bs=1024):
@@ -1129,6 +1137,7 @@ def create_status (reporttype,displaylogs=False):
 						for file in os.listdir(baselinecachedir):
 							if file.startswith("periodic-"):
 								baselinecachefile = os.path.join(baselinecachedir,file)
+								print baselinecachefile
 								with open(baselinecachefile) as f:
 									logging.debug('loading cached info periodic file:'+baselinecachefile)
 									jobdata = json.load(f)
@@ -1348,9 +1357,6 @@ def create_status (reporttype,displaylogs=False):
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
 
-						print verifyjoblastdetails['ID']
-						print verifyjoblastdetails['Status'] 
-						print verifyjoblastdetails['Stop']
 						#aborted 
 						if verifyjoblastdetails['Status'] == 'dead' and verifyjoblastdetails['Stop']: verifystatus = 'aborted'
 
@@ -2873,12 +2879,15 @@ def abort_jobs(jobtype, forceparam):
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
-					dst	          = jobdetails['dst']
-					srcbase       = jobdetails['srcbase']
-					dstbase       = jobdetails['dstbase']
-					syncnomadjobname  = jobdetails['sync_job_name']
+					dst	             = jobdetails['dst']
+					srcbase          = jobdetails['srcbase']
+					dstbase          = jobdetails['dstbase']
+					syncnomadjobname = jobdetails['sync_job_name']
 					baselinejobname  = jobdetails['baseline_job_name']
 					verifyjobname    = jobdetails['verify_job_name']
+					ostype           = jobdetails['ostype']
+					tool             = jobdetails['tool']
+					xcpindexname     = jobdetails['xcpindexname']
 
 					if jobtype == 'baseline':
 						abortjobname = baselinejobname
@@ -2908,6 +2917,13 @@ def abort_jobs(jobtype, forceparam):
 									if not response.ok:
 										logging.error("can't abort nomad job:"+nomadjob['ID']) 
 										exit(1)
+
+									if jobtype == 'baseline' and ostype == 'linux' and tool == 'xcp':
+										logging.info("destroying xcp index for aborted job")
+										logging.debug("running the command:"+xcppath+' diag -rmid '+xcpindexname)
+										if subprocess.call( [ xcppath, 'diag', '-rmid', xcpindexname ],stderr=subprocess.STDOUT):
+											logging.debug("failed to delete xcp index:"+xcpindexname)
+
 									jobaborted = True
 								elif jobstatus == 'pending':
 									logging.info("job status is:"+jobstatus+', aborting and purging job')
@@ -2980,13 +2996,13 @@ if args.subparser_name == 'load':
 	create_nomad_jobs()
 
 if args.subparser_name == 'baseline':
-	start_nomad_jobs('baseline')
+	start_nomad_jobs('baseline',args.force)
 
 if args.subparser_name == 'sync':
-	start_nomad_jobs('sync')
+	start_nomad_jobs('sync',False)
 
 if args.subparser_name == 'verify':
-	start_nomad_jobs('verify')
+	start_nomad_jobs('verify',False)
 
 if args.subparser_name == 'status' and not args.verbose:
 	parse_nomad_jobs_to_files()
