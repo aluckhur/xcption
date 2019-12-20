@@ -110,6 +110,7 @@ parser_sync         = subparser.add_parser('sync',     help='start schedule upda
 parser_syncnow      = subparser.add_parser('syncnow',  help='initiate sync now')
 parser_pause        = subparser.add_parser('pause',    help='disable sync schedule')
 parser_resume       = subparser.add_parser('resume',   help='resume sync schedule')
+parser_abort        = subparser.add_parser('abort',    help='abort running task')
 parser_verify       = subparser.add_parser('verify',   help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete       = subparser.add_parser('delete',   help='delete existing config')
 parser_modifyjob    = subparser.add_parser('modifyjob',help='move tasks to diffrent group')
@@ -154,6 +155,11 @@ parser_pause.add_argument('-s','--source',help="change the scope of the command 
 
 parser_resume.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_resume.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_abort.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_abort.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_abort.add_argument('-t','--type',help="spefify the type of job to abort, can be baseline,sync or verify", choices=['baseline','sync','verify'],required=True,type=str,metavar='type')
+parser_abort.add_argument('-f','--force',help="force move", required=False,action='store_true')
 
 parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -1127,6 +1133,8 @@ def create_status (reporttype,displaylogs=False):
 									logging.debug('loading cached info periodic file:'+baselinecachefile)
 									jobdata = json.load(f)
 									baselinejobstatus = jobdata['Status']
+									if baselinejobstatus == 'dead' and jobdata['Stop']:
+										baselinejobstatus = 'aborted'
 									baselinejob = jobdata
 							if file.startswith("alloc_"):
 								baselinealloccachefile = os.path.join(baselinecachedir,file)
@@ -1147,6 +1155,7 @@ def create_status (reporttype,displaylogs=False):
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
+					if baselinejobstatus == 'aborted': baselinestatus='aborted'
 
 					#gather sync related info
 					syncstatus   = '- '
@@ -1338,6 +1347,10 @@ def create_status (reporttype,displaylogs=False):
 						if 'found' in verifystatsresults.keys(): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
+
+						print verify_job_name
+						print verifyjoblastdetails['Status']
+						print verifyjoblastdetails['Stop']
 
 						try:
 							if verifystatus == 'complete': verifystatus = 'idle'
@@ -1793,11 +1806,11 @@ def update_nomad_job_status(action):
 								logging.warning("cannot syncnow since baseline status for:"+nomadjobname+' is:'+baselinestatus)
 							else:
 								try:
-									response = requests.get(nomadapiurl+'jobs?prefix='+nomadjobname)
+									response = requests.get(nomadapiurl+'jobs?prefix='+nomadjobname+"/")
 									prefixjobs = json.loads(response.content)
 
 									for prefixjob in prefixjobs:
-										if prefixjob["Status"] == 'running' and '/periodic-' in prefixjob["ID"]:
+										if prefixjob["Status"] == 'running':
 											already_running = True 
 								except:
 									logging.debug("could not get job periodics for job:"+nomadjobname) 
@@ -2835,6 +2848,70 @@ def move_job(tojob,forceparam):
 							logging.error("cannot write job json file:"+jobdictjson)
 							exit(1)	
 
+#abort jobs 
+def abort_jobs(jobtype, forceparam):
+
+	for jobname in jobsdict:
+		if jobfilter == '' or jobfilter == jobname:
+			jobdir = os.path.join(jobsdir,jobname)
+
+			#check if job dir exists
+			if not os.path.exists(jobdir):
+				logging.warning("job config directory:" + jobdir + " not exists. please init first") 
+			
+			for src in jobsdict[jobname]:
+				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
+					jobdetails = jobsdict[jobname][src]
+					
+					dst	          = jobdetails['dst']
+					srcbase       = jobdetails['srcbase']
+					dstbase       = jobdetails['dstbase']
+					syncnomadjobname  = jobdetails['sync_job_name']
+					baselinejobname  = jobdetails['baseline_job_name']
+					verifyjobname    = jobdetails['verify_job_name']
+
+					if jobtype == 'baseline':
+						abortjobname = baselinejobname
+					if jobtype == 'sync':
+						abortjobname = syncnomadjobname
+					if jobtype == 'verify':
+						abortjobname = verifyjobname
+
+					force = forceparam
+					if not force: force = query_yes_no("abort job for source:"+src,'no')
+					if force:
+						logging.info("aborting "+jobtype+" job for source:"+src) 
+
+						response = requests.get(nomadapiurl+'jobs?prefix='+abortjobname+'/per')	
+						if not response.ok:
+							logging.warning("could not get jobs list prefixed by:"+abortjobname) 
+						else:
+							nomadjobs = json.loads(response.content)
+							jobaborted = False
+							for nomadjob in nomadjobs:
+								jobstatus = nomadjob['Status']
+								#pp.pprint(nomadjob)
+								if jobstatus == 'running':
+									logging.info("job status is:"+jobstatus+', aborting')
+									logging.debug("stoping job:"+nomadjob['ID'])
+									response = requests.delete(nomadapiurl+'job/'+nomadjob['ID'])				
+									if not response.ok:
+										logging.error("can't abort nomad job:"+nomadjob['ID']) 
+										exit(1)
+									jobaborted = True
+								elif jobstatus == 'pending':
+									logging.info("job status is:"+jobstatus+', aborting and purging job')
+									logging.debug("stoping job:"+nomadjob['ID'])
+									response = requests.delete(nomadapiurl+'job/'+nomadjob['ID']+'?purge=true')				
+									if not response.ok:
+										logging.error("can't abort nomad job:"+nomadjob['ID']) 
+										exit(1)
+									jobaborted = True									
+								else:
+									logging.debug("job status us is:"+jobstatus+', skipping')
+							if not jobaborted:
+								logging.info("no running/pending jobs found")
+
 
 #####################################################################################################
 ###################                        MAIN                                        ##############
@@ -2913,6 +2990,9 @@ if args.subparser_name in ['pause','resume','syncnow']:
 
 if args.subparser_name == 'delete':
 	delete_jobs(args.force)
+
+if args.subparser_name == 'abort':
+	abort_jobs(args.type, args.force)
 
 if args.subparser_name == 'modifyjob':
 	move_job(args.tojob,args.force)
