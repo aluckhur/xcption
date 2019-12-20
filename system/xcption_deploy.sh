@@ -86,7 +86,7 @@ export YUM=`command -v yum`
 if [ -n "$YUM" ]; then
     yum -y update
     INST_APP="yum"
-elif [ -n "$YUM" ]; then
+elif [ -n "$APT" ]; then
     apt -y update
     INST_APP="apt"  
 else
