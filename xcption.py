@@ -787,7 +787,7 @@ def start_nomad_jobs(action, force):
 					forcebaseline = False 
 					if action == 'baseline' and job:
 						if not force:
-							logging.warning("baseline job already exists and cannot be updated. use --force to force new baseline") 
+							logging.warning("baseline job already exists. use --force to force new baseline") 
 							continue
 						else:
 							if query_yes_no("are you sure you want o rebaseline "+src+" to "+dst+" ?",'no'):
