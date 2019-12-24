@@ -4,8 +4,11 @@
 # Written by Haim Marko 
 # Enjoy
 
+#change log 
+#2.0.7.0 - scan filesystme 
+
 #version 
-version = '2.0.6.16'
+version = '2.0.7.0'
 
 import csv
 import argparse
@@ -32,8 +35,6 @@ from prettytable import PrettyTable
 from jinja2 import Environment, FileSystemLoader
 
 pp = pprint.PrettyPrinter(indent=1)
-
-
 
 #general settings
 dcname = 'DC1'
@@ -98,31 +99,29 @@ defaultmemory = 800
 
 maxloglinestodisplay = 200
 
+parent_parser = argparse.ArgumentParser(add_help=False)
+
 
 parser = argparse.ArgumentParser()
-
 parser.add_argument('-v','--version', help="print version information", action='store_true')
 parser.add_argument('-d','--debug',   help="log debug messages to console", action='store_true')
-
-
 subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
 
 # create the sub commands 
-parser_nodestatus   = subparser.add_parser('nodestatus',   help='display cluster nodes status')	
-parser_status       = subparser.add_parser('status',   help='display status')	
-parser_asses        = subparser.add_parser('asses',    help='asses fielsystem and create csv file')
-parser_load         = subparser.add_parser('load',     help='load/update configuration from csv file')
-parser_baseline     = subparser.add_parser('baseline', help='start baseline (xcp copy)')
-parser_sync         = subparser.add_parser('sync',     help='start schedule updates (xcp sync)')
-parser_syncnow      = subparser.add_parser('syncnow',  help='initiate sync now')
-parser_pause        = subparser.add_parser('pause',    help='disable sync schedule')
-parser_resume       = subparser.add_parser('resume',   help='resume sync schedule')
-parser_abort        = subparser.add_parser('abort',    help='abort running task')
-parser_verify       = subparser.add_parser('verify',   help='start verify to validate consistency between source and destination (xcp verify)')
-parser_delete       = subparser.add_parser('delete',   help='delete existing config')
-parser_modifyjob    = subparser.add_parser('modifyjob',help='move tasks to diffrent group')
-
-parser_nomad        = subparser.add_parser('nomad',    description='hidden command, usded to backup nomad jobs into files')
+parser_nodestatus   = subparser.add_parser('nodestatus',help='display cluster nodes status',parents=[parent_parser])	
+parser_status       = subparser.add_parser('status',    help='display status',parents=[parent_parser])	
+parser_asses        = subparser.add_parser('asses',     help='asses fielsystem and create csv file',parents=[parent_parser])
+parser_load         = subparser.add_parser('load',      help='load/update configuration from csv file',parents=[parent_parser])
+parser_baseline     = subparser.add_parser('baseline',  help='start baseline (xcp copy)',parents=[parent_parser])
+parser_sync         = subparser.add_parser('sync',      help='start schedule updates (xcp sync)',parents=[parent_parser])
+parser_syncnow      = subparser.add_parser('syncnow',   help='initiate sync now',parents=[parent_parser])
+parser_pause        = subparser.add_parser('pause',     help='disable sync schedule',parents=[parent_parser])
+parser_resume       = subparser.add_parser('resume',    help='resume sync schedule',parents=[parent_parser])
+parser_abort        = subparser.add_parser('abort',     help='abort running task')
+parser_verify       = subparser.add_parser('verify',    help='start verify to validate consistency between source and destination (xcp verify)')
+parser_delete       = subparser.add_parser('delete',    help='delete existing config',parents=[parent_parser])
+parser_modifyjob    = subparser.add_parser('modifyjob', help='move tasks to diffrent group',parents=[parent_parser])
+parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -180,6 +179,30 @@ parser_modifyjob.add_argument('-j','--job', help="change the scope of the comman
 parser_modifyjob.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_modifyjob.add_argument('-t','--tojob',help="move selected tasks to this job", required=True,type=str,metavar='tojob')
 parser_modifyjob.add_argument('-f','--force',help="force move", required=False,action='store_true')
+
+
+parser_smartasses   = subparser.add_parser('smartasses',help='scan src to create jobs based on capacity and file count (nfs only)',parents=[parent_parser])
+
+action_subparser = parser_smartasses.add_subparsers(title="action",dest="smartasses_command")                                                                                                               
+parser_smartasses_start     = action_subparser.add_parser('start',help='scan src to create jobs based on capacity and file count (nfs only)',parents=[parent_parser])
+parser_smartasses_status    = action_subparser.add_parser('status',help='display scan status and filesystem info',parents=[parent_parser])
+parser_smartasses_createcsv = action_subparser.add_parser('createcsv',help='create csv job file based on the scan results',parents=[parent_parser])
+
+parser_smartasses_start.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
+parser_smartasses_start.add_argument('-k','--locate-cross-job-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
+
+#parser_smartasses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+#parser_smartasses.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
+#parser_smartasses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
+#parser_smartasses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
+#parser_smartasses.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
+#parser_smartasses.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
+#parser_smartasses.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
+#parser_smartasses.add_argument('-u','--failbackuser',help="failback user required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
+#parser_smartasses.add_argument('-g','--failbackgroup',help="failback group required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
+#parser_smartasses.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
+
 
 args = parser.parse_args()
 
@@ -2395,7 +2418,7 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 	if args.ram: 
 		defaultram = args.ram
 		if defaultram < 0 or defaultram > 20000:
-			logging.error("cpu allocation is illegal:"+defaultram)
+			logging.error("ram allocation is illegal:"+defaultram)
 			exit(1)	
 
 	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
@@ -2997,6 +3020,9 @@ if args.subparser_name == 'asses':
 		asses_fs_linux(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 	else:
 		asses_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+
+if args.subparser_name == 'smartasses' and args.smartasses_command == 'start':
+	smartasses_fs_linux(args.source,args.depth,args.locate_cross_job_hardlink)
 
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
