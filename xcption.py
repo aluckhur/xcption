@@ -80,6 +80,9 @@ jobsdir = os.path.join(xcprepopath,'jobs')
 #file containing loaded jobs 
 jobdictjson = os.path.join(jobsdir,'jobs.json')
 
+#smartasses json jobs file
+smartassesjobdictjson = os.path.join(smartassesdir,'smartassesjobs.json')
+
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
 
@@ -195,8 +198,10 @@ parser_smartasses_start.add_argument('-s','--source',help="source nfs path (nfss
 parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_smartasses_start.add_argument('-k','--locate-cross-job-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
-#parser_smartasses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
-#parser_smartasses.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
+parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartasses_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
+#parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
+#parser_smartasses_status.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
 #parser_smartasses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 #parser_smartasses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
 #parser_smartasses.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
@@ -241,6 +246,7 @@ logging.debug("starting " + os.path.basename(sys.argv[0]))
 
 #initialize dict objects
 jobsdict = {}
+smartassesdict = {}
 dstdict = {}
 nomadout = {}
 
@@ -257,6 +263,17 @@ def getnomadjobdetails (nomadjobname):
 	except:
 		assert not job 
 	return job
+
+#load smartasses from json 
+def load_smartasses_jobs_from_json (jobdictjson):
+	global smartassesdict
+	if os.path.exists(jobdictjson):
+		try:
+			logging.debug("loading existing json file:"+jobdictjson)
+			with open(jobdictjson, 'r') as f:
+				smartassesdict = json.load(f)
+		except:
+			logging.debug("could not load existing json file:"+jobdictjson)
 
 
 #load jobsdict from json 
@@ -2398,9 +2415,95 @@ def unmountdir(dir):
 		logging.error("cannot delete temp mount point:"+dir)
 		exit(1)
 
+#check job status 
+def check_smartasses_job_status (jobname):
+
+	jobcachedir = os.path.join(cachedir,'job_'+jobname)
+
+	#if job exists retrun the allocation status
+	results ={}
+	results['status'] = 'unknown'
+	results['stderrlog'] = ''
+	results['stdoutlog'] = ''
+	results['starttime'] = '-'
+	job = {}
+
+	try:	
+		job = n.job.get_job(jobname)
+	except:
+		job = None
+
+	if not job and not os.path.exists(jobcachedir):
+		logging.debug("baseline job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
+		results['status'] = 'none'
+		return results
+
+	for file in os.listdir(jobcachedir):
+		if file.startswith("periodic-"):
+			baselinecachefile = os.path.join(jobcachedir,file)
+			with open(baselinecachefile) as f:
+				logging.debug('loading cached info periodic file:'+baselinecachefile)
+				jobdata = json.load(f)
+				
+				results['status'] = jobdata['Status']
+				if jobdata['Status'] == 'dead' and not jobdata['Stop'] and jobdata['JobSummary']['Summary'][jobname]['Complete'] == 1: results['status'] = 'completed'
+				if jobdata['Status'] == 'dead' and not jobdata['Stop'] and jobdata['JobSummary']['Summary'][jobname]['Failed'] == 1: results['status'] = 'failed'
+				if jobdata['Status'] == 'dead' and jobdata['Stop']: results['status'] = 'aborted'
+
+		if file.startswith("alloc_"):
+			alloccachefile = os.path.join(jobcachedir,file)
+			with open(alloccachefile) as f:
+				logging.debug('loading cached info alloc file:'+alloccachefile)
+				allocdata = json.load(f)
+				
+			 	starttime = allocdata['TaskStates']['smartasses']['StartedAt']
+			 	starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
+				results['starttime'] = starttime
+
+		for file in os.listdir(jobcachedir):
+			if file.startswith('stderrlog_'): results['stderrlog'] = file
+			if file.startswith('stdoutlog_'): results['stdoutlog'] = file			
+
+	return results
+
+#show status of the smartasses jobs
+def smartasses_fs_linux_status(showlogs):
+	global smartassesdict
+	logging.debug("starting smartasses status") 	
+
+	table = PrettyTable()
+	table.field_names = ["Source Path","Scan Status","Hardlink Scan","Scan Start","Scan Time"]	
+
+	for smartassesjob in smartassesdict:
+		src = smartassesdict[smartassesjob]['src']
+		if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
+			results = check_smartasses_job_status(smartassesjob)
+			resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
+
+			table.add_row([src,results['status'],resultshardlink['status'],results['starttime'],''])
+		
+	table.border = False
+	table.align = 'l'
+	print ""
+	print table			
+
+
+
 #smart assesment for linux based on capacity and inode count. this will initiate a scan 
-def smartasses_fs_linux(src,depth,locate_cross_job_hardlink):
+def smartasses_fs_linux_start(src,depth,locate_cross_job_hardlink):
+	global smartassesdict
+
 	logging.debug("starting smartasses jobs for src:"+src) 
+
+	smartasses_job_name = 'smartasses_'+src.replace(':/','-_')
+	smartasses_job_name = smartasses_job_name.replace('/','_')
+	smartasses_job_name = smartasses_job_name.replace(' ','-')
+	smartasses_job_name = smartasses_job_name.replace('\\','_')
+	smartasses_job_name = smartasses_job_name.replace('$','_dollar')	
+
+	if smartasses_job_name in smartassesdict.keys():
+		logging.error("smartasses job already exissts for src:"+src) 
+		exit(1)	
 
 	if not re.search("\S+\:\/\S+", src):
 		logging.error("source format is incorrect: " + src) 
@@ -2438,12 +2541,6 @@ def smartasses_fs_linux(src,depth,locate_cross_job_hardlink):
 	except:
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_smartassses.txt'))
 		exit(1)
-	
-	smartasses_job_name = 'smartasses_'+src.replace(':/','-_')
-	smartasses_job_name = smartasses_job_name.replace('/','_')
-	smartasses_job_name = smartasses_job_name.replace(' ','-')
-	smartasses_job_name = smartasses_job_name.replace('\\','_')
-	smartasses_job_name = smartasses_job_name.replace('$','_dollar')	
 
 	jobdir = os.path.join(smartassesdir,smartasses_job_name)
 	if not os.path.exists(jobdir):
@@ -2472,7 +2569,8 @@ def smartasses_fs_linux(src,depth,locate_cross_job_hardlink):
 	defaultram = defaultmemory
 	ostype = 'linux'	
 	if ostype == 'linux': xcpbinpath = xcppath
-	cmdargs = "diag\",\"find\",\"-v\",\"-branch-match\",\"'depth<"+str(depth)+"'\",\""+src
+	depth += 1
+	cmdargs = "diag\",\"find\",\"-v\",\"-branch-match\",\"depth<"+str(depth)+"\",\""+src
 
 	with open(smartassesjob_file, 'w') as fh:
 		fh.write(smartasses_template.render(
@@ -2497,9 +2595,9 @@ def smartasses_fs_linux(src,depth,locate_cross_job_hardlink):
 	#creating hadlink scan smaetasses job 
 	smartasses_hardlink_job_name = smartasses_job_name+'_hardlink_scan'
 	hardlinksmartassesjob_file = os.path.join(jobdir,smartasses_hardlink_job_name+'.hcl')	
-	logging.debug("creating hardlink smartassess job file: " + hardlinksmartassesjob_file)			
+	logging.debug("creating hardlink smartasses job file: " + hardlinksmartassesjob_file)			
 
-	cmdargs = "scan\",\"-noid\",\"-match\",\"'type == f and nlinks > 1'\",\"-fmt\",\"'{},{}'.format(x,fileid)\",\""+src
+	cmdargs = "scan\",\"-noid\",\"-match\",\"type == f and nlinks > 1\",\"-fmt\",\"'{},{}'.format(x,fileid)\",\""+src
 	with open(hardlinksmartassesjob_file, 'w') as fh:
 		fh.write(smartasses_template.render(
 			dcname=dcname,
@@ -2520,6 +2618,26 @@ def smartasses_fs_linux(src,depth,locate_cross_job_hardlink):
 		if not response.ok:
 			logging.error("job:"+smartasses_hardlink_job_name+" force start failed") 
 			exit(1)		
+
+	#fill dict with info
+	smartassesdict[smartasses_job_name] = {}
+	smartassesdict[smartasses_job_name]['src'] = src
+	smartassesdict[smartasses_job_name]['src'] = src
+	smartassesdict[smartasses_job_name]['cpu'] = defaultprocessor
+	smartassesdict[smartasses_job_name]['memory'] = defaultram
+	smartassesdict[smartasses_job_name]['ostype'] = ostype
+	smartassesdict[smartasses_job_name]['depth'] = depth
+	smartassesdict[smartasses_job_name]['locate_cross_job_hardlink'] = locate_cross_job_hardlink
+	smartassesdict[smartasses_job_name]['dcname'] = dcname
+
+	#dumping jobsdict to json file 
+	try:
+		with open(smartassesjobdictjson, 'w') as fp:
+			json.dump(smartassesdict, fp)
+		fp.close()
+	except:
+		logging.error("cannot write smart asses job json file:"+smartassesjobdictjson)
+		exit(1)
 
 
 #assesment of filesystem and creation of csv file out of it 
@@ -3167,9 +3285,6 @@ if args.subparser_name == 'asses':
 	else:
 		asses_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 
-if args.subparser_name == 'smartasses' and args.smartasses_command == 'start':
-	smartasses_fs_linux(args.source,args.depth,args.locate_cross_job_hardlink)
-
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
 
@@ -3205,3 +3320,12 @@ if args.subparser_name == 'abort':
 if args.subparser_name == 'modifyjob':
 	move_job(args.tojob,args.force)
 	parse_nomad_jobs_to_files()
+
+if args.subparser_name == 'smartasses':
+	load_smartasses_jobs_from_json(smartassesjobdictjson)
+
+	if args.smartasses_command == 'start':
+		smartasses_fs_linux_start(args.source,args.depth,args.locate_cross_job_hardlink)
+
+	if args.smartasses_command == 'status':
+		smartasses_fs_linux_status(args.logs)		
