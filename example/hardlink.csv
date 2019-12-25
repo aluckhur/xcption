@@ -1,0 +1,2 @@
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
+hardlink,127.0.0.1:/xcp_repo/src/hlsource,127.0.0.1:/xcp_repo/dst/hldest,0 0 * * * *,300,800

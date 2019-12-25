@@ -33,6 +33,7 @@ import socket
 from hurry.filesize import size
 from prettytable import PrettyTable
 from jinja2 import Environment, FileSystemLoader
+from treelib import Node, Tree
 
 pp = pprint.PrettyPrinter(indent=1)
 
@@ -67,6 +68,8 @@ xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 cachedir = os.path.join(xcprepopath,'nomadcache')
 #cachedir = os.path.join(root,'nomadcache')
 
+#smartasses dir for current state 
+smartassesdir = os.path.join(xcprepopath,'smartasses')
 
 #path to nomad bin 
 nomadpath = '/usr/local/bin/nomad'
@@ -94,7 +97,7 @@ if not os.path.isdir(logdirpath):
 
 #default nomad job properties 
 defaultjobcron = "0 0 * * * *" #nightly @ midnight
-defaultcpu = 3000
+defaultcpu = 300
 defaultmemory = 800
 
 maxloglinestodisplay = 200
@@ -2161,8 +2164,6 @@ def check_nomad():
 
 #used to parse nomad jobs to files, will be used as a cache in case of nomad GC removed ended jobs 
 def parse_nomad_jobs_to_files ():
-	
-
 	#get nomad allocations 
 	jobs = {}
 	allocs = {}
@@ -2223,7 +2224,7 @@ def parse_nomad_jobs_to_files ():
 
 	for job in jobs:
 
-		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify')):
+		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify') or job['ID'].startswith('smartasses')):
 			continue
 
 		jobdir = os.path.join(cachedir,'job_'+job['ID'])	
@@ -2290,6 +2291,7 @@ def parse_nomad_jobs_to_files ():
 				task = 'sync'	
 				if alloc['TaskGroup'].startswith('baseline'): task='baseline'
 				if alloc['TaskGroup'].startswith('verify'): task='verify'
+				if alloc['TaskGroup'].startswith('smartasses'): task='smartasses'
 
 				#get stderr and stdout logs
 				for logtype in ['stderr','stdout']:
@@ -2396,9 +2398,133 @@ def unmountdir(dir):
 		logging.error("cannot delete temp mount point:"+dir)
 		exit(1)
 
+#smart assesment for linux based on capacity and inode count. this will initiate a scan 
+def smartasses_fs_linux(src,depth,locate_cross_job_hardlink):
+	logging.debug("starting smartasses jobs for src:"+src) 
+
+	if not re.search("\S+\:\/\S+", src):
+		logging.error("source format is incorrect: " + src) 
+		exit(1)	
+
+	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
+
+	logging.debug("temporary mount for assement will be:"+tempmountpointsrc)
+
+	#check if src can be mounted
+	subprocess.call( [ 'mkdir', '-p',tempmountpointsrc ] )
+
+	logging.debug("validating src:"+src+" is mountable")
+
+	#clearing possiable previous mounts 
+	DEVNULL = open(os.devnull, 'wb')
+	subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
+
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, tempmountpointsrc ],stderr=subprocess.STDOUT):
+		logging.error("cannot mount src using nfs: " + src)
+		exit(1)					
+
+	if (depth < 1 or depth > 12):
+		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
+		exit(1)	
+
+	#create smartasses job
+
+	#loading job ginga2 templates 
+	templates_dir = ginga2templatedir
+	env = Environment(loader=FileSystemLoader(templates_dir) )
+	
+	try:
+		smartasses_template = env.get_template('nomad_smartassses.txt')
+	except:
+		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_smartassses.txt'))
+		exit(1)
+	
+	smartasses_job_name = 'smartasses_'+src.replace(':/','-_')
+	smartasses_job_name = smartasses_job_name.replace('/','_')
+	smartasses_job_name = smartasses_job_name.replace(' ','-')
+	smartasses_job_name = smartasses_job_name.replace('\\','_')
+	smartasses_job_name = smartasses_job_name.replace('$','_dollar')	
+
+	jobdir = os.path.join(smartassesdir,smartasses_job_name)
+	if not os.path.exists(jobdir):
+		logging.debug("creating job dir:"+jobdir)
+		try:
+			os.makedirs(jobdir)
+		except:
+			logging.error("could not create job dir:"+jobdir)
+			exit(1)		
+
+	srchost,srcpath = src.split(":")
+
+	#creating smaetasses job 
+	smartassesjob_file = os.path.join(jobdir,smartasses_job_name+'.hcl')	
+	logging.debug("creating smartasses job file: " + smartassesjob_file)				
+		
+	#check if job dir exists
+	if os.path.exists(jobdir):
+		logging.debug("job directory:" + jobdir + " - already exists") 
+	else:	
+		if os.makedirs(jobdir):
+			logging.error("could not create output directory: " + jobdir)				
+			exit(1)
+
+	defaultprocessor = defaultcpu
+	defaultram = defaultmemory
+	ostype = 'linux'	
+	if ostype == 'linux': xcpbinpath = xcppath
+	cmdargs = "diag\",\"find\",\"-v\",\"-branch-match\",\"'depth<"+str(depth)+"'\",\""+src
+
+	with open(smartassesjob_file, 'w') as fh:
+		fh.write(smartasses_template.render(
+			dcname=dcname,
+			os=ostype,
+			smartasses_job_name=smartasses_job_name,
+			xcppath=xcpbinpath,
+			args=cmdargs,
+			memory=defaultram,
+			cpu=defaultprocessor
+		))
+
+	logging.info("starting smartasses scan:"+smartasses_job_name)
+	if not start_nomad_job_from_hcl(smartassesjob_file, smartasses_job_name):
+		logging.error("failed to create nomad job:"+smartasses_job_name)
+		exit(1)
+	response = requests.post(nomadapiurl+'job/'+smartasses_job_name+'/periodic/force')	
+	if not response.ok:
+		logging.error("job:"+smartasses_job_name+" force start failed") 
+		exit(1)		
+
+	#creating hadlink scan smaetasses job 
+	smartasses_hardlink_job_name = smartasses_job_name+'_hardlink_scan'
+	hardlinksmartassesjob_file = os.path.join(jobdir,smartasses_hardlink_job_name+'.hcl')	
+	logging.debug("creating hardlink smartassess job file: " + hardlinksmartassesjob_file)			
+
+	cmdargs = "scan\",\"-noid\",\"-match\",\"'type == f and nlinks > 1'\",\"-fmt\",\"'{},{}'.format(x,fileid)\",\""+src
+	with open(hardlinksmartassesjob_file, 'w') as fh:
+		fh.write(smartasses_template.render(
+			dcname=dcname,
+			os=ostype,
+			smartasses_job_name=smartasses_hardlink_job_name,
+			xcppath=xcpbinpath,
+			args=cmdargs,
+			memory=defaultram,
+			cpu=defaultprocessor
+		))
+
+	if locate_cross_job_hardlink:
+		logging.info("starting smartasses hardlink scan:"+smartasses_hardlink_job_name)
+		if not start_nomad_job_from_hcl(hardlinksmartassesjob_file, smartasses_hardlink_job_name):
+			logging.error("failed to create nomad job:"+smartasses_hardlink_job_name)
+			exit(1)
+		response = requests.post(nomadapiurl+'job/'+smartasses_hardlink_job_name+'/periodic/force')	
+		if not response.ok:
+			logging.error("job:"+smartasses_hardlink_job_name+" force start failed") 
+			exit(1)		
+
+
 #assesment of filesystem and creation of csv file out of it 
 def asses_fs_linux(csvfile,src,dst,depth,jobname):
-	logging.debug("trying to asses src:" + src + " dst:" + dst) 
+	logging.debug("starting to asses src:" + src + " dst:" + dst) 
 
 	if not re.search("\S+\:\/\S+", src):
 		logging.error("source format is incorrect: " + src) 
@@ -2946,7 +3072,7 @@ def abort_jobs(jobtype, forceparam):
 									response = requests.delete(nomadapiurl+'job/'+nomadjob['ID'])				
 									if not response.ok:
 										logging.error("can't abort nomad job:"+nomadjob['ID']) 
-										exit(1)
+										exit(1)									
 
 									if jobtype == 'baseline' and ostype == 'linux' and tool == 'xcp':
 										logging.info("destroying xcp index for aborted job")
@@ -2963,9 +3089,29 @@ def abort_jobs(jobtype, forceparam):
 									if not response.ok:
 										logging.error("can't abort nomad job:"+nomadjob['ID']) 
 										exit(1)
+									logging.debug("removing cache for job:"+nomadjob['ID'])
+									
+									#in case of baseline delete also the job father 
+									if jobtype == 'baseline':
+										logging.debug("stoping job:"+abortjobname)
+										response = requests.delete(nomadapiurl+'job/'+abortjobname+'?purge=true')			
+										if not response.ok:
+											logging.error("can't abort nomad job:"+abortjobname) 
+											exit(1)	
+									#remove cache dir if exists 
+									jobcachedir = os.path.join(cachedir,'job_'+abortjobname)
+									if os.path.exists(jobcachedir):
+										logging.debug("trying to remove cache dir"+jobcachedir)
+										try:
+											shutil.rmtree(jobcachedir)
+										except:
+											logging.warning("could not delete dir:"+jobcachedir)
+
 									jobaborted = True									
 								else:
 									logging.debug("job status us is:"+jobstatus+', skipping')
+								
+
 							if not jobaborted:
 								logging.info("no running/pending jobs found")
 
