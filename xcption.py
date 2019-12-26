@@ -103,10 +103,21 @@ defaultjobcron = "0 0 * * * *" #nightly @ midnight
 defaultcpu = 300
 defaultmemory = 800
 
+#max logs for status -l 
 maxloglinestodisplay = 200
 
-parent_parser = argparse.ArgumentParser(add_help=False)
+#smartasses globals 
+maxsizekforjob = 5000000000
+maxinodesforjob = 250
+minsizekforjob = 500000000
+mininodesforjob = 120
+maxjobs = 100
 
+totaljobssizek = 0
+totaljobsinode = 0
+totaljobscreated = 0
+
+parent_parser = argparse.ArgumentParser(add_help=False)
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-v','--version', help="print version information", action='store_true')
@@ -2435,36 +2446,91 @@ def check_smartasses_job_status (jobname):
 
 	if not job and not os.path.exists(jobcachedir):
 		logging.debug("baseline job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
-		results['status'] = 'none'
+		results['status'] = 'not started'
 		return results
 
-	for file in os.listdir(jobcachedir):
-		if file.startswith("periodic-"):
-			baselinecachefile = os.path.join(jobcachedir,file)
-			with open(baselinecachefile) as f:
-				logging.debug('loading cached info periodic file:'+baselinecachefile)
-				jobdata = json.load(f)
-				
-				results['status'] = jobdata['Status']
-				if jobdata['Status'] == 'dead' and not jobdata['Stop'] and jobdata['JobSummary']['Summary'][jobname]['Complete'] == 1: results['status'] = 'completed'
-				if jobdata['Status'] == 'dead' and not jobdata['Stop'] and jobdata['JobSummary']['Summary'][jobname]['Failed'] == 1: results['status'] = 'failed'
-				if jobdata['Status'] == 'dead' and jobdata['Stop']: results['status'] = 'aborted'
-
-		if file.startswith("alloc_"):
-			alloccachefile = os.path.join(jobcachedir,file)
-			with open(alloccachefile) as f:
-				logging.debug('loading cached info alloc file:'+alloccachefile)
-				allocdata = json.load(f)
-				
-			 	starttime = allocdata['TaskStates']['smartasses']['StartedAt']
-			 	starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
-				results['starttime'] = starttime
-
+	if os.path.exists(jobcachedir):
 		for file in os.listdir(jobcachedir):
-			if file.startswith('stderrlog_'): results['stderrlog'] = file
-			if file.startswith('stdoutlog_'): results['stdoutlog'] = file			
+			if file.startswith("periodic-"):
+				baselinecachefile = os.path.join(jobcachedir,file)
+				with open(baselinecachefile) as f:
+					logging.debug('loading cached info periodic file:'+baselinecachefile)
+					jobdata = json.load(f)
+					
+					results['status'] = jobdata['Status']
+					if jobdata['Status'] == 'dead' and not jobdata['Stop'] and jobdata['JobSummary']['Summary'][jobname]['Complete'] == 1: results['status'] = 'completed'
+					if jobdata['Status'] == 'dead' and not jobdata['Stop'] and jobdata['JobSummary']['Summary'][jobname]['Failed'] == 1: results['status'] = 'failed'
+					if jobdata['Status'] == 'dead' and jobdata['Stop']: results['status'] = 'aborted'
+
+			if file.startswith("alloc_"):
+				alloccachefile = os.path.join(jobcachedir,file)
+				with open(alloccachefile) as f:
+					logging.debug('loading cached info alloc file:'+alloccachefile)
+					allocdata = json.load(f)
+				 	starttime = allocdata['TaskStates']['smartasses']['StartedAt']
+				 	starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
+					results['starttime'] = starttime
+
+			for file in os.listdir(jobcachedir):
+				if file.startswith('stderrlog_'): results['stderrlog'] = os.path.join(jobcachedir,file)
+				if file.startswith('stdoutlog_'): results['stdoutlog'] = os.path.join(jobcachedir,file)			
 
 	return results
+
+#get a list of soruces that should be created 
+def createtasksfromtree(dirtree, nodeid):
+
+	global totaljobssizek, totaljobsinode, totaljobscreated
+	
+	nodechildren = dirtree.children(nodeid.identifier)
+	for node in nodechildren:
+		#recurse ntil getting to the bottom of the tree
+		dirtree = createtasksfromtree(dirtree,node)
+		
+		jobcreated = False 
+		if not node.data.createjob and not node.data.excludejob:
+			if minsizekforjob <= node.data.sizek <= maxsizekforjob or mininodesforjob <= node.data.inodes <= maxinodesforjob:
+				logging.info(node.identifier+" will be a normal job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
+				jobcreated = True
+				totaljobscreated += 1
+			elif node.data.sizek > maxsizekforjob or node.data.inodes > maxinodesforjob:
+				logging.info(node.identifier+" will be a mega job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
+				jobcreated = True
+				totaljobscreated += 1
+
+		#if job created		
+		if jobcreated:
+
+			node.data.createjob = True
+			totaljobssizek += node.data.sizek
+			totaljobsinode += node.data.inodes
+
+			if not node.is_root():
+				dirtree.get_node(dirtree.root).data.inodes -= node.data.inodes
+				dirtree.get_node(dirtree.root).data.sizek -= node.data.sizek
+
+			tempnode = node
+			while tempnode:
+				tempnode.data.excludejob = True
+				#print tempnode.identifier+" is marked with exclude flag"
+				if not tempnode.is_root():
+					tempnode = dirtree.parent(tempnode.identifier)
+				else:
+					tempnode = None 
+
+	if nodeid.is_root():
+		if 1024 <= nodeid.data.sizek <= 1024*1024:
+			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024))+' MiB'
+		elif 1024*1024 <= nodeid.data.sizek <= 1024*1024*1024:
+			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024))+' GiB'
+		elif 1024*1024*1024*1024 <= nodeid.data.rootsizek:
+			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024/1024))+' TiB'
+
+		logging.info(nodeid.identifier+" will be a root job inodes:"+str(nodeid.data.inodes)+" size:"+str(nodeid.data.sizek)+" (excluding data from all other jobs)")
+		nodeid.data.createjob = True
+		totaljobscreated += 1
+
+	return dirtree 
 
 #show status of the smartasses jobs
 def smartasses_fs_linux_status(showlogs):
@@ -2472,7 +2538,7 @@ def smartasses_fs_linux_status(showlogs):
 	logging.debug("starting smartasses status") 	
 
 	table = PrettyTable()
-	table.field_names = ["Source Path","Scan Status","Hardlink Scan","Scan Start","Scan Time"]	
+	table.field_names = ["Source Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors']	
 
 	for smartassesjob in smartassesdict:
 		src = smartassesdict[smartassesjob]['src']
@@ -2480,13 +2546,133 @@ def smartasses_fs_linux_status(showlogs):
 			results = check_smartasses_job_status(smartassesjob)
 			resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
 
-			table.add_row([src,results['status'],resultshardlink['status'],results['starttime'],''])
+			scantime = '-'
+			scanned = '-'
+			errors = '-'
+
+			if results['status'] != 'not started':
+				#stderr parse
+				stderrresults = parse_stats_from_log ('file',results['stderrlog'],'stderr')
+				if 'time' in stderrresults.keys(): 
+					scantime = stderrresults['time']
+				if 'scanned' in stderrresults.keys(): 
+					scanned = stderrresults['scanned']
+				if 'errors' in stderrresults.keys(): 
+					errors = stderrresults['errors']			
+
+			scantimehl = '-'
+			scannedhl = '-'
+			errorshl = '-'
+			if resultshardlink['status'] != 'not started':
+				#stderr parse
+				stderrresults = parse_stats_from_log ('file',resultshardlink['stderrlog'],'stderr')
+				if 'time' in stderrresults.keys(): 
+					scantimehl = stderrresults['time']
+				if 'scanned' in stderrresults.keys(): 
+					scannedhl = stderrresults['scanned']
+				if 'errors' in stderrresults.keys(): 
+					errorshl = stderrresults['errors']	
+
+			if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
+				#parsing log to tree
+				dirtree = smartasses_parse_log_to_tree(src,results['stdoutlog'])
+				dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
+				#dirtree.show(data_property='createjob')
+
+			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl])
 		
 	table.border = False
 	table.align = 'l'
 	print ""
 	print table			
 
+
+def smartasses_parse_log_to_tree (basepath, inputfile):
+	
+	dirtree = Tree()
+
+	class dirdata:
+		def __init__(self, inodes,sizek,inodes_hr,size_hr,createjob,excludejob): 
+			self.inodes = inodes
+			self.sizek = sizek
+			self.inodes_hr = inodes_hr
+			self.size_hr  = size_hr
+			self.createjob = createjob
+			self.excludejob = excludejob	
+	dirtree.create_node('/', basepath)
+
+	if not os.path.isfile(inputfile):
+		logging.error("log file:"+inputfile+" does not exists")
+		exit(1)
+		s
+	with open(inputfile) as f:
+	    content = f.readlines()
+
+	content = [x.strip() for x in content] 
+	for line in content:
+		matchObj = re.search("^([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (\SiB) ([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) inodes ("+basepath+".+$)", line)
+		if matchObj:
+			size = float(matchObj.group(1).replace(',',''))
+			sizeq = matchObj.group(4)
+			inodes = int(matchObj.group(5).replace(',',''))
+			inodes_hr = matchObj.group(5)
+			size_hr = matchObj.group(1)+' '+sizeq
+			path = matchObj.group(8)
+
+			if re.search("^"+basepath+"($|\/)",path):
+				if sizeq == 'KiB': sizek = float(size)
+				if sizeq == 'MiB': sizek = float(size)*1024
+				if sizeq == 'GiB': sizek = float(size)*1024*1024
+				if sizeq == 'TiB': sizek = float(size)*1024*1024*1024
+
+				directory = path[len(basepath):]
+
+				dirsinpath = directory[1:].split("/")
+				dirparent = basepath
+
+				for subdir in dirsinpath:
+					if subdir != '':
+						currentpath = dirparent+'/'+subdir
+						if currentpath == path and not dirtree.get_node(currentpath):
+							logging.debug(currentpath+" - pushing deepest subdir:"+subdir+" to tree as:"+currentpath+" parent:"+dirparent)
+							dirtree.create_node(subdir,currentpath,parent=dirparent,data=dirdata(inodes,sizek,inodes_hr,size_hr,False,False))
+						elif currentpath == path and dirtree.get_node(currentpath):
+							logging.debug(currentpath +" - updating subdir:"+subdir+" to tree as:"+currentpath+" parent:"+dirparent)
+							dirtree.update_node(currentpath,data=dirdata(inodes,sizek,inodes_hr,size_hr,False,False))
+						elif not dirtree.get_node(currentpath):
+							logging.debug(currentpath+" - pushing new subdir:"+subdir+" to tree as:"+currentpath+" parent:"+dirparent)
+							dirtree.create_node(subdir,currentpath,parent=dirparent)				
+
+					dirparent += '/'+subdir 
+	
+	#calculate root sizek + inodes
+	a = dirtree.children(basepath)
+	rootinodes = 0 
+	rootsizek = 0 
+	for node in a:
+		rootsizek += node.data.sizek
+		rootinodes += node.data.inodes
+
+	if rootsizek < 0:
+		rootsizek = 0
+		logging.debug('rootsizek calculation is lower than 0, setting it to 0')
+
+	if rootinodes < 0:
+		rootinodes = 0
+		logging.debug('rootinodes calculation is lower than 0, setting it to 0')
+
+	rootsizek_hr = format(rootsizek)+' KiB'
+	if 1024 <= rootsizek <= 1024*1024:
+		rootsizek_hr = format(int(rootsizek/1024))+' MiB'
+	elif 1024*1024 <= rootsizek <= 1024*1024*1024:
+		rootsizek_hr = format(int(rootsizek/1024/1024))+' GiB'
+	elif 1024*1024*1024*1024 <= rootsizek:
+		rootsizek_hr = format(int(rootsizek/1024/1024/1024))+' TiB'
+
+	dirtree.update_node(basepath,data=dirdata(rootinodes,rootsizek,format(rootinodes,","),rootsizek_hr,False,False))
+
+	#return the dirtree value 
+	return dirtree
 
 
 #smart assesment for linux based on capacity and inode count. this will initiate a scan 
@@ -3328,4 +3514,5 @@ if args.subparser_name == 'smartasses':
 		smartasses_fs_linux_start(args.source,args.depth,args.locate_cross_job_hardlink)
 
 	if args.smartasses_command == 'status':
+		parse_nomad_jobs_to_files()
 		smartasses_fs_linux_status(args.logs)		
