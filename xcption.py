@@ -108,9 +108,9 @@ maxloglinestodisplay = 200
 
 #smartasses globals 
 maxsizekforjob = 5000000000
-maxinodesforjob = 25000
 minsizekforjob = 500000000
-mininodesforjob = 1200
+maxinodespertask_minborder = 100000
+maxinodespertask = maxinodespertask_minborder * 2
 maxjobs = 100
 
 totaljobssizek = 0
@@ -210,6 +210,7 @@ parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to cr
 parser_smartasses_start.add_argument('-k','--locate-cross-job-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
 parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartasses_status.add_argument('-m','--max-inodes',help="maximum inodes for task default is:"+format(maxinodespertask_minborder,','), required=False,type=int,metavar='maxinodespertask_minborder')
 parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose information per suggested path", required=False,action='store_true')
 parser_smartasses_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 #parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
@@ -2490,11 +2491,11 @@ def createtasksfromtree(dirtree, nodeid):
 		
 		jobcreated = False 
 		if not node.data.createjob and not node.data.excludejob:
-			if minsizekforjob <= node.data.sizek <= maxsizekforjob or mininodesforjob <= node.data.inodes <= maxinodesforjob:
+			if minsizekforjob <= node.data.sizek <= maxsizekforjob or maxinodespertask_minborder <= node.data.inodes <= maxinodespertask:
 				logging.debug(node.identifier+" will be a normal job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
 				jobcreated = True
 				totaljobscreated += 1
-			elif node.data.sizek > maxsizekforjob or node.data.inodes > maxinodesforjob:
+			elif node.data.sizek > maxsizekforjob or node.data.inodes > maxinodespertask:
 				logging.debug(node.identifier+" will be a mega job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
 				jobcreated = True
 				totaljobscreated += 1
@@ -2521,12 +2522,12 @@ def createtasksfromtree(dirtree, nodeid):
 
 	if nodeid.is_root():
 		if 1024 <= nodeid.data.sizek <= 1024*1024:
-			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024))+' MiB'
+			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024),',')+' MiB'
 		elif 1024*1024 <= nodeid.data.sizek <= 1024*1024*1024:
-			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024))+' GiB'
+			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024),',')+' GiB'
 		elif 1024*1024*1024*1024 <= nodeid.data.sizek:
-			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024/1024))+' TiB'
-		nodeid.data.inodes_hr = format(nodeid.data.inodes)
+			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024/1024),',')+' TiB'
+		nodeid.data.inodes_hr = format(nodeid.data.inodes,',')
 
 		logging.debug(nodeid.identifier+" will be a root job inodes:"+str(nodeid.data.inodes)+" size:"+str(nodeid.data.sizek)+" (excluding data from all other jobs)")
 		nodeid.data.createjob = True
@@ -2537,13 +2538,13 @@ def createtasksfromtree(dirtree, nodeid):
 #convert K to human readable 
 def k_to_hr (k):
 
-	hr = format(k)+' KiB'
+	hr = format(k,',')+' KiB'
 	if 1024 <= k <= 1024*1024:
-		hr = format(int(k/1024))+' MiB'
+		hr = format(int(k/1024),',')+' MiB'
 	elif 1024*1024 <= k <= 1024*1024*1024:
-		hr = format(int(k/1024/1024))+' GiB'
+		hr = format(int(k/1024/1024),',')+' GiB'
 	elif 1024*1024*1024*1024 <= k:
-		hr = format(int(k/1024/1024/1024))+' TiB'
+		hr = format(int(k/1024/1024/1024),',')+' TiB'
 	return hr
 
 

@@ -122,7 +122,7 @@ if [ "$ONLINE" == "true" ]; then
   pip install prettytable
   pip install croniter
   pip install hurry.filesize
-  pip install graphyte
+  pip install treelib
 else
   mkdir -p /tmp/pip_unzip_loc
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
