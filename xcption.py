@@ -107,10 +107,10 @@ defaultmemory = 800
 maxloglinestodisplay = 200
 
 #smartasses globals 
-maxsizekforjob = 5000000000
-minsizekforjob = 500000000
-maxinodespertask_minborder = 100000
-maxinodespertask = maxinodespertask_minborder * 2
+
+minsizekfortask_minborder = 0.5*1024*1024*1024 #512GB
+mininodespertask_minborder = 100000 
+
 maxjobs = 100
 
 totaljobssizek = 0
@@ -209,10 +209,33 @@ parser_smartasses_start.add_argument('-s','--source',help="source nfs path (nfss
 parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_smartasses_start.add_argument('-k','--locate-cross-job-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
+#check capacity parameter 
+def checkcapacity (capacity):
+	matchObj = re.match("^(\d+)(KB|MB|GB|TB)$",capacity)
+	if not matchObj:
+		raise argparse.ArgumentTypeError("invalid capacity")
+	return capacity
+
+#convert K to human readable 
+def k_to_hr (k):
+
+	hr = format(k,',')+' KiB'
+	if 1024 <= k <= 1024*1024:
+		hr = format(int(k/1024),',')+' MiB'
+	elif 1024*1024 <= k <= 1024*1024*1024:
+		hr = format(int(k/1024/1024),',')+' GiB'
+	elif 1024*1024*1024*1024 <= k:
+		hr = format(int(k/1024/1024/1024),',')+' TiB'
+	return hr	
+
 parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_smartasses_status.add_argument('-m','--max-inodes',help="maximum inodes for task default is:"+format(maxinodespertask_minborder,','), required=False,type=int,metavar='maxinodespertask_minborder')
+parser_smartasses_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
+parser_smartasses_status.add_argument('-c','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
 parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose information per suggested path", required=False,action='store_true')
-parser_smartasses_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
+
+
+
+#parser_smartasses_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 #parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
 #parser_smartasses_status.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
 #parser_smartasses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
@@ -226,7 +249,6 @@ parser_smartasses_status.add_argument('-l','--logs',help="display job logs", req
 
 
 args = parser.parse_args()
-
 
 #initialize logging 
 log = logging.getLogger()
@@ -2490,12 +2512,13 @@ def createtasksfromtree(dirtree, nodeid):
 		dirtree = createtasksfromtree(dirtree,node)
 		
 		jobcreated = False 
+
 		if not node.data.createjob and not node.data.excludejob:
-			if minsizekforjob <= node.data.sizek <= maxsizekforjob or maxinodespertask_minborder <= node.data.inodes <= maxinodespertask:
+			if minsizekfortask_minborder <= node.data.sizek <= minsizekforjob or mininodespertask_minborder <= node.data.inodes <= mininodespertask:
 				logging.debug(node.identifier+" will be a normal job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
 				jobcreated = True
 				totaljobscreated += 1
-			elif node.data.sizek > maxsizekforjob or node.data.inodes > maxinodespertask:
+			elif node.data.sizek > minsizekforjob or node.data.inodes > mininodespertask:
 				logging.debug(node.identifier+" will be a mega job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
 				jobcreated = True
 				totaljobscreated += 1
@@ -2535,21 +2558,27 @@ def createtasksfromtree(dirtree, nodeid):
 
 	return dirtree 
 
-#convert K to human readable 
-def k_to_hr (k):
+#parse hardlink log file and return results based on the suggested tasks 
+def createhardlinkmatches(dirtree,inputfile):
+	if not os.path.isfile(inputfile):
+		logging.error("log file:"+inputfile+" does not exists")
+		exit(1)
+		s
+	with open(inputfile) as f:
+	    content = f.readlines()
 
-	hr = format(k,',')+' KiB'
-	if 1024 <= k <= 1024*1024:
-		hr = format(int(k/1024),',')+' MiB'
-	elif 1024*1024 <= k <= 1024*1024*1024:
-		hr = format(int(k/1024/1024),',')+' GiB'
-	elif 1024*1024*1024*1024 <= k:
-		hr = format(int(k/1024/1024/1024),',')+' TiB'
-	return hr
+	hardlinks ={}
+
+	content = [x.strip() for x in content] 
+	for line in content:
+		path,inode = line.split(',')
+		if path and inode:
+			print inode
 
 
 #show status of the smartasses jobs
-def smartasses_fs_linux_status(verbose,showlogs):
+def smartasses_fs_linux_status(verbose):
+	global mininodespertask_minborder, mininodespertask
 	global smartassesdict
 	global totaljobscreated,totaljobssizek
 
@@ -2598,7 +2627,10 @@ def smartasses_fs_linux_status(verbose,showlogs):
 				#parsing log to tree
 				dirtree = smartasses_parse_log_to_tree(src,results['stdoutlog'])
 				dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
-				#dirtree.show(data_property='createjob')
+
+				if resultshardlink['status'] == 'completed':
+					hardlinks = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
+				
 
 			if totaljobscreated == 0: totaljobscreated = '-'
 			if totaljobssizek > 0:
@@ -2670,7 +2702,7 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 
 	content = [x.strip() for x in content] 
 	for line in content:
-		matchObj = re.search("^([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (\SiB) ([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) inodes ("+basepath+".+$)", line)
+		matchObj = re.search("^([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (\SiB) ([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) inode. ("+basepath+".+$)", line)
 		if matchObj:
 			size = float(matchObj.group(1).replace(',',''))
 			sizeq = matchObj.group(4)
@@ -3568,5 +3600,17 @@ if args.subparser_name == 'smartasses':
 		smartasses_fs_linux_start(args.source,args.depth,args.locate_cross_job_hardlink)
 
 	if args.smartasses_command == 'status':
+		if args.min_capacity:
+			matchObj = re.match("^(\d+)(KB|MB|GB|TB)$",args.min_capacity)
+			if matchObj.group(2) == 'KB': minsizekfortask_minborder=int(matchObj.group(1))
+			if matchObj.group(2) == 'MB': minsizekfortask_minborder=int(matchObj.group(1))*1024
+			if matchObj.group(2) == 'GB': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024
+			if matchObj.group(2) == 'TB': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024*1024		
+		minsizekforjob = minsizekfortask_minborder + 100000
+
+		if args.min_inodes:
+			mininodespertask_minborder = args.min_inodes
+		mininodespertask = mininodespertask_minborder + 200000
+
 		parse_nomad_jobs_to_files()
-		smartasses_fs_linux_status(args.verbose,args.logs)		
+		smartasses_fs_linux_status(args.verbose)		
