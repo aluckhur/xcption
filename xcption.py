@@ -108,9 +108,9 @@ maxloglinestodisplay = 200
 
 #smartasses globals 
 maxsizekforjob = 5000000000
-maxinodesforjob = 250
+maxinodesforjob = 25000
 minsizekforjob = 500000000
-mininodesforjob = 120
+mininodesforjob = 1200
 maxjobs = 100
 
 totaljobssizek = 0
@@ -210,6 +210,7 @@ parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to cr
 parser_smartasses_start.add_argument('-k','--locate-cross-job-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
 parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose information per suggested path", required=False,action='store_true')
 parser_smartasses_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 #parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
 #parser_smartasses_status.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
@@ -2490,11 +2491,11 @@ def createtasksfromtree(dirtree, nodeid):
 		jobcreated = False 
 		if not node.data.createjob and not node.data.excludejob:
 			if minsizekforjob <= node.data.sizek <= maxsizekforjob or mininodesforjob <= node.data.inodes <= maxinodesforjob:
-				logging.info(node.identifier+" will be a normal job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
+				logging.debug(node.identifier+" will be a normal job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
 				jobcreated = True
 				totaljobscreated += 1
 			elif node.data.sizek > maxsizekforjob or node.data.inodes > maxinodesforjob:
-				logging.info(node.identifier+" will be a mega job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
+				logging.debug(node.identifier+" will be a mega job inodes:"+node.data.inodes_hr+" size:"+node.data.size_hr)
 				jobcreated = True
 				totaljobscreated += 1
 
@@ -2523,24 +2524,43 @@ def createtasksfromtree(dirtree, nodeid):
 			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024))+' MiB'
 		elif 1024*1024 <= nodeid.data.sizek <= 1024*1024*1024:
 			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024))+' GiB'
-		elif 1024*1024*1024*1024 <= nodeid.data.rootsizek:
+		elif 1024*1024*1024*1024 <= nodeid.data.sizek:
 			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024/1024))+' TiB'
+		nodeid.data.inodes_hr = format(nodeid.data.inodes)
 
-		logging.info(nodeid.identifier+" will be a root job inodes:"+str(nodeid.data.inodes)+" size:"+str(nodeid.data.sizek)+" (excluding data from all other jobs)")
+		logging.debug(nodeid.identifier+" will be a root job inodes:"+str(nodeid.data.inodes)+" size:"+str(nodeid.data.sizek)+" (excluding data from all other jobs)")
 		nodeid.data.createjob = True
 		totaljobscreated += 1
 
 	return dirtree 
 
+#convert K to human readable 
+def k_to_hr (k):
+
+	hr = format(k)+' KiB'
+	if 1024 <= k <= 1024*1024:
+		hr = format(int(k/1024))+' MiB'
+	elif 1024*1024 <= k <= 1024*1024*1024:
+		hr = format(int(k/1024/1024))+' GiB'
+	elif 1024*1024*1024*1024 <= k:
+		hr = format(int(k/1024/1024/1024))+' TiB'
+	return hr
+
+
 #show status of the smartasses jobs
-def smartasses_fs_linux_status(showlogs):
+def smartasses_fs_linux_status(verbose,showlogs):
 	global smartassesdict
+	global totaljobscreated,totaljobssizek
+
 	logging.debug("starting smartasses status") 	
 
 	table = PrettyTable()
-	table.field_names = ["Source Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors']	
+	table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks']	
 
 	for smartassesjob in smartassesdict:
+		totaljobscreated = 0 
+		totaljobssizek = 0 
+
 		src = smartassesdict[smartassesjob]['src']
 		if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 			results = check_smartasses_job_status(smartassesjob)
@@ -2579,10 +2599,49 @@ def smartasses_fs_linux_status(showlogs):
 				dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
 				#dirtree.show(data_property='createjob')
 
-			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl])
+			if totaljobscreated == 0: totaljobscreated = '-'
+			if totaljobssizek > 0:
+				size_hr = k_to_hr(totaljobssizek)
+			else:
+				size_hr = '-'
+			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated])
+
+			if verbose:
+				if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
+
+					table.border = False
+					table.align = 'l'
+					print ""
+					print table	
+
+					table = PrettyTable()
+					table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks']	
+
+					print ""
+					print "   Suggested tasks:"
+					print ""
+					tasktable = PrettyTable()
+					tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task"]	
+					
+					for task in dirtree.filter_nodes(lambda x: x.data.createjob):
+						tasktable.add_row([task.identifier,task.data.size_hr,task.data.inodes_hr,task.is_root()])
+
+					tasktable.border = False
+					tasktable.align = 'l'
+					tasktable.padding_width = 5
+					tasktable.sortby = 'Path'
+					print tasktable								
+						#if dirtree.get_node(node).data.createjob:
+					#s		print node, dirtree.get_node(node).data.inodes,dirtree.get_node(node).data.createjob
+
+				else:
+					print 'verbose information will be available when scan will complete'
+				
+
 		
 	table.border = False
 	table.align = 'l'
+
 	print ""
 	print table			
 
@@ -2661,13 +2720,7 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 		rootinodes = 0
 		logging.debug('rootinodes calculation is lower than 0, setting it to 0')
 
-	rootsizek_hr = format(rootsizek)+' KiB'
-	if 1024 <= rootsizek <= 1024*1024:
-		rootsizek_hr = format(int(rootsizek/1024))+' MiB'
-	elif 1024*1024 <= rootsizek <= 1024*1024*1024:
-		rootsizek_hr = format(int(rootsizek/1024/1024))+' GiB'
-	elif 1024*1024*1024*1024 <= rootsizek:
-		rootsizek_hr = format(int(rootsizek/1024/1024/1024))+' TiB'
+	rootsizek_hr = k_to_hr(rootsizek)
 
 	dirtree.update_node(basepath,data=dirdata(rootinodes,rootsizek,format(rootinodes,","),rootsizek_hr,False,False))
 
@@ -3515,4 +3568,4 @@ if args.subparser_name == 'smartasses':
 
 	if args.smartasses_command == 'status':
 		parse_nomad_jobs_to_files()
-		smartasses_fs_linux_status(args.logs)		
+		smartasses_fs_linux_status(args.verbose,args.logs)		
