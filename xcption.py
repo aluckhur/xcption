@@ -2353,7 +2353,8 @@ def parse_nomad_jobs_to_files ():
 						logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
 						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
 						try:
-							if not os.path.isfile(alloclogfile):
+							#for smartasses jobs always pull a full file 
+							if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartasses'):
 								with open(alloclogfile, 'w') as fp:
 									logging.debug("dumping log to log file:"+alloclogfile)
 									fp.write(response.content)
@@ -2560,6 +2561,18 @@ def createtasksfromtree(dirtree, nodeid):
 
 #parse hardlink log file and return results based on the suggested tasks 
 def createhardlinkmatches(dirtree,inputfile):
+
+	class dirdata:
+		def __init__(self, inodes,sizek,inodes_hr,size_hr,createjob,excludejob,hardlinks): 
+			self.inodes = inodes
+			self.sizek = sizek
+			self.inodes_hr = inodes_hr
+			self.size_hr  = size_hr
+			self.createjob = createjob
+			self.excludejob = excludejob
+			self.hardlinks = hardlinks
+	
+
 	if not os.path.isfile(inputfile):
 		logging.error("log file:"+inputfile+" does not exists")
 		exit(1)
@@ -2568,12 +2581,49 @@ def createhardlinkmatches(dirtree,inputfile):
 	    content = f.readlines()
 
 	hardlinks ={}
+	crosstaskcount = 0 
 
 	content = [x.strip() for x in content] 
 	for line in content:
 		path,inode = line.split(',')
 		if path and inode:
-			print inode
+			if not inode in hardlinks.keys(): 
+				hardlinks[inode] = {}
+				hardlinks[inode]['count'] = 0
+
+			hardlinks[inode]['count'] += 1
+
+			taskobj = None
+			longesttask = ''			
+			for task in dirtree.filter_nodes(lambda x: path.startswith(x.identifier) and x.data.createjob):
+				if len(task.identifier) > len(longesttask):
+					longesttask = task.identifier
+					taskobj = task
+
+			if not longesttask in hardlinks[inode].keys(): 
+				hardlinks[inode][longesttask] = {}
+				hardlinks[inode][longesttask]['count'] = 1
+				hardlinks[inode][longesttask]['paths'] = {}
+				hardlinks[inode][longesttask]['paths'][path] = True
+				if not 'taskcount' in hardlinks[inode].keys():
+					hardlinks[inode]['taskcount'] = 1
+				else:	
+					hardlinks[inode]['taskcount'] += 1
+				
+				#updating tree structure with number of hardlink nuber of tasks 
+				if hardlinks[inode]['taskcount'] > task.data.hardlinks:
+					dirtree.update_node(longesttask,data=dirdata(taskobj.data.inodes,
+						taskobj.data.sizek,taskobj.data.inodes_hr,taskobj.data.size_hr,taskobj.data.createjob,taskobj.data.excludejob,
+						hardlinks[inode]['taskcount']))
+					crosstaskcount = hardlinks[inode]['taskcount']
+			else:
+				hardlinks[inode][longesttask]['count'] += 1
+				hardlinks[inode][longesttask]['paths'][path] = True
+
+
+
+	return hardlinks,crosstaskcount
+
 
 
 #show status of the smartasses jobs
@@ -2585,7 +2635,7 @@ def smartasses_fs_linux_status(verbose):
 	logging.debug("starting smartasses status") 	
 
 	table = PrettyTable()
-	table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks']	
+	table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
 
 	for smartassesjob in smartassesdict:
 		totaljobscreated = 0 
@@ -2613,6 +2663,7 @@ def smartasses_fs_linux_status(verbose):
 			scantimehl = '-'
 			scannedhl = '-'
 			errorshl = '-'
+			crosstaskcount = '-'
 			if resultshardlink['status'] != 'not started':
 				#stderr parse
 				stderrresults = parse_stats_from_log ('file',resultshardlink['stderrlog'],'stderr')
@@ -2629,7 +2680,9 @@ def smartasses_fs_linux_status(verbose):
 				dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
 
 				if resultshardlink['status'] == 'completed':
-					hardlinks = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
+					hardlinks,crosstaskcount = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
+
+					pp.pprint  (hardlinks )
 				
 
 			if totaljobscreated == 0: totaljobscreated = '-'
@@ -2637,16 +2690,17 @@ def smartasses_fs_linux_status(verbose):
 				size_hr = k_to_hr(totaljobssizek)
 			else:
 				size_hr = '-'
-			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated])
+
+			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated,crosstaskcount])
 
 			if verbose:
+
+				table.border = False
+				table.align = 'l'
+				print ""
+				print table	
+
 				if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
-
-					table.border = False
-					table.align = 'l'
-					print ""
-					print table	
-
 					table = PrettyTable()
 					table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks']	
 
@@ -2668,15 +2722,17 @@ def smartasses_fs_linux_status(verbose):
 					#s		print node, dirtree.get_node(node).data.inodes,dirtree.get_node(node).data.createjob
 
 				else:
-					print 'verbose information will be available when scan will complete'
+					print ""
+					print '     verbose information will be available when scan will complete'
 				
 
 		
-	table.border = False
-	table.align = 'l'
+	if not verbose:
+		table.border = False
+		table.align = 'l'
 
-	print ""
-	print table			
+		print ""
+		print table			
 
 
 def smartasses_parse_log_to_tree (basepath, inputfile):
@@ -2684,13 +2740,15 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 	dirtree = Tree()
 
 	class dirdata:
-		def __init__(self, inodes,sizek,inodes_hr,size_hr,createjob,excludejob): 
+		def __init__(self, inodes,sizek,inodes_hr,size_hr,createjob,excludejob,hardlinks): 
 			self.inodes = inodes
 			self.sizek = sizek
 			self.inodes_hr = inodes_hr
 			self.size_hr  = size_hr
 			self.createjob = createjob
-			self.excludejob = excludejob	
+			self.excludejob = excludejob
+			self.hardlinks = hardlinks
+	
 	dirtree.create_node('/', basepath)
 
 	if not os.path.isfile(inputfile):
@@ -2727,10 +2785,10 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 						currentpath = dirparent+'/'+subdir
 						if currentpath == path and not dirtree.get_node(currentpath):
 							logging.debug(currentpath+" - pushing deepest subdir:"+subdir+" to tree as:"+currentpath+" parent:"+dirparent)
-							dirtree.create_node(subdir,currentpath,parent=dirparent,data=dirdata(inodes,sizek,inodes_hr,size_hr,False,False))
+							dirtree.create_node(subdir,currentpath,parent=dirparent,data=dirdata(inodes,sizek,inodes_hr,size_hr,False,False,0))
 						elif currentpath == path and dirtree.get_node(currentpath):
 							logging.debug(currentpath +" - updating subdir:"+subdir+" to tree as:"+currentpath+" parent:"+dirparent)
-							dirtree.update_node(currentpath,data=dirdata(inodes,sizek,inodes_hr,size_hr,False,False))
+							dirtree.update_node(currentpath,data=dirdata(inodes,sizek,inodes_hr,size_hr,False,False,0))
 						elif not dirtree.get_node(currentpath):
 							logging.debug(currentpath+" - pushing new subdir:"+subdir+" to tree as:"+currentpath+" parent:"+dirparent)
 							dirtree.create_node(subdir,currentpath,parent=dirparent)				
@@ -2755,7 +2813,7 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 
 	rootsizek_hr = k_to_hr(rootsizek)
 
-	dirtree.update_node(basepath,data=dirdata(rootinodes,rootsizek,format(rootinodes,","),rootsizek_hr,False,False))
+	dirtree.update_node(basepath,data=dirdata(rootinodes,rootsizek,format(rootinodes,","),rootsizek_hr,False,False,0))
 
 	#return the dirtree value 
 	return dirtree
