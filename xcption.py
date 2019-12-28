@@ -231,7 +231,8 @@ def k_to_hr (k):
 parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_smartasses_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
 parser_smartasses_status.add_argument('-c','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
-parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose information per suggested path", required=False,action='store_true')
+parser_smartasses_status.add_argument('-t','--tasks',help="provide verbose task information per suggested path", required=False,action='store_true')
+parser_smartasses_status.add_argument('-l','--hardlinks',help="provide hardlink conflict information per suggested path", required=False,action='store_true')
 
 
 
@@ -2576,7 +2577,7 @@ def createhardlinkmatches(dirtree,inputfile):
 	if not os.path.isfile(inputfile):
 		logging.error("log file:"+inputfile+" does not exists")
 		exit(1)
-		s
+
 	with open(inputfile) as f:
 	    content = f.readlines()
 
@@ -2590,6 +2591,7 @@ def createhardlinkmatches(dirtree,inputfile):
 			if not inode in hardlinks.keys(): 
 				hardlinks[inode] = {}
 				hardlinks[inode]['count'] = 0
+				hardlinks[inode]['tasks'] = {}
 
 			hardlinks[inode]['count'] += 1
 
@@ -2599,12 +2601,11 @@ def createhardlinkmatches(dirtree,inputfile):
 				if len(task.identifier) > len(longesttask):
 					longesttask = task.identifier
 					taskobj = task
-
-			if not longesttask in hardlinks[inode].keys(): 
-				hardlinks[inode][longesttask] = {}
-				hardlinks[inode][longesttask]['count'] = 1
-				hardlinks[inode][longesttask]['paths'] = {}
-				hardlinks[inode][longesttask]['paths'][path] = True
+			if not longesttask in hardlinks[inode]['tasks'].keys(): 
+				hardlinks[inode]['tasks'][longesttask] = {}
+				hardlinks[inode]['tasks'][longesttask]['count'] = 1
+				hardlinks[inode]['tasks'][longesttask]['paths'] = {}
+				hardlinks[inode]['tasks'][longesttask]['paths'][path] = True
 				if not 'taskcount' in hardlinks[inode].keys():
 					hardlinks[inode]['taskcount'] = 1
 				else:	
@@ -2617,21 +2618,39 @@ def createhardlinkmatches(dirtree,inputfile):
 						hardlinks[inode]['taskcount']))
 					crosstaskcount = hardlinks[inode]['taskcount']
 			else:
-				hardlinks[inode][longesttask]['count'] += 1
-				hardlinks[inode][longesttask]['paths'][path] = True
-
-
+				hardlinks[inode]['tasks'][longesttask]['count'] += 1
+				hardlinks[inode]['tasks'][longesttask]['paths'][path] = True
 
 	return hardlinks,crosstaskcount
 
+def gethardlinklistpertask(hardlinks,src):
+	hardlinkpaths = {}
+	for inode in hardlinks:
+		for task in hardlinks[inode]['tasks']:
+			for path in hardlinks[inode]['tasks'][task]['paths']:
+				if task == src:
+					for task1 in hardlinks[inode]['tasks']:
+						if task1 != src: 
+							for path1 in hardlinks[inode]['tasks'][task1]['paths']:
+								
+								if not task in hardlinkpaths.keys():
+									hardlinkpaths[task] = {}
+								if not path in hardlinkpaths[task].keys():
+									hardlinkpaths[task][path] = {}
+
+								logging.debug("task:"+task+" path:"+path+" have the following links in another task:"+task1+" path:"+path1)
+								hardlinkpaths[task][path][path1]=task1
+
+	return hardlinkpaths
 
 
 #show status of the smartasses jobs
-def smartasses_fs_linux_status(verbose):
+def smartasses_fs_linux_status(displaytasks,displaylinks):
 	global mininodespertask_minborder, mininodespertask
 	global smartassesdict
 	global totaljobscreated,totaljobssizek
 
+	infofound = False 
 	logging.debug("starting smartasses status") 	
 
 	table = PrettyTable()
@@ -2663,7 +2682,7 @@ def smartasses_fs_linux_status(verbose):
 			scantimehl = '-'
 			scannedhl = '-'
 			errorshl = '-'
-			crosstaskcount = '-'
+			crosstaskcount = 0
 			if resultshardlink['status'] != 'not started':
 				#stderr parse
 				stderrresults = parse_stats_from_log ('file',resultshardlink['stderrlog'],'stderr')
@@ -2681,19 +2700,22 @@ def smartasses_fs_linux_status(verbose):
 
 				if resultshardlink['status'] == 'completed':
 					hardlinks,crosstaskcount = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
-
-					pp.pprint  (hardlinks )
-				
+									
 
 			if totaljobscreated == 0: totaljobscreated = '-'
 			if totaljobssizek > 0:
 				size_hr = k_to_hr(totaljobssizek)
 			else:
 				size_hr = '-'
+			if crosstaskcount >0: crosstaskcount -= 1
 
-			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated,crosstaskcount])
-
-			if verbose:
+			crosstaskcountlabel = crosstaskcount
+			if crosstaskcount == 0 and resultshardlink['status'] == 'completed': crosstaskcountlabel = 'no conflicts'
+			if crosstaskcount == 0 and resultshardlink['status'] == 'not started': crosstaskcountlabel = 'not evaluated'
+			
+			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated,crosstaskcountlabel])
+			infofound = True 
+			if displaytasks:
 
 				table.border = False
 				table.align = 'l'
@@ -2702,37 +2724,69 @@ def smartasses_fs_linux_status(verbose):
 
 				if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
 					table = PrettyTable()
-					table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks']	
+					table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
 
 					print ""
 					print "   Suggested tasks:"
 					print ""
 					tasktable = PrettyTable()
-					tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task"]	
+					tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
 					
 					for task in dirtree.filter_nodes(lambda x: x.data.createjob):
-						tasktable.add_row([task.identifier,task.data.size_hr,task.data.inodes_hr,task.is_root()])
+						
+						taskhardlinksinothertasks = 0
+						if crosstaskcount > 0:
+							hardlinklist = gethardlinklistpertask(hardlinks,task.identifier)
+							
+							if task.identifier in hardlinklist.keys():
+								taskhardlinksinothertasks = len(hardlinklist[task.identifier])
+
+						tasktable.add_row([task.identifier,task.data.size_hr,task.data.inodes_hr,task.is_root(),taskhardlinksinothertasks])
+						if taskhardlinksinothertasks > 0 and displaylinks:
+
+							tasktable.border = False
+							tasktable.align = 'l'
+							tasktable.padding_width = 5
+							print tasktable
+							tasktable = PrettyTable()
+							tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
+
+							hardlinktable = PrettyTable()
+							hardlinktable.field_names = ["Hardlink Path","Linked To","Destination Task"]							
+							for path in hardlinklist[task.identifier]:
+								for path1 in hardlinklist[task.identifier][path]:
+									hllinktask = hardlinklist[task.identifier][path][path1]
+
+									hardlinktable.add_row([path,path1,hllinktask])
+
+							hardlinktable.border = False
+							hardlinktable.align = 'l'
+							hardlinktable.padding_width = 8
+							print ""
+							print hardlinktable				
+							print ""
+
 
 					tasktable.border = False
 					tasktable.align = 'l'
 					tasktable.padding_width = 5
-					tasktable.sortby = 'Path'
+					#tasktable.sortby = 'Path'
 					print tasktable								
-						#if dirtree.get_node(node).data.createjob:
-					#s		print node, dirtree.get_node(node).data.inodes,dirtree.get_node(node).data.createjob
 
 				else:
-					print ""
-					print '     verbose information will be available when scan will complete'
+					print '     vebose information not yet avaialable. it will be avaialble when scan will be completed'
 				
 
 		
-	if not verbose:
+	if not displaytasks and infofound:
 		table.border = False
 		table.align = 'l'
 
 		print ""
 		print table			
+
+	if not infofound:
+		print "     no info found"
 
 
 def smartasses_parse_log_to_tree (basepath, inputfile):
@@ -2832,7 +2886,7 @@ def smartasses_fs_linux_start(src,depth,locate_cross_job_hardlink):
 	smartasses_job_name = smartasses_job_name.replace('$','_dollar')	
 
 	if smartasses_job_name in smartassesdict.keys():
-		logging.error("smartasses job already exissts for src:"+src) 
+		logging.error("smartasses job already exists for src:"+src+', to run again please delete exisiting task 1st') 
 		exit(1)	
 
 	if not re.search("\S+\:\/\S+", src):
@@ -3671,4 +3725,4 @@ if args.subparser_name == 'smartasses':
 		mininodespertask = mininodespertask_minborder + 200000
 
 		parse_nomad_jobs_to_files()
-		smartasses_fs_linux_status(args.verbose)		
+		smartasses_fs_linux_status(args.tasks,args.hardlinks)		
