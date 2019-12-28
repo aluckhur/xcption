@@ -77,6 +77,9 @@ nomadpath = '/usr/local/bin/nomad'
 #location for the jobs dir
 jobsdir = os.path.join(xcprepopath,'jobs') 
 
+#exclude dirictory files location
+excludedir = os.path.join(xcprepopath,'excludedir') 
+
 #file containing loaded jobs 
 jobdictjson = os.path.join(jobsdir,'jobs.json')
 
@@ -381,8 +384,15 @@ def parse_csv(csv_path):
 
 					failbackgroup =''
 					if 8 < len(row): failbackgroup  = row[8]	
+
+					excludedirfile = ''
+					if 9 < len(row): excludedirfile = os.path.join(excludedir,row[9])
+					#check if exclude file exists 
+					if excludedirfile != '' and not os.path.isfile(excludedirfile):
+						logging.error("exclude dir file:"+excludedirfile+" for src:"+src+" could not be found")
+						exit(1)
 					
-					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool+" failbackuser:"+failbackuser+" failback group:"+failbackgroup) 
+					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool+" failbackuser:"+failbackuser+" failback group:"+failbackgroup+" exclude dir file:"+excludedirfile) 
 
 					srcbase = src.replace(':/','-_')
 					srcbase = srcbase.replace('/','_')
@@ -494,6 +504,8 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["failbackuser"] = failbackuser
 					jobsdict[jobname][src]["failbackgroup"] = failbackgroup
 					jobsdict[jobname][src]["dcname"] = dcname
+					jobsdict[jobname][src]["excludedirfile"] = excludedirfile
+
 
 					logging.debug("parsed the following relation:"+src+" -> "+dst)
 
@@ -730,6 +742,7 @@ def create_nomad_jobs():
 					tool              = jobdetails['tool']
 					failbackuser      = jobdetails['failbackuser']
 					failbackgroup     = jobdetails['failbackgroup']
+					excludedirfile    = jobdetails['excludedirfile']
 
 					if ostype == 'linux': xcpbinpath = xcppath
 					if ostype == 'windows': xcpbinpath = 'powershell'
@@ -740,7 +753,11 @@ def create_nomad_jobs():
 					logging.debug("creating baseline job file: " + baseline_job_file)				
 
 					
-					if ostype == 'linux':  cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+					if ostype == 'linux':  
+						if excludedirfile == '':
+							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+						else:
+							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 
 					if ostype == 'windows' and tool == 'xcp': 
 						cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
@@ -763,9 +780,10 @@ def create_nomad_jobs():
 					sync_job_file = os.path.join(jobdir,sync_job_name+'.hcl')		
 					logging.debug("creating sync job file: " + sync_job_file)				
 					
-					if ostype == 'linux':  cmdargs = "sync\",\"-id\",\""+xcpindexname
+					if ostype == 'linux':
+						cmdargs = "sync\",\"-id\",\""+xcpindexname
 					if ostype == 'windows' and tool == 'xcp': 
-						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst)
 					if ostype == 'windows' and tool == 'robocopy': 
 						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
 
@@ -785,7 +803,11 @@ def create_nomad_jobs():
 					verify_job_file = os.path.join(jobdir,verify_job_name+'.hcl')	
 					logging.debug("creating verify job file: " + verify_job_file)	
 					
-					if ostype == 'linux':  cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
+					if ostype == 'linux':  
+						if excludedirfile == '':
+							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
+						else:
+							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
 					
 					with open(verify_job_file, 'w') as fh:
@@ -827,9 +849,9 @@ def check_baseline_job_status (baselinejobname):
 	if baselinejobcompleted != 1: 
 		logging.debug("baseline job:"+baselinejobname+" exists but did not completed") 
 		baselinejob = None
-		return('Baseline Is Not Complete')
+		return('baseline not complete')
 	else:
-		return('Baseline Is Complete')
+		return('baseline is complete')
 	
 
 #start nomand job
@@ -898,7 +920,7 @@ def start_nomad_jobs(action, force):
 							
 							#if sync job and baseline was not started disable schedule for sync 
 							if action == 'sync':
-								if baselinestatus != 'Baseline Is Complete':
+								if baselinestatus != 'baseline is complete':
 									logging.warning(action+" will be paused:"+baselinestatus.lower())									
 									nomadjobdict["Job"]["Stop"] = True
 								else:
@@ -906,7 +928,7 @@ def start_nomad_jobs(action, force):
 
 							#if sync job and baseline was not started disable schedule for sync 
 							if action == 'verify' or action == 'verify':
-								if baselinestatus != 'Baseline Is Complete':
+								if baselinestatus != 'baseline is complete':
 									logging.warning(action+" is not possiable:"+baselinestatus.lower())									
 									continue
 								else:
@@ -921,7 +943,7 @@ def start_nomad_jobs(action, force):
 								exit(1)
 
 							#force immediate baseline / verify
-							if action == 'baseline' or (action == 'verify' and baselinestatus == 'Baseline Is Complete'):
+							if action == 'baseline' or (action == 'verify' and baselinestatus == 'baseline is complete'):
 								response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
 								if not response.ok:
 									logging.error("job:"+nomadjobname+" force start failed") 
@@ -952,6 +974,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 	results = {}
 	results['content'] = ''
 	lastline = ''
+	otherloglastline = ''
 
 	if type == 'file':
 		logfilepath = name
@@ -975,6 +998,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			otherlogfilepath = otherlogfilepath.replace('stderr','stdout',1) 
 		else:
 			otherlogfilepath = otherlogfilepath.replace('stdout','stderr',1) 
+
 		try:
 			logfilesize = os.path.getsize(otherlogfilepath)			
 
@@ -985,6 +1009,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['logfileothersize'] = logfilesize
 		except:
 			logging.debug("cannot read other log file:"+otherlogfilepath)							
+			results['contentotherlog'] = ''
 
 
 	elif type == 'alloc':						
@@ -1004,6 +1029,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['content'],re.M|re.I):
 			lastline = match.group(0)
 		results['lastline'] = lastline
+	
+	if results['contentotherlog'] != '':
+		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
+			otherloglastline = match.group(0)
+		results['otherloglastline'] = otherloglastline		
 
 	#for xcp logs 	
 	if lastline:
@@ -1017,6 +1047,10 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj: 
 			results['scanned'] = matchObj.group(1)
+		#in case of match filter being used the scanned files will used
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) matched", lastline, re.M|re.I)
+		if matchObj: 
+			results['scanned'] = matchObj.group(1)			
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) copied", lastline, re.M|re.I)
 		if matchObj: 
 			results['copied'] = matchObj.group(1)
@@ -1050,7 +1084,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['bwout'] = matchObj.group(1)	
 
 		#matches for verify job
-		matchObj = re.search("(\d+\%?) found \(([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) have data\)", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) found", lastline,re.M|re.I)
+		if matchObj:
+			results['found'] = matchObj.group(1)
+
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?\%?) (found )?\(([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) have data\)", otherloglastline, re.M|re.I)
 		if matchObj: 
 			results['found'] = matchObj.group(1)
 			results['withdata'] = matchObj.group(2)
@@ -1065,11 +1103,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['verifiedmod']='yes'
 			results['verifiedattr']='yes'
 
-		matchObj = re.search("(\d+) different attr", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) different attr", lastline, re.M|re.I)
 		if matchObj:
 			results['diffattr'] = matchObj.group(1)
 
-		matchObj = re.search("(\d+) different mod time", lastline, re.M|re.I)
+		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) different mod time", lastline, re.M|re.I)
 		if matchObj:
 			results['diffmodtime'] = matchObj.group(1)
 
@@ -1414,6 +1452,8 @@ def create_status (reporttype,displaylogs=False):
 									verifyjobsstructure['allocs'][allocdata['ID']] = allocdata
 
 							logtype = 'stdout'
+							if ostype == 'linux': logtype = 'stderr'
+
 							if file.startswith(logtype+"log_"):
 								verifylogcachefile = os.path.join(verifycachedir,file)
 								logallocid = file.replace(logtype+'log_','').replace('.log','')
@@ -1430,6 +1470,8 @@ def create_status (reporttype,displaylogs=False):
 								verifyjobsstructure['logs'][logallocid] = {}										
 								verifyjobsstructure['logs'][logallocid] = verifystatsresults
 
+
+
 					if not verifyjobfound: verifysched = '-'
 			
 					if verifyalloclastdetails: 
@@ -1441,16 +1483,20 @@ def create_status (reporttype,displaylogs=False):
 						if 'lastline' in verifystatsresults.keys(): verifylastline = verifystatsresults['lastline']
 						if 'found' in verifystatsresults.keys(): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
 						verifystatus =  verifyalloclastdetails['ClientStatus']
+
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
 
 						#aborted 
 						if verifyjoblastdetails['Status'] == 'dead' and verifyjoblastdetails['Stop']: verifystatus = 'aborted'
 
 						try:
+
 							if verifystatus == 'complete': verifystatus = 'idle'
 
 							#linux
 							if verifystatus == 'failed' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
+							if verifystatus == 'failed' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
+
 							#windows
 							if ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
 							
@@ -1663,10 +1709,9 @@ def create_status (reporttype,displaylogs=False):
 						 			if jobstructure['allocs'][allocid]['JobID'] == periodic:
 						 				currentalloc = jobstructure['allocs'][allocid]
 						 				currentlog = {}
+						 				
 						 				if allocid in jobstructure['logs'].keys():
 						 					currentlog = jobstructure['logs'][allocid]
-
-				 				
 
 							 			try:
 							 				starttime = currentalloc['TaskStates'][tasktype]['StartedAt']
@@ -1746,11 +1791,10 @@ def create_status (reporttype,displaylogs=False):
 											if currentperiodic['Status'] in ['pending','running']: jobstatus =  currentperiodic['Status']
 											if tasktype == 'verify':
 												if jobstatus == 'failed' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
+												if jobstatus == 'failed' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
 												if jobstatus == 'complete': jobstatus = 'idle'
 												#windows
-
 												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
-
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'																				
 										except:
 											jobstatus = '-'
@@ -1784,6 +1828,7 @@ def create_status (reporttype,displaylogs=False):
 										verbosetable.align = 'l'
 										print verbosetable.get_string(sortby="Start Time")
 										print ""
+
 										try:
 											print "Log type:"+logtype
 											print currentlog['content']
@@ -1888,7 +1933,7 @@ def update_nomad_job_status(action):
 						currentstopstatus = 'pause'
 						if syncjobdetails["Stop"] != True : currentstopstatus = 'resume' 
 							
-						if action == 'resume' and baselinestatus != 'Baseline Is Complete' and currentstopstatus == 'pause':
+						if action == 'resume' and baselinestatus != 'baseline is complete' and currentstopstatus == 'pause':
 							logging.warning("cannot resume job:"+nomadjobname+" status changed to:"+action+"since baseline is not complete") 
 						elif action in ['pause','resume'] and currentstopstatus != action:
 							nomadjobdict["Job"]["Stop"] = newstate
@@ -1904,7 +1949,7 @@ def update_nomad_job_status(action):
 							logging.info("job name:"+nomadjobname+" is already:"+action) 
 						elif action == 'syncnow':
 							already_running = False
-							if baselinestatus != 'Baseline Is Complete':
+							if baselinestatus != 'baseline is complete':
 								logging.warning("cannot syncnow for:"+src+" since "+baselinestatus.lower())
 							else:
 								try:
