@@ -1,0 +1,5 @@
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
+nfsjob1,127.0.0.1:/xcp_repo/src/src1,127.0.0.1:/xcp_repo/dst/src1,0 0 * * * *,400,800
+nfsjob1,127.0.0.1:/xcp_repo/src/src13,127.0.0.1:/xcp_repo/dst/src13,0 0 * * * *,400,800
+nfsjob1,127.0.0.1:/xcp_repo/src,127.0.0.1:/xcp_repo/dst,0 0 * * * *,400,800,,,,nfsjob1.exclude
+
