@@ -153,7 +153,7 @@ parser_status.add_argument('-e','--error',help="change the scope of the command 
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
 parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
-parser_asses.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
+parser_asses.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
 parser_asses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_asses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
 parser_asses.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
@@ -214,7 +214,7 @@ parser_smartasses_start.add_argument('-k','--locate-cross-job-hardlink',help="lo
 
 #check capacity parameter 
 def checkcapacity (capacity):
-	matchObj = re.match("^(\d+)(KB|MB|GB|TB)$",capacity)
+	matchObj = re.match("^(\d+)(\s+)?(K|B|M|G|T)(i)?B$",capacity)
 	if not matchObj:
 		raise argparse.ArgumentTypeError("invalid capacity")
 	return capacity
@@ -222,35 +222,29 @@ def checkcapacity (capacity):
 #convert K to human readable 
 def k_to_hr (k):
 
-	hr = format(k,',')+' KiB'
+	hr = format(k,',')+'KiB'
 	if 1024 <= k <= 1024*1024:
-		hr = format(int(k/1024),',')+' MiB'
+		hr = format(int(k/1024),',')+'MiB'
 	elif 1024*1024 <= k <= 1024*1024*1024:
-		hr = format(int(k/1024/1024),',')+' GiB'
+		hr = format(int(k/1024/1024),',')+'GiB'
 	elif 1024*1024*1024*1024 <= k:
-		hr = format(int(k/1024/1024/1024),',')+' TiB'
+		hr = format(int(k/1024/1024/1024),',')+'TiB'
 	return hr	
 
 parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_smartasses_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
-parser_smartasses_status.add_argument('-c','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
+parser_smartasses_status.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
 parser_smartasses_status.add_argument('-t','--tasks',help="provide verbose task information per suggested path", required=False,action='store_true')
 parser_smartasses_status.add_argument('-l','--hardlinks',help="provide hardlink conflict information per suggested path", required=False,action='store_true')
 
-
-
-#parser_smartasses_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
-#parser_smartasses_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
-#parser_smartasses_status.add_argument('-d','--destination',help="destintion nfs path (nfssrv:/mount)",required=True,type=str)
-#parser_smartasses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
-#parser_smartasses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
-#parser_smartasses.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
-#parser_smartasses.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
-#parser_smartasses.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
-#parser_smartasses.add_argument('-u','--failbackuser',help="failback user required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
-#parser_smartasses.add_argument('-g','--failbackgroup',help="failback group required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
-#parser_smartasses.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
-
+parser_smartasses_createcsv.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartasses_createcsv.add_argument('-d','--destination',help="change the scope of the command to specific path", required=False,type=str,metavar='dstpath')
+parser_smartasses_createcsv.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
+parser_smartasses_createcsv.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
+parser_smartasses_createcsv.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
+parser_smartasses_createcsv.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
+parser_smartasses_createcsv.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
+parser_smartasses_createcsv.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
 args = parser.parse_args()
 
@@ -760,7 +754,11 @@ def create_nomad_jobs():
 							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 
 					if ostype == 'windows' and tool == 'xcp': 
-						cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+						if excludedirfile == '':						
+							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+						else:
+							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+
 					if ostype == 'windows' and tool == 'robocopy': 
 						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
 					
@@ -2607,7 +2605,6 @@ def createtasksfromtree(dirtree, nodeid):
 
 #parse hardlink log file and return results based on the suggested tasks 
 def createhardlinkmatches(dirtree,inputfile):
-
 	class dirdata:
 		def __init__(self, inodes,sizek,inodes_hr,size_hr,createjob,excludejob,hardlinks): 
 			self.inodes = inodes
@@ -2688,15 +2685,28 @@ def gethardlinklistpertask(hardlinks,src):
 
 	return hardlinkpaths
 
-
+#show status of the smartasses jobs/create csv file 
 #show status of the smartasses jobs
-def smartasses_fs_linux_status(displaytasks,displaylinks):
+def smartasses_fs_linux_status(args,createcsv):
 	global mininodespertask_minborder, mininodespertask
 	global smartassesdict
 	global totaljobscreated,totaljobssizek
 
+
+	displaytasks = False
+	displaylinks = False
+
+	if not createcsv:
+		displaytasks = args.tasks
+		displaylinks = args.hardlinks	
+		logging.debug("starting smartasses status") 	
+	else:
+		
+		logging.debug("starting smartasses createcsv") 	
+
+
+
 	infofound = False 
-	logging.debug("starting smartasses status") 	
 
 	table = PrettyTable()
 	table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
@@ -2706,9 +2716,13 @@ def smartasses_fs_linux_status(displaytasks,displaylinks):
 		totaljobssizek = 0 
 
 		src = smartassesdict[smartassesjob]['src']
-		if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
+		if (not createcsv and (srcfilter == '' or fnmatch.fnmatch(src, srcfilter))) or (createcsv and src == args.source):
 			results = check_smartasses_job_status(smartassesjob)
-			resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
+			if not createcsv:
+				resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
+			else:
+				resultshardlink = {}
+				resultshardlink['status'] = 'not relevant'
 
 			scantime = '-'
 			scanned = '-'
@@ -2728,7 +2742,7 @@ def smartasses_fs_linux_status(displaytasks,displaylinks):
 			scannedhl = '-'
 			errorshl = '-'
 			crosstaskcount = 0
-			if resultshardlink['status'] != 'not started':
+			if resultshardlink['status'] != 'not started' and resultshardlink['status'] != 'not relevant' :
 				#stderr parse
 				stderrresults = parse_stats_from_log ('file',resultshardlink['stderrlog'],'stderr')
 				if 'time' in stderrresults.keys(): 
@@ -2744,7 +2758,12 @@ def smartasses_fs_linux_status(displaytasks,displaylinks):
 				dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
 
 				if resultshardlink['status'] == 'completed':
-					hardlinks,crosstaskcount = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
+					if resultshardlink['stdoutlog'] != '':
+						hardlinks,crosstaskcount = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
+					else:
+						hardlinks = {}
+						crosstaskcount = 0
+
 									
 
 			if totaljobscreated == 0: totaljobscreated = '-'
@@ -2759,6 +2778,10 @@ def smartasses_fs_linux_status(displaytasks,displaylinks):
 			if crosstaskcount == 0 and resultshardlink['status'] == 'not started': crosstaskcountlabel = 'not evaluated'
 			
 			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated,crosstaskcountlabel])
+
+			if createcsv:
+				print "koko"
+
 			infofound = True 
 			if displaytasks:
 
@@ -2823,7 +2846,7 @@ def smartasses_fs_linux_status(displaytasks,displaylinks):
 				
 
 		
-	if not displaytasks and infofound:
+	if not displaytasks and infofound and not createcsv:
 		table.border = False
 		table.align = 'l'
 
@@ -2832,7 +2855,6 @@ def smartasses_fs_linux_status(displaytasks,displaylinks):
 
 	if not infofound:
 		print "     no info found"
-
 
 def smartasses_parse_log_to_tree (basepath, inputfile):
 	
@@ -3756,18 +3778,24 @@ if args.subparser_name == 'smartasses':
 	if args.smartasses_command == 'start':
 		smartasses_fs_linux_start(args.source,args.depth,args.locate_cross_job_hardlink)
 
-	if args.smartasses_command == 'status':
+	if args.smartasses_command in ['status','createcsv']:
 		if args.min_capacity:
-			matchObj = re.match("^(\d+)(KB|MB|GB|TB)$",args.min_capacity)
-			if matchObj.group(2) == 'KB': minsizekfortask_minborder=int(matchObj.group(1))
-			if matchObj.group(2) == 'MB': minsizekfortask_minborder=int(matchObj.group(1))*1024
-			if matchObj.group(2) == 'GB': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024
-			if matchObj.group(2) == 'TB': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024*1024		
+			matchObj = re.match("^(\d+)(\s*)((K|M|G|T)(i)?B)$",args.min_capacity)
+			if matchObj.group(4) == 'K': minsizekfortask_minborder=int(matchObj.group(1))
+			if matchObj.group(4) == 'M': minsizekfortask_minborder=int(matchObj.group(1))*1024
+			if matchObj.group(4) == 'G': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024
+			if matchObj.group(4) == 'T': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024*1024		
 		minsizekforjob = minsizekfortask_minborder + 100000
 
 		if args.min_inodes:
 			mininodespertask_minborder = args.min_inodes
 		mininodespertask = mininodespertask_minborder + 200000
-
 		parse_nomad_jobs_to_files()
-		smartasses_fs_linux_status(args.tasks,args.hardlinks)		
+
+	if args.smartasses_command == 'status':
+		smartasses_fs_linux_status(args,False)
+
+	if args.smartasses_command == 'createcsv':
+		smartasses_fs_linux_status(args,True)
+
+
