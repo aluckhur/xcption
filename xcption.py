@@ -232,7 +232,7 @@ def k_to_hr (k):
 	return hr	
 
 parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_smartasses_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
+parser_smartasses_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='mininodes')
 parser_smartasses_status.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
 parser_smartasses_status.add_argument('-t','--tasks',help="provide verbose task information per suggested path", required=False,action='store_true')
 parser_smartasses_status.add_argument('-l','--hardlinks',help="provide hardlink conflict information per suggested path", required=False,action='store_true')
@@ -2896,8 +2896,7 @@ def smartasses_fs_linux_status(args,createcsv):
 						dstdirfiles = os.listdir(dstpath)
 						if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] == '.snapshot'):
 							logging.warning("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists and contains files")
-							#if not query_yes_no("do you want to to continue?", default="no"):
-							if 1==2:
+							if not query_yes_no("do you want to to continue?", default="no"):
 								unmountdir(tempmountpointsrc)
 								unmountdir(tempmountpointdst)
 								exit(1) 
