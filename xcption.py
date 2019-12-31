@@ -2495,6 +2495,28 @@ def unmountdir(dir):
 		logging.error("cannot delete temp mount point:"+dir)
 		exit(1)
 
+def nfs_unmount(mountpoint):
+	DEVNULL = open(os.devnull, 'wb')
+	if subprocess.call( [ 'umount', mountpoint ], stdout=DEVNULL, stderr=DEVNULL):
+		return False
+	return True
+
+def nfs_mount(export, mountpoint):
+	nfs_unmount(mountpoint)	
+	logging.debug("validating export:"+export+"is mountable on:"+mountpoint)
+	if not os.path.isdir(mountpoint):
+		subprocess.call( [ 'mkdir', '-p',mountpoint ] )	
+
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', export, mountpoint ],stderr=subprocess.STDOUT):
+		logging.debug("cannot mount path:"+export)
+		nfs_unmount(mountpoint)	
+		return False
+
+	logging.debug("export:"+export+" is mounted on:"+mountpoint)
+	return True
+
+
+
 #check job status 
 def check_smartasses_job_status (jobname):
 
@@ -2684,27 +2706,75 @@ def gethardlinklistpertask(hardlinks,src):
 								hardlinkpaths[task][path][path1]=task1
 
 	return hardlinkpaths
+	
 
 #show status of the smartasses jobs/create csv file 
-#show status of the smartasses jobs
 def smartasses_fs_linux_status(args,createcsv):
 	global mininodespertask_minborder, mininodespertask
 	global smartassesdict
 	global totaljobscreated,totaljobssizek
 
+	dirtree = Tree()
 
 	displaytasks = False
 	displaylinks = False
 
+	#used for temp nount points for create csv 
+	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
+	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
+
 	if not createcsv:
+		#validate we are ready for status 
+		logging.debug("starting smartasses status") 
 		displaytasks = args.tasks
 		displaylinks = args.hardlinks	
-		logging.debug("starting smartasses status") 	
+			
 	else:
-		
+		#validate we are ready for csv creation
+		src = args.source
+		dst = args.destination
+
 		logging.debug("starting smartasses createcsv") 	
 
+		if not re.search("\S+\:\/\S+", src):
+			logging.error("source format is incorrect: " + src) 
+			exit(1)	
+		if not re.search("\S+\:\/\S+", src):
+			logging.error("destination format is incorrect: " + dst)
+			exit(1)		
 
+		if os.path.isfile(args.csvfile):
+			logging.warning("csv file:"+args.csvfile+" already exists")
+			if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
+
+		logging.debug("temporary mounts for building destination directory structure will be:"+tempmountpointsrc+" and "+tempmountpointdst)
+
+		logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
+
+		if not nfs_mount(src,tempmountpointsrc):
+			logging.error("cannot mount src using nfs: " + src)
+			exit(1)					
+		if not nfs_mount(dst,tempmountpointdst):
+			logging.error("cannot mount dst using nfs: " + dst)
+			exit(1)
+
+		jobname = args.job
+		if jobname == '': jobname = 'smartasses'+str(os.getpid())
+
+		defaultprocessor = defaultcpu
+		if args.cpu: 
+			defaultprocessor = args.cpu 
+			if defaultprocessor < 0 or defaultprocessor > 20000:
+				logging.error("cpu allocation is illegal:"+defaultprocessor)
+				exit(1)	
+
+		defaultram = defaultmemory
+		if args.ram: 
+			defaultram = args.ram
+			if defaultram < 0 or defaultram > 20000:
+				logging.error("ram allocation is illegal:"+defaultram)
+				exit(1)			
+				
 
 	infofound = False 
 
@@ -2716,7 +2786,9 @@ def smartasses_fs_linux_status(args,createcsv):
 		totaljobssizek = 0 
 
 		src = smartassesdict[smartassesjob]['src']
+
 		if (not createcsv and (srcfilter == '' or fnmatch.fnmatch(src, srcfilter))) or (createcsv and src == args.source):
+
 			results = check_smartasses_job_status(smartassesjob)
 			if not createcsv:
 				resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
@@ -2752,7 +2824,7 @@ def smartasses_fs_linux_status(args,createcsv):
 				if 'errors' in stderrresults.keys(): 
 					errorshl = stderrresults['errors']	
 
-			if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
+			if results['status'] == 'completed' and (resultshardlink['status'] in ['not started','completed','not relevant']):
 				#parsing log to tree
 				dirtree = smartasses_parse_log_to_tree(src,results['stdoutlog'])
 				dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
@@ -2762,9 +2834,7 @@ def smartasses_fs_linux_status(args,createcsv):
 						hardlinks,crosstaskcount = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
 					else:
 						hardlinks = {}
-						crosstaskcount = 0
-
-									
+						crosstaskcount = 0			
 
 			if totaljobscreated == 0: totaljobscreated = '-'
 			if totaljobssizek > 0:
@@ -2779,11 +2849,31 @@ def smartasses_fs_linux_status(args,createcsv):
 			
 			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated,crosstaskcountlabel])
 
-			if createcsv:
-				print "koko"
+			#create the CSV file and directory structure for the jobs 
+			if createcsv:			
+				#create the exclude dir file 
+				exludedirlist = ''
+				for task in dirtree.filter_nodes(lambda x: x.data.createjob):
+					if not task.is_root():
+						exludedirlist += task.identifier+'/*\n'
+
+				for task in dirtree.filter_nodes(lambda x: x.data.createjob):
+					nfssrcpath = task.identifier
+					nfsdstpath = dst+nfssrcpath[len(src):]
+					srcpath = tempmountpointsrc+nfssrcpath[len(src):]
+					dstpath = tempmountpointdst+nfssrcpath[len(src):]
+					if not task.is_root():
+						logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcption job")
+					else:
+						logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcption job with exclude dirlist")
+						logging.debug("excludedir file content will be:\n"+exludedirlist)
+
+					print nfssrcpath,srcpath
+					print nfsdstpath,dstpath
+				
 
 			infofound = True 
-			if displaytasks:
+			if displaytasks and not createcsv:
 
 				table.border = False
 				table.align = 'l'
@@ -3148,7 +3238,7 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 
 	#prepare things for csv creation
 	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB"]
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
 	csv_data = []
 
 	if os.path.isfile(csvfile):
@@ -3210,7 +3300,7 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
 				#append data to csv 
-				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram})
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":""})
 
 
 		if warning:
@@ -3389,7 +3479,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 
 	#prepare things for csv creation
 	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP"]
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
 	csv_data = []
 
 	if os.path.isfile(csvfile):
@@ -3444,7 +3534,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ " will be configured as xcp job")
 
 			#append data to csv 
-			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup})
+			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup,"EXCLUDE DIRS":""})
 
 			#exlude copy of files in this dir 
 			if currentdepth < depth-1:
