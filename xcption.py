@@ -380,7 +380,7 @@ def parse_csv(csv_path):
 					if 8 < len(row): failbackgroup  = row[8]	
 
 					excludedirfile = ''
-					if 9 < len(row): excludedirfile = os.path.join(excludedir,row[9])
+					if 9 < len(row) and row[9] != '' : excludedirfile = os.path.join(excludedir,row[9])
 					#check if exclude file exists 
 					if excludedirfile != '' and not os.path.isfile(excludedirfile):
 						logging.error("exclude dir file:"+excludedirfile+" for src:"+src+" could not be found")
@@ -1214,10 +1214,13 @@ def create_status (reporttype,displaylogs=False):
 			if not os.path.exists(jobdir):
 				logging.error("job config directory:" + jobdir + " not exists. please load first") 
 				exit (1)
-					
+			
+
 			for src in jobsdict[jobname]:
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
+
+					displayheader = True
 					
 					dst	          = jobdetails['dst']
 					srcbase       = jobdetails['srcbase']
@@ -1525,19 +1528,21 @@ def create_status (reporttype,displaylogs=False):
 
 					#printing verbose information
 					if reporttype == 'verbose':
+						if displayheader:
+							#print general information 
+							print "JOB: "+jobname
+							print "SRC: "+src
+							print "DST: "+dst
+							print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
+							if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
+							print "OS: "+ostype.upper()
+							if ostype =='windows': print "TOOL NAME: "+tool
+							print ""
+							displayheader = False
+
 						#building verbose details table for the job
 						verbosetable = PrettyTable()
 						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
-
-						#print general information 
-					 	print "JOB: "+jobname
-						print "SRC: "+src
-						print "DST: "+dst
-						print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
-					 	if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
-					 	print "OS: "+ostype.upper()
-					 	if ostype =='windows': print "TOOL NAME: "+tool
-					 	print ""
 
 					 	#for baseline 
 					 	if baselinejob and baselinealloc:
@@ -1644,6 +1649,7 @@ def create_status (reporttype,displaylogs=False):
 							 				logging.debug("logfilepath wasnt found in results ")
 									except:
 										print "log:"+logtype+" is not avaialble"
+									if baselinestatsresults['content'] =='': print "log:"+logtype+" is not avaialble"
 									print ""
 									print ""
 
@@ -1662,6 +1668,7 @@ def create_status (reporttype,displaylogs=False):
 									except:
 										print "log:"+otherlogtype+" is not avaialble"
 
+									if baselinestatsresults['contentotherlog'] =='': print "log:"+logtype+" is not avaialble"
 									print ""
 									print ""
 									verbosetable = PrettyTable()
@@ -1821,6 +1828,7 @@ def create_status (reporttype,displaylogs=False):
 													
 								if addrow:
 			 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
+
 					 				if displaylogs:
 										verbosetable.border = False
 										verbosetable.align = 'l'
@@ -1837,6 +1845,7 @@ def create_status (reporttype,displaylogs=False):
 								 				logging.debug("logfilepath wasnt found in results ")
 										except:
 											print "log:"+logtype+" is not avaialble"
+										if currentlog['content'] =='': print "log:"+logtype+" is not avaialble"
 										print ""
 										print ""
 										try:
@@ -1853,18 +1862,24 @@ def create_status (reporttype,displaylogs=False):
 
 										except:
 											print "log:"+otherlogtype+" is not avaialble"
+										if currentlog['contentotherlog'] =='': print "log:"+logtype+" is not avaialble"
 										print ""
-										print ""												
 										verbosetable = PrettyTable()
 										verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
-
-						#print the table 
-						verbosetable.border = False
-						verbosetable.align = 'l'
-						print verbosetable.get_string(sortby="Start Time")
-						print ""
-						print ""
-
+						try:
+							#used to check if verbosetable contains data
+							verbosetable[0]
+							#print the table 
+							verbosetable.border = False
+							verbosetable.align = 'l'
+							print verbosetable.get_string(sortby="Start Time")
+							print ""							
+					 	except:
+					 		#dispaly no data found if verbosetable is empty or no jobs at all (not baseline job)
+					 		if not displaylogs or not baselinejob:
+						 		logging.debug("no results for verbose table for src:"+src+", skipping")
+						 		print "   no data found "
+						 		print ""
 					
 	#dispaly general report
 	if rowcount > 0 and reporttype == 'general':
@@ -2722,6 +2737,9 @@ def smartasses_fs_linux_status(args,createcsv):
 	#used for temp nount points for create csv 
 	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
 	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
+	csv_data = []
+
 
 	if not createcsv:
 		#validate we are ready for status 
@@ -2868,8 +2886,56 @@ def smartasses_fs_linux_status(args,createcsv):
 						logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcption job with exclude dirlist")
 						logging.debug("excludedir file content will be:\n"+exludedirlist)
 
-					print nfssrcpath,srcpath
-					print nfsdstpath,dstpath
+					if not os.path.isdir(srcpath):
+						logging.error("cannot find source directory:"+nfssrcpath+" please refresh your smartassess scan")
+						unmountdir(tempmountpointsrc)
+						unmountdir(tempmountpointdst)
+						exit(1)
+					if os.path.isdir(dstpath):
+						logging.debug("destination directory:"+nfsdstpath+" already exists validating it is not containing files")
+						dstdirfiles = os.listdir(dstpath)
+						if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] == '.snapshot'):
+							logging.warning("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists and contains files")
+							#if not query_yes_no("do you want to to continue?", default="no"):
+							if 1==2:
+								unmountdir(tempmountpointsrc)
+								unmountdir(tempmountpointdst)
+								exit(1) 
+						else:
+							logging.info("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists but empty")
+
+					excludefilename= '' 
+					if task.is_root():
+						excludefilename = src.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
+						excludefilepath = os.path.join(excludedir,excludefilename)
+						if not os.path.isdir(excludedir):
+							subprocess.call( [ 'mkdir', '-p',excludedir ] )	
+						try:
+							logging.debug("writing exlude dir to exlude file:"+excludefilepath)
+							with open(excludefilepath, 'w') as f:
+								f.write(exludedirlist)							
+							f.close()
+						except:
+							logging.error("could not write data to exlude file:"+excludefilepath)
+							unmountdir(tempmountpointsrc)
+							unmountdir(tempmountpointdst)
+							exit(1)								
+
+					csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":excludefilename})
+
+				#create the csv fil
+				try:
+					with open(args.csvfile, 'w') as c:
+						writer = csv.DictWriter(c, fieldnames=csv_columns)
+						writer.writeheader()
+						for data in csv_data:
+							writer.writerow(data)
+						logging.info("job csv file:"+args.csvfile+" created")
+				except IOError:
+					logging.error("could not write data to csv file:"+args.csvfile)
+					unmountdir(tempmountpointsrc)
+					unmountdir(tempmountpointdst)
+					exit(1)						
 				
 
 			infofound = True 
@@ -3276,15 +3342,15 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 			else:
 				if os.path.exists(dstpath):
 					dstdirfiles = os.listdir(dstpath)
-					#print dstdirfiles 
-					if len(dstdirfiles) > 0:
-						if len(dstdirfiles) > 1 and dstdirfiles[0] != '.snapshot':
-							logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
-							unmountdir(tempmountpointsrc)
-							unmountdir(tempmountpointdst)
-							exit(1)
-						else:
-							logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
+
+					if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] == '.snapshot'):
+					#if len(dstdirfiles) > 1 and dstdirfiles[0] != '.snapshot':
+						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
+						unmountdir(tempmountpointsrc)
+						unmountdir(tempmountpointdst)
+						exit(1)
+					else:
+						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
 
 			#check if destination directory exists/contains files
 			if dircount > 20:
