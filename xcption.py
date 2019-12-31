@@ -235,7 +235,7 @@ parser_smartasses_status.add_argument('-s','--source',help="change the scope of 
 parser_smartasses_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='mininodes')
 parser_smartasses_status.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
 parser_smartasses_status.add_argument('-t','--tasks',help="provide verbose task information per suggested path", required=False,action='store_true')
-parser_smartasses_status.add_argument('-l','--hardlinks',help="provide hardlink conflict information per suggested path", required=False,action='store_true')
+parser_smartasses_status.add_argument('-l','--hardlinks',help="provide cross task hardlink information per suggested path", required=False,action='store_true')
 
 parser_smartasses_createcsv.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_smartasses_createcsv.add_argument('-d','--destination',help="change the scope of the command to specific path", required=False,type=str,metavar='dstpath')
