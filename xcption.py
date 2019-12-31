@@ -200,13 +200,13 @@ parser_modifyjob.add_argument('-s','--source',help="change the scope of the comm
 parser_modifyjob.add_argument('-t','--tojob',help="move selected tasks to this job", required=True,type=str,metavar='tojob')
 parser_modifyjob.add_argument('-f','--force',help="force move", required=False,action='store_true')
 
-
-parser_smartasses   = subparser.add_parser('smartasses',help='scan src to create jobs based on capacity and file count (nfs only)',parents=[parent_parser])
+parser_smartasses   = subparser.add_parser('smartasses',help='create tasks based on capacity and file count (nfs only)',parents=[parent_parser])
 
 action_subparser = parser_smartasses.add_subparsers(title="action",dest="smartasses_command")                                                                                                               
-parser_smartasses_start     = action_subparser.add_parser('start',help='scan src to create jobs based on capacity and file count (nfs only)',parents=[parent_parser])
+parser_smartasses_start     = action_subparser.add_parser('start',help='scan src to create tasks based on capacity and inode count (nfs only)',parents=[parent_parser])
 parser_smartasses_status    = action_subparser.add_parser('status',help='display scan status and filesystem info',parents=[parent_parser])
 parser_smartasses_createcsv = action_subparser.add_parser('createcsv',help='create csv job file based on the scan results',parents=[parent_parser])
+parser_smartasses_delete    = action_subparser.add_parser('delete',help='delete existing scan information',parents=[parent_parser])
 
 parser_smartasses_start.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
@@ -245,6 +245,9 @@ parser_smartasses_createcsv.add_argument('-a','--min-capacity',help="minimum req
 parser_smartasses_createcsv.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
 parser_smartasses_createcsv.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
 parser_smartasses_createcsv.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
+
+parser_smartasses_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartasses_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
 
 args = parser.parse_args()
 
@@ -2081,6 +2084,7 @@ def delete_jobs(forceparam):
 					syncnomadjobname  = jobdetails['sync_job_name']
 					baselinejobname  = jobdetails['baseline_job_name']
 					verifyjobname    = jobdetails['verify_job_name']
+					excludedirfile	 = jobdetails['excludedirfile']
 
 					force = forceparam
 					if not force: force = query_yes_no("delete job for source:"+src,'no')
@@ -2128,6 +2132,11 @@ def delete_jobs(forceparam):
 							except:
 								logging.error("could not delete verify cache dir:"+verifycachedir)
 
+						# if excludedirfile != '':
+						# 	excludedirfilepath = os.path.join(excludedir,excludedirfile)
+						# 	logging.debug("delete exclude file:"+excludedirfilepath)
+						# 	if os.remove(excludedirfilepath):
+						# 		logging.error("could not delete exludedir file:"+excludedirfilepath)
 
 						#delete entry from jobdict
 						del jobsdictcopy[jobname][src]
@@ -2740,276 +2749,300 @@ def smartasses_fs_linux_status(args,createcsv):
 	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
 	csv_data = []
 
-
-	if not createcsv:
-		#validate we are ready for status 
-		logging.debug("starting smartasses status") 
-		displaytasks = args.tasks
-		displaylinks = args.hardlinks	
-			
-	else:
-		#validate we are ready for csv creation
-		src = args.source
-		dst = args.destination
-
-		logging.debug("starting smartasses createcsv") 	
-
-		if not re.search("\S+\:\/\S+", src):
-			logging.error("source format is incorrect: " + src) 
-			exit(1)	
-		if not re.search("\S+\:\/\S+", src):
-			logging.error("destination format is incorrect: " + dst)
-			exit(1)		
-
-		if os.path.isfile(args.csvfile):
-			logging.warning("csv file:"+args.csvfile+" already exists")
-			if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
-
-		logging.debug("temporary mounts for building destination directory structure will be:"+tempmountpointsrc+" and "+tempmountpointdst)
-
-		logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
-
-		if not nfs_mount(src,tempmountpointsrc):
-			logging.error("cannot mount src using nfs: " + src)
-			exit(1)					
-		if not nfs_mount(dst,tempmountpointdst):
-			logging.error("cannot mount dst using nfs: " + dst)
-			exit(1)
-
-		jobname = args.job
-		if jobname == '': jobname = 'smartasses'+str(os.getpid())
-
-		defaultprocessor = defaultcpu
-		if args.cpu: 
-			defaultprocessor = args.cpu 
-			if defaultprocessor < 0 or defaultprocessor > 20000:
-				logging.error("cpu allocation is illegal:"+defaultprocessor)
-				exit(1)	
-
-		defaultram = defaultmemory
-		if args.ram: 
-			defaultram = args.ram
-			if defaultram < 0 or defaultram > 20000:
-				logging.error("ram allocation is illegal:"+defaultram)
-				exit(1)			
+	try:
+		if not createcsv:
+			#validate we are ready for status 
+			logging.debug("starting smartasses status") 
+			displaytasks = args.tasks
+			displaylinks = args.hardlinks	
 				
+		else:
+			#validate we are ready for csv creation
+			src = args.source
+			dst = args.destination
 
-	infofound = False 
+			logging.debug("starting smartasses createcsv") 	
 
-	table = PrettyTable()
-	table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
+			if not re.search("\S+\:\/\S+", src):
+				logging.error("source format is incorrect: " + src) 
+				exit(1)	
+			if not re.search("\S+\:\/\S+", src):
+				logging.error("destination format is incorrect: " + dst)
+				exit(1)		
 
-	for smartassesjob in smartassesdict:
-		totaljobscreated = 0 
-		totaljobssizek = 0 
+			if os.path.isfile(args.csvfile):
+				logging.warning("csv file:"+args.csvfile+" already exists")
+				if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
 
-		src = smartassesdict[smartassesjob]['src']
+			logging.debug("temporary mounts for building destination directory structure will be:"+tempmountpointsrc+" and "+tempmountpointdst)
 
-		if (not createcsv and (srcfilter == '' or fnmatch.fnmatch(src, srcfilter))) or (createcsv and src == args.source):
+			logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
 
-			results = check_smartasses_job_status(smartassesjob)
-			if not createcsv:
-				resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
-			else:
-				resultshardlink = {}
-				resultshardlink['status'] = 'not relevant'
+			if not nfs_mount(src,tempmountpointsrc):
+				logging.error("cannot mount src using nfs: " + src)
+				exit(1)					
+			if not nfs_mount(dst,tempmountpointdst):
+				logging.error("cannot mount dst using nfs: " + dst)
+				exit(1)
 
-			scantime = '-'
-			scanned = '-'
-			errors = '-'
+			jobname = args.job
+			if jobname == '': jobname = 'smartasses'+str(os.getpid())
 
-			if results['status'] != 'not started':
-				#stderr parse
-				stderrresults = parse_stats_from_log ('file',results['stderrlog'],'stderr')
-				if 'time' in stderrresults.keys(): 
-					scantime = stderrresults['time']
-				if 'scanned' in stderrresults.keys(): 
-					scanned = stderrresults['scanned']
-				if 'errors' in stderrresults.keys(): 
-					errors = stderrresults['errors']			
+			defaultprocessor = defaultcpu
+			if args.cpu: 
+				defaultprocessor = args.cpu 
+				if defaultprocessor < 0 or defaultprocessor > 20000:
+					logging.error("cpu allocation is illegal:"+defaultprocessor)
+					exit(1)	
 
-			scantimehl = '-'
-			scannedhl = '-'
-			errorshl = '-'
-			crosstaskcount = 0
-			if resultshardlink['status'] != 'not started' and resultshardlink['status'] != 'not relevant' :
-				#stderr parse
-				stderrresults = parse_stats_from_log ('file',resultshardlink['stderrlog'],'stderr')
-				if 'time' in stderrresults.keys(): 
-					scantimehl = stderrresults['time']
-				if 'scanned' in stderrresults.keys(): 
-					scannedhl = stderrresults['scanned']
-				if 'errors' in stderrresults.keys(): 
-					errorshl = stderrresults['errors']	
+			defaultram = defaultmemory
+			if args.ram: 
+				defaultram = args.ram
+				if defaultram < 0 or defaultram > 20000:
+					logging.error("ram allocation is illegal:"+defaultram)
+					exit(1)			
+					
 
-			if results['status'] == 'completed' and (resultshardlink['status'] in ['not started','completed','not relevant']):
-				#parsing log to tree
-				dirtree = smartasses_parse_log_to_tree(src,results['stdoutlog'])
-				dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
+		infofound = False 
 
-				if resultshardlink['status'] == 'completed':
-					if resultshardlink['stdoutlog'] != '':
-						hardlinks,crosstaskcount = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
-					else:
-						hardlinks = {}
-						crosstaskcount = 0			
+		table = PrettyTable()
+		table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
 
-			if totaljobscreated == 0: totaljobscreated = '-'
-			if totaljobssizek > 0:
-				size_hr = k_to_hr(totaljobssizek)
-			else:
-				size_hr = '-'
-			if crosstaskcount >0: crosstaskcount -= 1
+		for smartassesjob in smartassesdict:
+			totaljobscreated = 0 
+			totaljobssizek = 0 
 
-			crosstaskcountlabel = crosstaskcount
-			if crosstaskcount == 0 and resultshardlink['status'] == 'completed': crosstaskcountlabel = 'no conflicts'
-			if crosstaskcount == 0 and resultshardlink['status'] == 'not started': crosstaskcountlabel = 'not evaluated'
-			
-			table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated,crosstaskcountlabel])
+			src = smartassesdict[smartassesjob]['src']
 
-			#create the CSV file and directory structure for the jobs 
-			if createcsv:			
-				#create the exclude dir file 
-				exludedirlist = ''
-				for task in dirtree.filter_nodes(lambda x: x.data.createjob):
-					if not task.is_root():
-						exludedirlist += task.identifier+'/*\n'
+			if (not createcsv and (srcfilter == '' or fnmatch.fnmatch(src, srcfilter))) or (createcsv and src == args.source):
 
-				for task in dirtree.filter_nodes(lambda x: x.data.createjob):
-					nfssrcpath = task.identifier
-					nfsdstpath = dst+nfssrcpath[len(src):]
-					srcpath = tempmountpointsrc+nfssrcpath[len(src):]
-					dstpath = tempmountpointdst+nfssrcpath[len(src):]
-					if not task.is_root():
-						logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcption job")
-					else:
-						logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcption job with exclude dirlist")
-						logging.debug("excludedir file content will be:\n"+exludedirlist)
+				results = check_smartasses_job_status(smartassesjob)
+				if not createcsv:
+					resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
+				else:
+					resultshardlink = {}
+					resultshardlink['status'] = 'not relevant'
 
-					if not os.path.isdir(srcpath):
-						logging.error("cannot find source directory:"+nfssrcpath+" please refresh your smartassess scan")
-						unmountdir(tempmountpointsrc)
-						unmountdir(tempmountpointdst)
-						exit(1)
-					if os.path.isdir(dstpath):
-						logging.debug("destination directory:"+nfsdstpath+" already exists validating it is not containing files")
-						dstdirfiles = os.listdir(dstpath)
-						if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] == '.snapshot'):
-							logging.warning("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists and contains files")
-							if not query_yes_no("do you want to to continue?", default="no"):
-								unmountdir(tempmountpointsrc)
-								unmountdir(tempmountpointdst)
-								exit(1) 
+				scantime = '-'
+				scanned = '-'
+				errors = '-'
+
+				if results['status'] != 'not started':
+					#stderr parse
+					stderrresults = parse_stats_from_log ('file',results['stderrlog'],'stderr')
+					if 'time' in stderrresults.keys(): 
+						scantime = stderrresults['time']
+					if 'scanned' in stderrresults.keys(): 
+						scanned = stderrresults['scanned']
+					if 'errors' in stderrresults.keys(): 
+						errors = stderrresults['errors']			
+
+				scantimehl = '-'
+				scannedhl = '-'
+				errorshl = '-'
+				crosstaskcount = 0
+				if resultshardlink['status'] != 'not started' and resultshardlink['status'] != 'not relevant' :
+					#stderr parse
+					stderrresults = parse_stats_from_log ('file',resultshardlink['stderrlog'],'stderr')
+					if 'time' in stderrresults.keys(): 
+						scantimehl = stderrresults['time']
+					if 'scanned' in stderrresults.keys(): 
+						scannedhl = stderrresults['scanned']
+					if 'errors' in stderrresults.keys(): 
+						errorshl = stderrresults['errors']	
+
+				if results['status'] == 'completed' and (resultshardlink['status'] in ['not started','completed','not relevant']):
+					#parsing log to tree
+					dirtree = smartasses_parse_log_to_tree(src,results['stdoutlog'])
+					dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
+
+					if resultshardlink['status'] == 'completed':
+						if resultshardlink['stdoutlog'] != '':
+							hardlinks,crosstaskcount = createhardlinkmatches(dirtree,resultshardlink['stdoutlog'])
 						else:
-							logging.info("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists but empty")
+							hardlinks = {}
+							crosstaskcount = 0			
 
-					excludefilename= '' 
-					if task.is_root():
-						excludefilename = src.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
-						excludefilepath = os.path.join(excludedir,excludefilename)
-						if not os.path.isdir(excludedir):
-							subprocess.call( [ 'mkdir', '-p',excludedir ] )	
-						try:
-							logging.debug("writing exlude dir to exlude file:"+excludefilepath)
-							with open(excludefilepath, 'w') as f:
-								f.write(exludedirlist)							
-							f.close()
-						except:
-							logging.error("could not write data to exlude file:"+excludefilepath)
+				if totaljobscreated == 0: totaljobscreated = '-'
+				if totaljobssizek > 0:
+					size_hr = k_to_hr(totaljobssizek)
+				else:
+					size_hr = '-'
+				if crosstaskcount >0: crosstaskcount -= 1
+
+				crosstaskcountlabel = crosstaskcount
+				if crosstaskcount == 0 and resultshardlink['status'] == 'completed': crosstaskcountlabel = 'no conflicts'
+				if crosstaskcount == 0 and resultshardlink['status'] == 'not started': crosstaskcountlabel = 'not evaluated'
+				
+				table.add_row([src,results['status'],results['starttime'],scantime,scanned,errors,resultshardlink['status'],scantimehl,scannedhl,errorshl,size_hr,totaljobscreated,crosstaskcountlabel])
+
+				#create the CSV file and directory structure for the jobs 
+				if createcsv:			
+					#create the exclude dir file 
+					exludedirlist = ''
+					for task in dirtree.filter_nodes(lambda x: x.data.createjob):
+						if not task.is_root():
+							exludedirlist += task.identifier+'/*\n'
+
+					for task in dirtree.filter_nodes(lambda x: x.data.createjob):
+						nfssrcpath = task.identifier
+						nfsdstpath = dst+nfssrcpath[len(src):]
+						srcpath = tempmountpointsrc+nfssrcpath[len(src):]
+						dstpath = tempmountpointdst+nfssrcpath[len(src):]
+						if not task.is_root():
+							logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcption job")
+						else:
+							logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcption job with exclude dirlist")
+							logging.debug("excludedir file content will be:\n"+exludedirlist)
+
+						if not os.path.isdir(srcpath):
+							logging.error("cannot find source directory:"+nfssrcpath+" please refresh your smartassess scan")
 							unmountdir(tempmountpointsrc)
 							unmountdir(tempmountpointdst)
-							exit(1)								
+							exit(1)
 
-					csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":excludefilename})
+						if os.path.isdir(dstpath):
+							logging.debug("destination directory:"+nfsdstpath+" already exists validating it is not containing files")
+							dstdirfiles = os.listdir(dstpath)
+							if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] == '.snapshot'):
+								logging.warning("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists and contains files")
+								if not query_yes_no("do you want to to continue?", default="no"):
+									unmountdir(tempmountpointsrc)
+									unmountdir(tempmountpointdst)
+									exit(1) 
+							else:
+								logging.info("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists but empty")
+						else:
+							logging.info("destination path:"+nfsdstpath+" does not exist. creating using rsync")
+							includedirs = ''
+							prevdir = ''
+							for d in nfssrcpath[len(src):].split('/'):
+								if d == '': 
+									includedirs += ' --include "/"'
+								else:
 
-				#create the csv fil
-				try:
-					with open(args.csvfile, 'w') as c:
-						writer = csv.DictWriter(c, fieldnames=csv_columns)
-						writer.writeheader()
-						for data in csv_data:
-							writer.writerow(data)
-						logging.info("job csv file:"+args.csvfile+" created")
-				except IOError:
-					logging.error("could not write data to csv file:"+args.csvfile)
-					unmountdir(tempmountpointsrc)
-					unmountdir(tempmountpointdst)
-					exit(1)						
-				
-
-			infofound = True 
-			if displaytasks and not createcsv:
-
-				table.border = False
-				table.align = 'l'
-				print ""
-				print table	
-
-				if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
-					table = PrettyTable()
-					table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
-
-					print ""
-					print "   Suggested tasks:"
-					print ""
-					tasktable = PrettyTable()
-					tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
+									includedirs += ' --include "/'+prevdir+d+'/"'
+									prevdir += d+'/'
 					
-					for task in dirtree.filter_nodes(lambda x: x.data.createjob):
+							rsynccmd = 'rsync -av'+includedirs+" --exclude '*' \""+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
+							logging.debug("running the following rsync command to create dst directory:"+rsynccmd+" ("+nfsdstpath+")")
+							if os.system(rsynccmd):
+								logging.error("creation of dst dir:"+nfsdstpath+" useing rsync failed")
+								unmountdir(tempmountpointsrc)
+								unmountdir(tempmountpointdst)							
+								exit(1)
+
+						excludefilename= '' 
+						if task.is_root():
+							excludefilename = src.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
+							excludefilepath = os.path.join(excludedir,excludefilename)
+							if not os.path.isdir(excludedir):
+								subprocess.call( [ 'mkdir', '-p',excludedir ] )	
+							try:
+								logging.debug("writing exlude dir to exlude file:"+excludefilepath)
+								with open(excludefilepath, 'w') as f:
+									f.write(exludedirlist)							
+								f.close()
+							except:
+								logging.error("could not write data to exlude file:"+excludefilepath)
+								unmountdir(tempmountpointsrc)
+								unmountdir(tempmountpointdst)
+								exit(1)								
+
+						csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":excludefilename})
+
+					#create the csv file
+					try:
+						with open(args.csvfile, 'w') as c:
+							writer = csv.DictWriter(c, fieldnames=csv_columns)
+							writer.writeheader()
+							for data in csv_data:
+								writer.writerow(data)
+							logging.info("job csv file:"+args.csvfile+" created")
+					except IOError:
+						logging.error("could not write data to csv file:"+args.csvfile)
+						unmountdir(tempmountpointsrc)
+						unmountdir(tempmountpointdst)
+						exit(1)						
+					
+
+				infofound = True 
+				if displaytasks and not createcsv:
+
+					table.border = False
+					table.align = 'l'
+					print ""
+					print table	
+
+					if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
+						table = PrettyTable()
+						table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
+
+						print ""
+						print "   Suggested tasks:"
+						print ""
+						tasktable = PrettyTable()
+						tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
 						
-						taskhardlinksinothertasks = 0
-						if crosstaskcount > 0:
-							hardlinklist = gethardlinklistpertask(hardlinks,task.identifier)
+						for task in dirtree.filter_nodes(lambda x: x.data.createjob):
 							
-							if task.identifier in hardlinklist.keys():
-								taskhardlinksinothertasks = len(hardlinklist[task.identifier])
+							taskhardlinksinothertasks = 0
+							if crosstaskcount > 0:
+								hardlinklist = gethardlinklistpertask(hardlinks,task.identifier)
+								
+								if task.identifier in hardlinklist.keys():
+									taskhardlinksinothertasks = len(hardlinklist[task.identifier])
 
-						tasktable.add_row([task.identifier,task.data.size_hr,task.data.inodes_hr,task.is_root(),taskhardlinksinothertasks])
-						if taskhardlinksinothertasks > 0 and displaylinks:
+							tasktable.add_row([task.identifier,task.data.size_hr,task.data.inodes_hr,task.is_root(),taskhardlinksinothertasks])
+							if taskhardlinksinothertasks > 0 and displaylinks:
 
-							tasktable.border = False
-							tasktable.align = 'l'
-							tasktable.padding_width = 5
-							print tasktable
-							tasktable = PrettyTable()
-							tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
+								tasktable.border = False
+								tasktable.align = 'l'
+								tasktable.padding_width = 5
+								print tasktable
+								tasktable = PrettyTable()
+								tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
 
-							hardlinktable = PrettyTable()
-							hardlinktable.field_names = ["Hardlink Path","Linked To","Destination Task"]							
-							for path in hardlinklist[task.identifier]:
-								for path1 in hardlinklist[task.identifier][path]:
-									hllinktask = hardlinklist[task.identifier][path][path1]
+								hardlinktable = PrettyTable()
+								hardlinktable.field_names = ["Hardlink Path","Linked To","Destination Task"]							
+								for path in hardlinklist[task.identifier]:
+									for path1 in hardlinklist[task.identifier][path]:
+										hllinktask = hardlinklist[task.identifier][path][path1]
 
-									hardlinktable.add_row([path,path1,hllinktask])
+										hardlinktable.add_row([path,path1,hllinktask])
 
-							hardlinktable.border = False
-							hardlinktable.align = 'l'
-							hardlinktable.padding_width = 8
-							print ""
-							print hardlinktable				
-							print ""
+								hardlinktable.border = False
+								hardlinktable.align = 'l'
+								hardlinktable.padding_width = 8
+								print ""
+								print hardlinktable				
+								print ""
 
 
-					tasktable.border = False
-					tasktable.align = 'l'
-					tasktable.padding_width = 5
-					#tasktable.sortby = 'Path'
-					print tasktable								
+						tasktable.border = False
+						tasktable.align = 'l'
+						tasktable.padding_width = 5
+						#tasktable.sortby = 'Path'
+						print tasktable								
 
-				else:
-					print '     vebose information not yet avaialable. it will be avaialble when scan will be completed'
-				
-
+					else:
+						print '     vebose information not yet avaialable. it will be avaialble when scan will be completed'
 		
-	if not displaytasks and infofound and not createcsv:
-		table.border = False
-		table.align = 'l'
+		if not displaytasks and infofound and not createcsv:
+			table.border = False
+			table.align = 'l'
 
+			print ""
+			print table			
+
+		if not infofound:
+			print "     no info found"
+	except KeyboardInterrupt:
 		print ""
-		print table			
+		print "aborted"
+	nfs_unmount(tempmountpointsrc)
+	nfs_unmount(tempmountpointdst)
 
-	if not infofound:
-		print "     no info found"
 
 def smartasses_parse_log_to_tree (basepath, inputfile):
 	
