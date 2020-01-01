@@ -140,7 +140,7 @@ parser_resume       = subparser.add_parser('resume',    help='resume sync schedu
 parser_abort        = subparser.add_parser('abort',     help='abort running task')
 parser_verify       = subparser.add_parser('verify',    help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete       = subparser.add_parser('delete',    help='delete existing config',parents=[parent_parser])
-parser_modifyjob    = subparser.add_parser('modifyjob', help='move tasks to diffrent group',parents=[parent_parser])
+parser_modify       = subparser.add_parser('modify',    help='modify task job',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -195,10 +195,10 @@ parser_delete.add_argument('-j','--job', help="change the scope of the command t
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
 
-parser_modifyjob.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
-parser_modifyjob.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_modifyjob.add_argument('-t','--tojob',help="move selected tasks to this job", required=True,type=str,metavar='tojob')
-parser_modifyjob.add_argument('-f','--force',help="force move", required=False,action='store_true')
+parser_modify.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_modify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_modify.add_argument('-t','--tojob',help="move selected tasks to this job", required=True,type=str,metavar='tojob')
+parser_modify.add_argument('-f','--force',help="force move", required=False,action='store_true')
 
 parser_smartasses   = subparser.add_parser('smartasses',help='create tasks based on capacity and file count (nfs only)',parents=[parent_parser])
 
@@ -4026,7 +4026,7 @@ if args.subparser_name == 'delete':
 if args.subparser_name == 'abort':
 	abort_jobs(args.type, args.force)
 
-if args.subparser_name == 'modifyjob':
+if args.subparser_name == 'modify':
 	move_job(args.tojob,args.force)
 	parse_nomad_jobs_to_files()
 
