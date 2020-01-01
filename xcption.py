@@ -210,7 +210,7 @@ parser_smartasses_delete    = action_subparser.add_parser('delete',help='delete 
 
 parser_smartasses_start.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
-parser_smartasses_start.add_argument('-k','--locate-cross-job-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
+parser_smartasses_start.add_argument('-k','--locate-cross-task-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
 #check capacity parameter 
 def checkcapacity (capacity):
