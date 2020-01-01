@@ -863,7 +863,7 @@ def start_nomad_jobs(action, force):
 
 			#check if job dir exists
 			if not os.path.exists(jobdir):
-				logging.error("job config directory:" + jobdir + " not exists. please init first") 
+				logging.error("job config directory:" + jobdir + " not exists") 
 				exit (1)
 					
 			for src in jobsdict[jobname]:
@@ -1896,7 +1896,7 @@ def create_status (reporttype,displaylogs=False):
 							if ostype =='windows': print "TOOL NAME: "+tool
 							print ""
 							displayheader = False
-							
+
 						try:
 							#used to check if verbosetable contains data
 							verbosetable[0]
@@ -2101,7 +2101,7 @@ def delete_jobs(forceparam):
 
 			#check if job dir exists
 			if not os.path.exists(jobdir):
-				logging.warning("job config directory:" + jobdir + " not exists. please init first") 
+				logging.warning("job config directory:" + jobdir + " not exists") 
 			
 			for src in jobsdict[jobname]:
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
@@ -2759,10 +2759,51 @@ def gethardlinklistpertask(hardlinks,src):
 								hardlinkpaths[task][path][path1]=task1
 
 	return hardlinkpaths
-	
+
+#delete smartasses scan data 
+def smartasses_fs_linux_delete(forceparam):
+	smartassesdictcopy = copy.deepcopy(smartassesdict)
+	for smartassessjob in smartassesdictcopy:
+		src = smartassesdictcopy[smartassessjob]['src']
+		if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
+			force = forceparam
+			if not force: force = query_yes_no("delete job for source:"+src,'no')
+			if force:
+				logging.info("delete smartasses job for source:"+src) 
+				#delete smartasses jobs 
+				delete_job_by_prefix(smartassessjob)
+
+				jobcachedir = os.path.join(cachedir,'job_'+smartassessjob)
+				if os.path.exists(jobcachedir):
+					logging.debug("delete smartasses cache dir:"+jobcachedir)
+					try:
+						rmout = shutil.rmtree(jobcachedir) 
+					except:
+						logging.error("could not delete smartasses cache dir:"+jobcachedir)
+
+				jobcachedir = os.path.join(cachedir,'job_'+smartassessjob+'_hardlink_scan')
+				if os.path.exists(jobcachedir):
+					logging.debug("delete smartasses cache dir:"+jobcachedir)
+					try:
+						rmout = shutil.rmtree(jobcachedir) 
+					except:
+						logging.error("could not delete smartasses cache dir:"+jobcachedir)
+
+
+	#delete entry from smartassesdictcopy
+	del smartassesdictcopy[smartassessjob]
+
+	#dumping smartassesdictcopy to json file 
+	try:
+		with open(smartassesjobdictjson, 'w') as fp:
+			json.dump(smartassesdictcopy, fp)
+		fp.close()
+	except:
+		logging.error("cannot write job json file:"+smartassesjobdictjson)
+		exit(1)												
 
 #show status of the smartasses jobs/create csv file 
-def smartasses_fs_linux_status(args,createcsv):
+def smartasses_fs_linux_status_createcsv(args,createcsv):
 	global mininodespertask_minborder, mininodespertask
 	global smartassesdict
 	global totaljobscreated,totaljobssizek
@@ -3815,7 +3856,7 @@ def abort_jobs(jobtype, forceparam):
 
 			#check if job dir exists
 			if not os.path.exists(jobdir):
-				logging.warning("job config directory:" + jobdir + " not exists. please init first") 
+				logging.warning("job config directory:" + jobdir + " not exists") 
 			
 			for src in jobsdict[jobname]:
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
@@ -4010,9 +4051,12 @@ if args.subparser_name == 'smartasses':
 		parse_nomad_jobs_to_files()
 
 	if args.smartasses_command == 'status':
-		smartasses_fs_linux_status(args,False)
+		smartasses_fs_linux_status_createcsv(args,False)
 
 	if args.smartasses_command == 'createcsv':
-		smartasses_fs_linux_status(args,True)
+		smartasses_fs_linux_status_createcsv(args,True)
+
+	if args.smartasses_command == 'delete':	
+		smartasses_fs_linux_delete(args.force)
 
 
