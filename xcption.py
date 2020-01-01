@@ -8,7 +8,7 @@
 #2.0.7.0 - scan filesystme 
 
 #version 
-version = '2.0.7.0'
+version = '2.0.7.5'
 
 import csv
 import argparse
@@ -4058,5 +4058,3 @@ if args.subparser_name == 'smartasses':
 
 	if args.smartasses_command == 'delete':	
 		smartasses_fs_linux_delete(args.force)
-
-
