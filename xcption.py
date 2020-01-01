@@ -1236,6 +1236,7 @@ def create_status (reporttype,displaylogs=False):
 					jobcron           = jobdetails['cron']
 					ostype			  = jobdetails['ostype']
 					tool              = jobdetails['tool']
+					excludedirfile    = jobdetails['excludedirfile']
 					
 					if ostype=='windows': logtype = 'stdout'
 					if ostype=='linux': logtype = 'stderr'
@@ -1531,17 +1532,6 @@ def create_status (reporttype,displaylogs=False):
 
 					#printing verbose information
 					if reporttype == 'verbose':
-						if displayheader:
-							#print general information 
-							print "JOB: "+jobname
-							print "SRC: "+src
-							print "DST: "+dst
-							print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
-							if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
-							print "OS: "+ostype.upper()
-							if ostype =='windows': print "TOOL NAME: "+tool
-							print ""
-							displayheader = False
 
 						#building verbose details table for the job
 						verbosetable = PrettyTable()
@@ -1637,6 +1627,18 @@ def create_status (reporttype,displaylogs=False):
 							if addrow:								
 				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus])
 				 				if displaylogs:
+									if displayheader:
+										#print general information 
+										print "JOB: "+jobname
+										print "SRC: "+src
+										print "DST: "+dst
+										print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
+										if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
+										if excludedirfile != '': print "EXCLUDE DIRS FILE:"+excludedirfile
+										print "OS: "+ostype.upper()
+										if ostype =='windows': print "TOOL NAME: "+tool
+										print ""
+										displayheader = False
 									verbosetable.border = False
 									verbosetable.align = 'l'
 									print verbosetable
@@ -1833,6 +1835,18 @@ def create_status (reporttype,displaylogs=False):
 			 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
 
 					 				if displaylogs:
+										if displayheader:
+											#print general information 
+											print "JOB: "+jobname
+											print "SRC: "+src
+											print "DST: "+dst
+											print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
+											if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
+											if excludedirfile != '': print "EXCLUDE DIRS FILE:"+excludedirfile
+											print "OS: "+ostype.upper()
+											if ostype =='windows': print "TOOL NAME: "+tool
+											print ""
+											displayheader = False
 										verbosetable.border = False
 										verbosetable.align = 'l'
 										print verbosetable.get_string(sortby="Start Time")
@@ -1869,9 +1883,24 @@ def create_status (reporttype,displaylogs=False):
 										print ""
 										verbosetable = PrettyTable()
 										verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+						
+						if displayheader:
+							#print general information 
+							print "JOB: "+jobname
+							print "SRC: "+src
+							print "DST: "+dst
+							print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
+							if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
+							if excludedirfile != '': print "EXCLUDE DIRS FILE:"+excludedirfile
+							print "OS: "+ostype.upper()
+							if ostype =='windows': print "TOOL NAME: "+tool
+							print ""
+							displayheader = False
+							
 						try:
 							#used to check if verbosetable contains data
 							verbosetable[0]
+
 							#print the table 
 							verbosetable.border = False
 							verbosetable.align = 'l'
@@ -2982,7 +3011,7 @@ def smartasses_fs_linux_status(args,createcsv):
 						print "   Suggested tasks:"
 						print ""
 						tasktable = PrettyTable()
-						tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
+						tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Task Hardlinks"]	
 						
 						for task in dirtree.filter_nodes(lambda x: x.data.createjob):
 							
