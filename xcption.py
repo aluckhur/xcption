@@ -3199,7 +3199,7 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 
 
 #smart assesment for linux based on capacity and inode count. this will initiate a scan 
-def smartasses_fs_linux_start(src,depth,locate_cross_job_hardlink):
+def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 	global smartassesdict
 
 	logging.debug("starting smartasses jobs for src:"+src) 
@@ -3318,7 +3318,7 @@ def smartasses_fs_linux_start(src,depth,locate_cross_job_hardlink):
 			cpu=defaultprocessor
 		))
 
-	if locate_cross_job_hardlink:
+	if locate_cross_task_hardlink:
 		logging.info("starting smartasses hardlink scan:"+smartasses_hardlink_job_name)
 		if not start_nomad_job_from_hcl(hardlinksmartassesjob_file, smartasses_hardlink_job_name):
 			logging.error("failed to create nomad job:"+smartasses_hardlink_job_name)
@@ -3336,7 +3336,7 @@ def smartasses_fs_linux_start(src,depth,locate_cross_job_hardlink):
 	smartassesdict[smartasses_job_name]['memory'] = defaultram
 	smartassesdict[smartasses_job_name]['ostype'] = ostype
 	smartassesdict[smartasses_job_name]['depth'] = depth
-	smartassesdict[smartasses_job_name]['locate_cross_job_hardlink'] = locate_cross_job_hardlink
+	smartassesdict[smartasses_job_name]['locate_cross_task_hardlink'] = locate_cross_task_hardlink
 	smartassesdict[smartasses_job_name]['dcname'] = dcname
 
 	#dumping jobsdict to json file 
@@ -4034,7 +4034,7 @@ if args.subparser_name == 'smartasses':
 	load_smartasses_jobs_from_json(smartassesjobdictjson)
 
 	if args.smartasses_command == 'start':
-		smartasses_fs_linux_start(args.source,args.depth,args.locate_cross_job_hardlink)
+		smartasses_fs_linux_start(args.source,args.depth,args.locate_cross_task_hardlink)
 
 	if args.smartasses_command in ['status','createcsv']:
 		if args.min_capacity:
