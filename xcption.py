@@ -2853,7 +2853,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 				exit(1)
 
 			jobname = args.job
-			if jobname == '': jobname = 'smartasses'+str(os.getpid())
+			if jobname == '' or not jobname: jobname = 'smartasses'+str(os.getpid())
 
 			defaultprocessor = defaultcpu
 			if args.cpu: 
