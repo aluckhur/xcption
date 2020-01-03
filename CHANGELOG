@@ -1,4 +1,4 @@
-2.7.0.2 
+2.7.0.5
 
 - add smartasses functionality
 - abort running/penfing task using ,/xcption.py abort 
