@@ -4,9 +4,6 @@
 # Written by Haim Marko 
 # Enjoy
 
-#change log 
-#2.0.7.0 - scan filesystme 
-
 #version 
 version = '2.0.7.5'
 
