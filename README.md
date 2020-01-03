@@ -62,14 +62,14 @@ windows hosts `c:\NetApp\XCP\xcp.exe`
 The interaction is done using the following python CLI command (need root access)
 
 ```
-[user@master xcption]$ sudo ./xcption.py  -h
-usage: xcption.py [-h] [-d]
+[root@rhel1 xcption]# ./xcption.py -h
+usage: xcption.py [-h] [-v] [-d]
 
-                  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,verify,delete,nomad}
+                  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,smartasses}
                   ...
 
 positional arguments:
-  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,verify,delete,nomad}
+  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,smartasses}
                         sub commands that can be used
     nodestatus          display cluster nodes status
     status              display status
@@ -80,13 +80,19 @@ positional arguments:
     syncnow             initiate sync now
     pause               disable sync schedule
     resume              resume sync schedule
+    abort               abort running task
     verify              start verify to validate consistency between source
                         and destination (xcp verify)
     delete              delete existing config
+    modify              modify task job
+    smartasses          create tasks based on capacity and file count (nfs
+                        only)
 
 optional arguments:
   -h, --help            show this help message and exit
+  -v, --version         print version information
   -d, --debug           log debug messages to console
+
 ```
 
 **To display the nodes in the cluster use the `nodestatus` subcommand**
@@ -94,12 +100,14 @@ optional arguments:
 [user@master xcption]$ sudo ./xcption.py nodestatus
 
 ```
- Name      IP             Status  OS                                           Reserved/Total CPU MHz  Reserved/Total RAM MB  # Running Jobs
- rhel1     192.168.0.61   ready   redhat                                       0/4588 (0.0%)           0/1838 (0.0%)          0
- DC1       192.168.0.253  ready   Microsoft Windows Server 2012 R2 Datacenter  0/4590 (0.0%)           0/1023 (0.0%)          0
- WFA       192.168.0.73   ready   Microsoft Windows Server 2016 Datacenter     0/4590 (0.0%)           0/8191 (0.0%)          0
- rhel2     192.168.0.62   ready   redhat                                       0/4588 (0.0%)           0/1838 (0.0%)          0
- JUMPHOST  192.168.0.5    ready   Microsoft Windows Server 2012 R2 Datacenter  0/2295 (0.0%)           0/2047 (0.0%)          0
+[root@rhel1 xcption]# ./xcption.py nodestatus
+
+ Name      IP            Status  OS                                        Reserved/Total CPU MHz  Used CPU %  Reserved/Total RAM MB  Used RAM %  # Running Jobs
+ windows1  192.168.0.73  ready   Microsoft windows server 2016 datacenter  0/4390 (0.0%)           0%          0/8191 (0.0%)          59.0%       0
+ rhel1     192.168.0.61  ready   Redhat                                    0/4388 (0.0%)           9%          0/1838 (0.0%)          63.0%       0
+ rhel2     192.168.0.62  ready   Redhat                                    0/4388 (0.0%)           3%          0/1838 (0.0%)          29.0%       0
+[root@rhel1 xcption]#
+
 ```
 
 The command display each node in the cluster, its status and amount of resources reserved/available by jobs and the nu,ber of running jobs.
@@ -119,7 +127,6 @@ a CSV file with the jobs should be created with the following columns:
 `TOOL` (optional) - For windows jobs it is possiable to chose between `xcp` (default) to `robocopy`  
 `FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user (see xcp.exe help copy for details)  
 `FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)  
-
 
 CSV file example:
 ```
@@ -397,7 +404,6 @@ user@master:~/xcption# sudo ./xcption.py baseline
 2019-09-06 15:49:31,211 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
 2019-09-06 15:49:31,338 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
 2019-09-06 15:49:31,461 - INFO - starting/updating baseline job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
-
 
 ```
 
