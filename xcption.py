@@ -3441,12 +3441,11 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 			else:
 				if os.path.exists(dstpath):
 					dstdirfiles = os.listdir(dstpath)
-					print len(dstdirfiles),dstdirfiles[0]
-					if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] == '.snapshot'):
-					#if len(dstdirfiles) > 1 and dstdirfiles[0] != '.snapshot':
+					if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] != '.snapshot'):
 						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
 						unmountdir(tempmountpointsrc)
 						unmountdir(tempmountpointdst)
+						print "koko"
 						exit(1)
 					else:
 						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
