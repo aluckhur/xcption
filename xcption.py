@@ -100,8 +100,8 @@ if not os.path.isdir(logdirpath):
 
 #default nomad job properties 
 defaultjobcron = "0 0 * * * *" #nightly @ midnight
-defaultcpu = 3000
-defaultmemory = 8000
+defaultcpu = 300
+defaultmemory = 800
 
 #max logs for status -l 
 maxloglinestodisplay = 200
@@ -2760,7 +2760,7 @@ def gethardlinklistpertask(hardlinks,src):
 #delete smartasses scan data 
 def smartasses_fs_linux_delete(forceparam):
 	smartassesdictcopy = copy.deepcopy(smartassesdict)
-	for smartassessjob in smartassesdictcopy:
+	for smartassessjob in smartassesdict:
 		src = smartassesdictcopy[smartassessjob]['src']
 		if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 			force = forceparam
@@ -2787,8 +2787,8 @@ def smartasses_fs_linux_delete(forceparam):
 						logging.error("could not delete smartasses cache dir:"+jobcachedir)
 
 
-	#delete entry from smartassesdictcopy
-	del smartassesdictcopy[smartassessjob]
+		#delete entry from smartassesdictcopy
+		del smartassesdictcopy[smartassessjob]
 
 	#dumping smartassesdictcopy to json file 
 	try:
@@ -2830,10 +2830,10 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 
 			logging.debug("starting smartasses createcsv") 	
 
-			if not re.search("\S+\:\/\S+", src):
+			if not re.search("\S+\:\/.*", src):
 				logging.error("source format is incorrect: " + src) 
 				exit(1)	
-			if not re.search("\S+\:\/\S+", src):
+			if not re.search("\S+\:\/.*", src):
 				logging.error("destination format is incorrect: " + dst)
 				exit(1)		
 
@@ -3128,9 +3128,9 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 	dirtree.create_node('/', basepath)
 
 	if not os.path.isfile(inputfile):
-		logging.error("log file:"+inputfile+" does not exists")
-		exit(1)
-		s
+		logging.warning("log file:"+inputfile+" does not exists")
+		return dirtree
+
 	with open(inputfile) as f:
 	    content = f.readlines()
 
@@ -3211,7 +3211,7 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 		logging.error("smartasses job already exists for src:"+src+', to run again please delete exisiting task 1st') 
 		exit(1)	
 
-	if not re.search("\S+\:\/\S+", src):
+	if not re.search("^\S+\:\/.*", src):
 		logging.error("source format is incorrect: " + src) 
 		exit(1)	
 
@@ -3289,7 +3289,7 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 			cpu=defaultprocessor
 		))
 
-	logging.info("starting smartasses scan:"+smartasses_job_name)
+	logging.info("starting smartasses scan for src:"+src)
 	if not start_nomad_job_from_hcl(smartassesjob_file, smartasses_job_name):
 		logging.error("failed to create nomad job:"+smartasses_job_name)
 		exit(1)
@@ -3350,10 +3350,10 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 def asses_fs_linux(csvfile,src,dst,depth,jobname):
 	logging.debug("starting to asses src:" + src + " dst:" + dst) 
 
-	if not re.search("\S+\:\/\S+", src):
+	if not re.search("^\S+\:\/.*", src):
 		logging.error("source format is incorrect: " + src) 
 		exit(1)	
-	if not re.search("\S+\:\/\S+", dst):
+	if not re.search("^\S+\:\/.*", dst):
 		logging.error("destination format is incorrect: " + dst)
 		exit(1)	
 
