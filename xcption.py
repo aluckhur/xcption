@@ -2614,7 +2614,10 @@ def check_smartasses_job_status (jobname):
 
 			for file in os.listdir(jobcachedir):
 				if file.startswith('stderrlog_'): results['stderrlog'] = os.path.join(jobcachedir,file)
-				if file.startswith('stdoutlog_'): results['stdoutlog'] = os.path.join(jobcachedir,file)			
+				if file.startswith('stdoutlog_'): results['stdoutlog'] = os.path.join(jobcachedir,file)	
+
+			if results['status'] == 'completed'	and results['stderrlog'] == '':
+				results['status'] = 'failed'
 
 	return results
 
@@ -3129,7 +3132,7 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 
 	if not os.path.isfile(inputfile):
 		logging.warning("log file:"+inputfile+" does not exists")
-		return dirtree
+		exit(1)
 
 	with open(inputfile) as f:
 	    content = f.readlines()
