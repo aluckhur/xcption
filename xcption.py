@@ -2586,7 +2586,7 @@ def check_smartasses_job_status (jobname):
 		job = None
 
 	if not job and not os.path.exists(jobcachedir):
-		logging.debug("baseline job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
+		logging.debug("smartasses job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
 		results['status'] = 'not started'
 		return results
 
@@ -2616,7 +2616,7 @@ def check_smartasses_job_status (jobname):
 				if file.startswith('stderrlog_'): results['stderrlog'] = os.path.join(jobcachedir,file)
 				if file.startswith('stdoutlog_'): results['stdoutlog'] = os.path.join(jobcachedir,file)	
 
-			if results['status'] == 'completed'	and results['stderrlog'] == '':
+			if results['stderrlog'] == '':
 				results['status'] = 'failed'
 
 	return results
