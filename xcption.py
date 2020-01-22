@@ -2920,7 +2920,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 
 				if results['status'] == 'completed' and (resultshardlink['status'] in ['not started','completed','not relevant']):
 					#parsing log to tree
-					pp.pprint results
+					pp.pprint(results)
 					dirtree = smartasses_parse_log_to_tree(src,results['stdoutlog'])
 					dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
 
