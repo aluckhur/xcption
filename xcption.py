@@ -2830,10 +2830,10 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 
 			logging.debug("starting smartasses createcsv") 	
 
-			if not re.search("\S+\:\/.*", src):
+			if not re.search("\S+\:\/\S+", src):
 				logging.error("source format is incorrect: " + src) 
 				exit(1)	
-			if not re.search("\S+\:\/.*", src):
+			if not re.search("\S+\:\/\S+", src):
 				logging.error("destination format is incorrect: " + dst)
 				exit(1)		
 
@@ -3211,7 +3211,7 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 		logging.error("smartasses job already exists for src:"+src+', to run again please delete exisiting task 1st') 
 		exit(1)	
 
-	if not re.search("^\S+\:\/.*", src):
+	if not re.search("^\S+\:\/\S+", src):
 		logging.error("source format is incorrect: " + src) 
 		exit(1)	
 
