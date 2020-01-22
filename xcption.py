@@ -3449,7 +3449,6 @@ def asses_fs_linux(csvfile,src,dst,depth,jobname):
 						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
 						unmountdir(tempmountpointsrc)
 						unmountdir(tempmountpointdst)
-						print "koko"
 						exit(1)
 					else:
 						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
