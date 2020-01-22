@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.0.7.5'
+version = '2.0.7.6'
 
 import csv
 import argparse
@@ -2920,7 +2920,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 
 				#handle completed jobs without log
 				if results['status'] == 'completed' and results['stdoutlog'] == '':
-					results['status'] == 'failed'
+					results['status'] = 'failed'
 
 				if results['status'] == 'completed' and (resultshardlink['status'] in ['not started','completed','not relevant']):
 					#parsing log to tree
