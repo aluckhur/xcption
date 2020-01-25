@@ -1700,6 +1700,7 @@ def create_status (reporttype,displaylogs=False):
 					 	verifycounter = 1
 					 	if 'periodics' in jobstructure.keys():
 						 	for periodic in sorted(jobstructure['periodics'].keys()):
+						 		jobstatus = '-'
 						 		currentperiodic = jobstructure['periodics'][periodic]
 				 				
 				 				tasktype = ''
@@ -1710,7 +1711,10 @@ def create_status (reporttype,displaylogs=False):
 				 				if periodic.startswith('verify'): 
 				 					task = 'verify'+str(verifycounter)
 				 					verifycounter+=1
-				 					tasktype = 'verify'		
+				 					tasktype = 'verify'	
+
+				 				jobstatus = currentperiodic['Status']
+				 				starttime = 'future'
 
 						 		for allocid in jobstructure['allocs']:
 						 			if jobstructure['allocs'][allocid]['JobID'] == periodic:
@@ -1830,6 +1834,20 @@ def create_status (reporttype,displaylogs=False):
 													
 								if addrow:
 			 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
+			 						task = ''
+			 						starttime='-'
+			 						endtime='-'
+			 						duration='-'
+			 						scanned='-'
+			 						reviewed='-'
+			 						copied='-'
+			 						modified='-'
+			 						deleted='-'
+			 						errors='-'
+			 						sent='-'
+			 						nodename='-'
+			 						jobstatus='-'
+
 
 					 				if displaylogs:
 										if displayheader:
