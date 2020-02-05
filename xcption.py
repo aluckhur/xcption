@@ -372,6 +372,7 @@ def parse_csv(csv_path):
 					
 					tool = defaultwintool
 					if 6 < len(row): tool  = row[6]
+					if tool == '': tool = defaultwintool
 
 					failbackuser =''
 					if 7 < len(row): failbackuser  = row[7]					
