@@ -890,7 +890,7 @@ def start_nomad_jobs(action, force):
 							continue
 						else:
 							if query_yes_no("are you sure you want o rebaseline "+src+" to "+dst+" ?",'no'):
-								if ostype == 'linux' and tool == 'xcp':
+								if ostype == 'linux' and (tool == 'xcp' or tool == ''):
 									logging.info("destroying xcp index for aborted job")
 									logging.debug("running the command:"+xcppath+' diag -rmid '+xcpindexname)
 									DEVNULL = open(os.devnull, 'wb')
