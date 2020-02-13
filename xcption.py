@@ -2806,8 +2806,8 @@ def smartasses_fs_linux_delete(forceparam):
 						logging.error("could not delete smartasses cache dir:"+jobcachedir)
 
 
-		#delete entry from smartassesdictcopy
-		del smartassesdictcopy[smartassessjob]
+				#delete entry from smartassesdictcopy
+				del smartassesdictcopy[smartassessjob]
 
 	#dumping smartassesdictcopy to json file 
 	try:
