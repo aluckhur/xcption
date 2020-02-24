@@ -70,7 +70,7 @@ set -x
 echo "Determining local IP address"
 LOCAL_IPV4=$(hostname --ip-address)
 
-if [[ $LOCAL_IPV4 == 127.0.* ]]; then  
+if [[ $LOCAL_IPV4 == *127.0.* ]]; then  
   echo "Error: host local IP address points to localhost ($LOCAL_IPV4)." >&2;
   echo "Please update the /etc/hosts file to use external IP for the host name" >&2;
   echo "After changing the /etc/hosts entry validate the command: hostname --ip-address return the external IP of the host" >&2;
