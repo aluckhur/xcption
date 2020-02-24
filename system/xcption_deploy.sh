@@ -64,7 +64,7 @@ fi
 
 echo "Repo path: $XCPREPO Mount Point will be:${REPO_MOUNT_POINT}"
 
-set -x
+#set -x
 
 #Bringing the Information
 echo "Determining local IP address"
