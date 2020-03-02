@@ -96,6 +96,8 @@ fi
 
 if ["$INST_APP" == "yum" ]; then
   yum install -y epel-release
+  yum install -y python-devel.x86_64
+  yum install -y libpqxx-devel.x86_64
 fi
 
 $INST_APP install -y \
