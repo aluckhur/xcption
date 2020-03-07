@@ -100,8 +100,8 @@ if not os.path.isdir(logdirpath):
 
 #default nomad job properties 
 defaultjobcron = "0 0 * * * *" #nightly @ midnight
-defaultcpu = 3000
-defaultmemory = 8000
+defaultcpu = 300
+defaultmemory = 100
 
 #max logs for status -l 
 maxloglinestodisplay = 200
@@ -2680,12 +2680,18 @@ def createtasksfromtree(dirtree, nodeid):
 					tempnode = None 
 
 	if nodeid.is_root():
+
+		if nodeid.data.sizek < 0: nodeid.data.sizek = 0
+
+		nodeid.data.size_hr = str(nodeid.data.sizek)+' KiB'
 		if 1024 <= nodeid.data.sizek <= 1024*1024:
-			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024),',')+' MiB'
+			nodeid.data.size_hr = format(int(nodeid.data.sizek/1024),',')+' MiB'
 		elif 1024*1024 <= nodeid.data.sizek <= 1024*1024*1024:
-			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024),',')+' GiB'
+			nodeid.data.size_hr = format(int(nodeid.data.sizek/1024/1024),',')+' GiB'
 		elif 1024*1024*1024*1024 <= nodeid.data.sizek:
-			nodeid.data.sizek_hr = format(int(nodeid.data.sizek/1024/1024/1024),',')+' TiB'
+			nodeid.data.size_hr = format(int(nodeid.data.sizek/1024/1024/1024),',')+' TiB'
+
+		if nodeid.data.inodes < 0: nodeid.data.inodes = 0
 		nodeid.data.inodes_hr = format(nodeid.data.inodes,',')
 
 		logging.debug(nodeid.identifier+" will be a root job inodes:"+str(nodeid.data.inodes)+" size:"+str(nodeid.data.sizek)+" (excluding data from all other jobs)")
@@ -3163,7 +3169,11 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 		if matchObj:
 			size = float(matchObj.group(1).replace(',',''))
 			sizeq = matchObj.group(4)
-			inodes = int(matchObj.group(5).replace(',',''))
+			inodesstr = matchObj.group(5).replace(',','')
+			if 'M' in inodesstr:
+				inodesstr = float(re.findall("\d+\.\d+", inodesstr)[0])*1000000
+
+			inodes = int(inodesstr)
 			inodes_hr = matchObj.group(5)
 			size_hr = matchObj.group(1)+' '+sizeq
 			path = matchObj.group(8)
@@ -3211,7 +3221,6 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 		logging.debug('rootinodes calculation is lower than 0, setting it to 0')
 
 	rootsizek_hr = k_to_hr(rootsizek)
-
 	dirtree.update_node(basepath,data=dirdata(rootinodes,rootsizek,format(rootinodes,","),rootsizek_hr,False,False,0))
 
 	#return the dirtree value 
