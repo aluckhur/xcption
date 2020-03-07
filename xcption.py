@@ -100,8 +100,8 @@ if not os.path.isdir(logdirpath):
 
 #default nomad job properties 
 defaultjobcron = "0 0 * * * *" #nightly @ midnight
-defaultcpu = 300
-defaultmemory = 100
+defaultcpu = 3000
+defaultmemory = 800
 
 #max logs for status -l 
 maxloglinestodisplay = 200
