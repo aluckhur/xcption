@@ -3756,8 +3756,8 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		if depth-1 > 0:
 			depthxcpcopy = ''
 
-			pscmd1 = robocopywinpathasses+" /E /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
-			pscmd2 = robocopywinpathasses+" /E /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
+			pscmd1 = robocopywinpathasses+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
+			pscmd2 = robocopywinpathasses+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
 
 			logging.info("robocopy can be used to create the destination initial directory structure for xcption jobs")
 			logging.info("robocopy command to sync directory structure for the required depth will be:")
