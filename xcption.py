@@ -2208,7 +2208,7 @@ def nomadstatus():
 	else:
 		#build the table object
 		table = PrettyTable()
-		table.field_names = ["Name","IP","Status","OS","Reserved/Total CPU MHz","Used CPU %","Reserved/Total RAM MB","Used RAM %","# Running Jobs"]		
+		table.field_names = ["Name","IP","Status","OS","Reserved/Total CPU MHz","Used CPU %","Reserved/Total RAM MB","Used RAM %","# Running Tasks"]		
 		nodes = json.loads(response.content)
 		
 		for node in nodes:
