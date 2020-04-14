@@ -41,6 +41,7 @@ dcname = 'DC1'
 defaultwintool = 'xcp'
 #xcp path location
 xcppath = '/usr/local/bin/xcp'
+
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 xcpwincopyparam = "-preserve-atime -acl -parallel 8"
@@ -57,6 +58,9 @@ root = os.path.dirname(os.path.abspath(__file__))
 
 #xcp repo and cache dir loaction 
 xcprepopath = os.path.join(root,'system','xcp_repo')
+
+#xcplinux path
+xcppath = os.path.join(root,'system','xcp_wrapper.sh')
 
 #xcp indexes path 
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
@@ -104,7 +108,7 @@ defaultcpu = 3000
 defaultmemory = 800
 
 #max logs for status -l 
-maxloglinestodisplay = 200
+maxloglinestodisplay = 100
 
 #smartasses globals 
 
@@ -890,13 +894,24 @@ def start_nomad_jobs(action, force):
 							logging.warning("baseline job already exists. use --force to force new baseline") 
 							continue
 						else:
-							if query_yes_no("are you sure you want o rebaseline "+src+" to "+dst+" ?",'no'):
+							if query_yes_no("are you sure you want to rebaseline "+src+" to "+dst+" ?",'no'):
+								logging.info("destroying existing baseline job")
 								if ostype == 'linux' and (tool == 'xcp' or tool == ''):
-									logging.info("destroying xcp index for aborted job")
-									logging.debug("running the command:"+xcppath+' diag -rmid '+xcpindexname)
+									logging.debug("destroying xcp index:"+xcppath+' diag -rmid '+xcpindexname)
 									DEVNULL = open(os.devnull, 'wb')
 									if subprocess.call( [ xcppath, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
 										logging.debug("failed to delete xcp index:"+xcpindexname)								
+								#delete baseline jobs 
+								logging.debug("destroying job prefixed by:"+nomadjobname)
+								delete_job_by_prefix(nomadjobname)
+
+								baselinecachedir = os.path.join(cachedir,'job_'+nomadjobname)
+								if os.path.exists(baselinecachedir):
+									logging.debug("delete baseline cache dir:"+baselinecachedir)
+									try:
+										rmout = shutil.rmtree(baselinecachedir) 
+									except:
+										logging.error("could not delete baseline cache dir:"+baselinecachedir)								
 								forcebaseline=True
 
 					if (action != 'baseline' and job) or forcebaseline or not job:
@@ -949,22 +964,26 @@ def start_nomad_jobs(action, force):
 									exit(1)
 
 #tail n lines of a file 
-def tail(file, n=1, bs=1024):
-    f = open(file)
-    f.seek(0,2)
-    l = 1-f.read(1).count('\n')
-    B = f.tell()
-    while n >= l and B > 0:
-            block = min(bs, B)
-            B -= block
-            f.seek(B, 0)
-            l += f.read(block).count('\n')
-    f.seek(B, 0)
-    l = min(l,n)
-    lines = f.readlines()[-l:]
-    f.close()
-    return lines
+# def tail(file, n=1, bs=1024):
+#     f = open(file)
+#     f.seek(0,2)
+#     l = 1-f.read(1).count('\n')
+#     B = f.tell()
+#     while n >= l and B > 0:
+#             block = min(bs, B)
+#             B -= block
+#             f.seek(B, 0)
+#             l += f.read(block).count('\n')
+#     f.seek(B, 0)
+#     l = min(l,n)
+#     lines = f.readlines()[-l:]
+#     f.close()
+#     return lines
 
+def tail (file,n=1):
+	tailfile = subprocess.check_output(['tail','-'+str(n),file])
+
+	return tailfile.splitlines(True)
 
 #parse stats from xcp logs, logs can be retrived from api or file in the repo
 def parse_stats_from_log (type,name,logtype,task='none'):
@@ -1650,9 +1669,10 @@ def create_status (reporttype,displaylogs=False):
 							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
 							 			except:
 							 				logging.debug("logfilepath wasnt found in results ")
+							 			if baselinestatsresults['content'] =='': print "log:"+logtype+" is not avaialble"
 									except:
 										print "log:"+logtype+" is not avaialble"
-									if baselinestatsresults['content'] =='': print "log:"+logtype+" is not avaialble"
+
 									print ""
 									print ""
 
@@ -1667,11 +1687,10 @@ def create_status (reporttype,displaylogs=False):
 							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
 							 			except:
 							 				logging.debug("logfilepath wasnt found in results ")													
-
+							 			if baselinestatsresults['contentotherlog'] =='': print "log:"+logtype+" is not avaialble"
 									except:
 										print "log:"+otherlogtype+" is not avaialble"
 
-									if baselinestatsresults['contentotherlog'] =='': print "log:"+logtype+" is not avaialble"
 									print ""
 									print ""
 									verbosetable = PrettyTable()
