@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.0.7.6'
+version = '2.0.8.1'
 
 import csv
 import argparse
@@ -39,8 +39,7 @@ dcname = 'DC1'
 
 #default windows tool
 defaultwintool = 'xcp'
-#xcp path location
-xcppath = '/usr/local/bin/xcp'
+
 
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
@@ -59,7 +58,7 @@ root = os.path.dirname(os.path.abspath(__file__))
 #xcp repo and cache dir loaction 
 xcprepopath = os.path.join(root,'system','xcp_repo')
 
-#xcplinux path
+#xcplinux path - need wrapper to support xcp 1.6
 xcppath = os.path.join(root,'system','xcp_wrapper.sh')
 
 #xcp indexes path 
