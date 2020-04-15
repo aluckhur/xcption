@@ -1056,11 +1056,17 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if 'bwout' in results:
 			for match in re.finditer(r"Total Time\s+\:\s+(\S+[s|m|h])\.?$",results['content'],re.M|re.I):
 				results['time'] = match.group(1)
+		# for cases when xcp failed buy did not return exit code 
+		# example: Cannot start sync: 0.6 GiB memory available, 5.0 total, at least 2 GiB required
+		if not lastline and logtype == 'stderr':
+			for match in re.finditer(r"Cannot start ?(\bcopy\b|\bsync\b|\bverify\b)\:",results['content'],re.M|re.I):
+				results['failure'] = True
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
 			otherloglastline = match.group(0)
 		results['otherloglastline'] = otherloglastline
+		
 	
 	#for xcp logs 	
 	if lastline:
@@ -1322,6 +1328,8 @@ def create_status (reporttype,displaylogs=False):
 									baselinetime = baselinestatsresults['time']
 								if 'bwout' in baselinestatsresults.keys(): 
 									baselinesent = baselinestatsresults['bwout']
+								if 'failure' in baselinestatsresults.keys():
+									baselinestatus = 'failed'
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
@@ -1413,6 +1421,7 @@ def create_status (reporttype,displaylogs=False):
 						if 'time' in statsresults.keys(): synctime = statsresults['time']
 						if 'bwout' in statsresults.keys(): syncsent = statsresults['bwout']
 						if 'lastline' in statsresults.keys(): synclastline = statsresults['lastline']
+						if 'failure' in statsresults.keys(): syncstatus = 'failed'
 						
 						syncstatus =  alloclastdetails['ClientStatus']
 						if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
@@ -1519,6 +1528,7 @@ def create_status (reporttype,displaylogs=False):
 						if 'time' in verifystatsresults.keys(): verifytime = verifystatsresults['time']
 						if 'lastline' in verifystatsresults.keys(): verifylastline = verifystatsresults['lastline']
 						if 'found' in verifystatsresults.keys(): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
+						if 'failure' in verifystatsresults.keys(): verifystatus = 'failed'
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
@@ -1639,8 +1649,11 @@ def create_status (reporttype,displaylogs=False):
 								if baselinejob['Status'] in ['pending','running']: baselinestatus =  baselinejob['Status']
 								if baselinejob['Status'] == 'dead' and baselinejob['Stop']: baselinestatus = 'aborted'
 
+								if 'failure' in baselinestatsresults: baselinestatus = 'failed'
+
 							except:
 								baselinestatus = '-'
+
 							if baselinestatus == 'running': endtime = '-' 
 
 							#filter out results based on scope 
@@ -1846,8 +1859,17 @@ def create_status (reporttype,displaylogs=False):
 										except:
 											jobstatus = '-'
 
+										try:
+											#job failed but did not exit wit error 
+											if 'failure' in currentlog.keys(): jobstatus = 'failed'
+										except:
+											pp.pprint(currentlog)											
+
+										
+
 								#handle aborted jobs 
 								if currentperiodic['Status'] == 'dead' and currentperiodic['Stop']: jobstatus = 'aborted'											
+
 
 								#validate aborted time 
 								if jobstatus == 'running': endtime = '-' 
