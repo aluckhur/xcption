@@ -1051,11 +1051,12 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		results['lastline'] = lastline
 
 		#updated for xcp1.6 log format:
-		for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['content'],re.M|re.I):
-			results['bwout'] = match.group(1)
-		if 'bwout' in results:
-			for match in re.finditer(r"Total Time\s+\:\s+(\S+[s|m|h])\.?$",results['content'],re.M|re.I):
-				results['time'] = match.group(1)
+		for match in re.finditer(r"Total Time\s+\:\s+(\S+[s|m|h])\.?$",results['content'],re.M|re.I):
+			results['time'] = match.group(1)		
+		if 'time' in results:
+			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['content'],re.M|re.I):
+				results['bwout'] = match.group(1)
+		
 		# for cases when xcp failed buy did not return exit code 
 		# example: Cannot start sync: 0.6 GiB memory available, 5.0 total, at least 2 GiB required
 		if not lastline and logtype == 'stderr':
@@ -3714,7 +3715,7 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		failbackuser = args.failbackuser
 		failbackgroup = args.failbackgroup		
 
-	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows server") 
+	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows servers") 
 	pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
 	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 	if  psstatus != 'complete':
