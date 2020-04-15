@@ -72,12 +72,12 @@ LOCAL_IPV4=$(hostname --ip-address)
 
 if [[ $LOCAL_IPV4 == *127.0.0* ]]; then  
   echo "Error: host local IP address points to localhost ($LOCAL_IPV4)." >&2;
-  echo "Please update the /etc/hosts file to use external IP for the host name" >&2;
-  echo "After changing the /etc/hosts entry validate the command: hostname --ip-address return the external IP of the host" >&2;
+  echo "Please update the /etc/hosts file to use external IP for the host name." >&2;
+  echo "After changing the /etc/hosts entry, validate using the command: 'hostname --ip-address' It should return the external IP of the host." >&2;
   exit 1;
 fi
 
-echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement"
+echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement."
 
 #validate which installation utility exists in the system
 export APT=`command -v apt`
@@ -237,7 +237,7 @@ systemctl daemon-reload
 systemctl enable nomad
 systemctl start nomad
 
-echo "configurting xcp"
+echo "Configuring XCP"
 mkdir -p /opt/NetApp/xFiles/xcp
 
 cat <<EONSU >/opt/NetApp/xFiles/xcp/xcp.ini
@@ -246,6 +246,7 @@ catalog = ${XCPREPO}
 EONSU
 
 if [ -f ${SCRIPT_DIR}/license ]; then
+  echo "Existing licensefile found."
   echo "Coping ${SCRIPT_DIR}/license to /opt/NetApp/xFiles/xcp/license"
   cp ${SCRIPT_DIR}/license /opt/NetApp/xFiles/xcp/license
 fi 
@@ -284,7 +285,7 @@ fi
 mount ${REPO_MOUNT_POINT}
 
 if grep -qs ${REPO_MOUNT_POINT} /proc/mounts; then
-  echo "XCP repo:${REPO_MOUNT_POINT} is mountable"
+  echo "XCP repo:${REPO_MOUNT_POINT} is mountable."
 else
   echo "ERROR: could not mount XCP repo:${REPO_MOUNT_POINT}"
 fi  
