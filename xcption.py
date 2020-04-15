@@ -107,7 +107,7 @@ defaultcpu = 3000
 defaultmemory = 800
 
 #max logs for status -l 
-maxloglinestodisplay = 100
+maxloglinestodisplay = 50
 
 #smartasses globals 
 
@@ -980,7 +980,9 @@ def start_nomad_jobs(action, force):
 #     return lines
 
 def tail (file,n=1):
+	logging.debug("starting log tail:"+file)
 	tailfile = subprocess.check_output(['tail','-'+str(n),file])
+	logging.debug("ending log tail")
 
 	return tailfile.splitlines(True)
 
@@ -988,6 +990,7 @@ def tail (file,n=1):
 def parse_stats_from_log (type,name,logtype,task='none'):
 #def parse_stats_from_log (type,name,task='none',jobstatus='unknow'):
 	#output dict
+	logging.debug("starting log parsing type:"+type+" name:"+name+" type:"+type)
 	results = {}
 	results['content'] = ''
 	lastline = ''
@@ -1046,12 +1049,19 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['content'],re.M|re.I):
 			lastline = match.group(0)
 		results['lastline'] = lastline
+
+		#updated for xcp1.6 log format:
+		for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['content'],re.M|re.I):
+			results['bwout'] = match.group(1)
+		if 'bwout' in results:
+			for match in re.finditer(r"Total Time\s+\:\s+(\S+[s|m|h])\.?$",results['content'],re.M|re.I):
+				results['time'] = match.group(1)
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
 			otherloglastline = match.group(0)
-		results['otherloglastline'] = otherloglastline		
-
+		results['otherloglastline'] = otherloglastline
+	
 	#for xcp logs 	
 	if lastline:
 		matchObj = re.search("\s+(\S*\d+[s|m|h])(\.)?$", lastline, re.M|re.I)
@@ -1061,13 +1071,19 @@ def parse_stats_from_log (type,name,logtype,task='none'):
                 matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(reviewed|compared)", lastline, re.M|re.I)
                 if matchObj:
                         results['reviewed'] = matchObj.group(1)
+
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
-		if matchObj: 
-			results['scanned'] = matchObj.group(1)
+		if matchObj:
+			results['scanned'] = matchObj.group(1)	
+
 		#in case of match filter being used the scanned files will used
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) matched", lastline, re.M|re.I)
 		if matchObj: 
-			results['scanned'] = matchObj.group(1)			
+			if 	matchObj.group(1) != '0':		
+				results['scanned'] = matchObj.group(1)		
+		
+
+	
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) copied", lastline, re.M|re.I)
 		if matchObj: 
 			results['copied'] = matchObj.group(1)
@@ -1150,7 +1166,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 #				json.dump(results, f)
 #		except:
 #			logging.debug("failed storing log data in json file:"+logjsonfile)								
-
+	logging.debug("ending log parsing type:"+type+" name:"+name+" type:"+type)
 	return results
 
 #get the next cron run in human readable 
@@ -1675,18 +1691,19 @@ def create_status (reporttype,displaylogs=False):
 									print ""
 									print ""
 
-									try:
-										otherlogtype = 'stdout'
-										if logtype == 'stdout': otherlogtype = 'stderr'
+									otherlogtype = 'stdout'
+									if logtype == 'stdout': otherlogtype = 'stderr'
 
-										print "Log type:"+otherlogtype
+									print "Log type:"+otherlogtype
+									try:
+
 										print baselinestatsresults['contentotherlog']
 							 			try:
 							 				print ""
 							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
 							 			except:
 							 				logging.debug("logfilepath wasnt found in results ")													
-							 			if baselinestatsresults['contentotherlog'] =='': print "log:"+logtype+" is not avaialble"
+							 			if baselinestatsresults['contentotherlog'] =='': print "log:"+otherlogtype+" is not avaialble"
 									except:
 										print "log:"+otherlogtype+" is not avaialble"
 
@@ -1899,11 +1916,11 @@ def create_status (reporttype,displaylogs=False):
 										if currentlog['content'] =='': print "log:"+logtype+" is not avaialble"
 										print ""
 										print ""
+										
+										otherlogtype = 'stdout'
+										if logtype == 'stdout': otherlogtype = 'stderr'
+										print "Log type:"+otherlogtype
 										try:
-											otherlogtype = 'stdout'
-											if logtype == 'stdout': otherlogtype = 'stderr'
-
-											print "Log type:"+otherlogtype
 											print currentlog['contentotherlog']
 								 			try:
 								 				print ""
@@ -1913,7 +1930,8 @@ def create_status (reporttype,displaylogs=False):
 
 										except:
 											print "log:"+otherlogtype+" is not avaialble"
-										if currentlog['contentotherlog'] =='': print "log:"+logtype+" is not avaialble"
+
+										if currentlog['contentotherlog'] =='': print "log:"+otherlogtype+" is not avaialble"
 										print ""
 										verbosetable = PrettyTable()
 										verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
@@ -1970,7 +1988,7 @@ def update_nomad_job_status(action):
 			#check if job dir exists
 			if not os.path.exists(jobdir):
 				logging.error("job config directory:" + jobdir + " not exists. please use 'sload' first") 
-				exit (1)
+				exit(1)
 					
 			for src in jobsdict[jobname]:
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
