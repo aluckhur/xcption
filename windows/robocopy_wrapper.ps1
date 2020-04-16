@@ -158,21 +158,24 @@ while (!$bDone)
             #Write-Host "Original Exit Code: $exitcode"
             $exitcode = 0
         } else {                 
-            $exitmessage = 'robocopy ended with undocumented exitcode:'+$exitcode
+            $exitmessage = "robocopy ended with undocumented exitcode: $exitcode"
         }
 
         Write-Host ""
-        if (-not $endstring) {
-            $exitmessage = 'could not identify the robocopy summary indicating the job is completed'
-            exitcode = 1
-        }
+
         if ($exitcode -lt -1 -or $exitcode -gt 16) {
-            $exitmessage = 'robocopy ended with undocumented exitcode:'+$exitcode'
-            exitcode = 1
+            $exitmessage = "robocopy ended with undocumented exitcode: $exitcode"
+            $exitcode = 1
         }
         Write-Host "Exit Code: $exitcode Exit Message: $exitmessage"
         $bDone = $True
     }    
+}
+
+if (-not $endstring) {
+    $exitmessage = 'could not identify the robocopy summary indicating the job is completed'
+    Write-Host "Exit Code: $exitcode Exit Message: $exitmessage"
+    $exitcode = 1
 }
 
 exit $exitcode
