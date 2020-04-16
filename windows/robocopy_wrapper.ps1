@@ -44,6 +44,9 @@ $same = 0
 
 $newbytes = 0
 
+#will be set to true if the unique string to robocopy successful end will be found in the output, if not the exit code will be failure 
+$endstring = $False
+
 while (!$bDone)
 {
 
@@ -95,6 +98,8 @@ while (!$bDone)
             } elseif ($line -match 'ERROR \d') {
                 Write-Host $line 
                 $errors += 1
+            } elseif ($line -match 'Ended \:') {
+                $endstring = $True
             } elseif ($line -match '^\s*\\\\') {
                 #skip split                                       
             } elseif ($line -match '^\s*(\d+)%\s*$') {
@@ -146,18 +151,25 @@ while (!$bDone)
         Write-Host $('{0:N0}' -f ($scanned)) 'scanned,' $('{0:N0}' -f ($new)) 'copied,' $('{0:N0}' -f ($modified)) 'modification,' $('{0:N0}' -f ($errors)) 'error,' $('{0:N0}' -f ($filegone)) 'file.gone,' $('{0:N0}' -f ($dirgone)) 'dir.gone,' "$($bw)$($bwqunatifier) ($($bws)$($bwsquantifier))," $time
     }
     
-    if ($processexited)
-    {
+    if ($processexited) {
         $exitcode = $oProcess.ExitCode 
         if ($exitcode -le 16 -and $exitcode -ge 0) {
             $exitmessage = $RobocopyErrorCodes[$exitcode]
             #Write-Host "Original Exit Code: $exitcode"
             $exitcode = 0
         } else {                 
-            $exitmessage = $RobocopyErrorCodes[$exitcode]
+            $exitmessage = 'robocopy ended with undocumented exitcode:'+$exitcode
         }
 
         Write-Host ""
+        if (-not $endstring) {
+            $exitmessage = 'could not identify the robocopy summary indicating the job is completed'
+            exitcode = 1
+        }
+        if ($exitcode -lt -1 -or $exitcode -gt 16) {
+            $exitmessage = 'robocopy ended with undocumented exitcode:'+$exitcode'
+            exitcode = 1
+        }
         Write-Host "Exit Code: $exitcode Exit Message: $exitmessage"
         $bDone = $True
     }    
