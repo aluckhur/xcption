@@ -1927,6 +1927,7 @@ def create_status (reporttype,displaylogs=False):
 										print ""
 
 										try:
+											if not 'content' in currentlog: currentlog['content'] = ''
 											print "Log type:"+logtype
 											print currentlog['content']
 								 			try:
@@ -1936,7 +1937,9 @@ def create_status (reporttype,displaylogs=False):
 								 				logging.debug("logfilepath wasnt found in results ")
 										except:
 											print "log:"+logtype+" is not avaialble"
+
 										if currentlog['content'] =='': print "log:"+logtype+" is not avaialble"
+
 										print ""
 										print ""
 										
@@ -1944,17 +1947,18 @@ def create_status (reporttype,displaylogs=False):
 										if logtype == 'stdout': otherlogtype = 'stderr'
 										print "Log type:"+otherlogtype
 										try:
+											if not 'contentotherlog' in currentlog: currentlog['contentotherlog'] = ''
 											print currentlog['contentotherlog']
 								 			try:
 								 				print ""
 								 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
 								 			except:
 								 				logging.debug("logfilepath wasnt found in results ")													
-
 										except:
 											print "log:"+otherlogtype+" is not avaialble"
 
 										if currentlog['contentotherlog'] =='': print "log:"+otherlogtype+" is not avaialble"
+
 										print ""
 										verbosetable = PrettyTable()
 										verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
