@@ -1,8 +1,12 @@
 2.7.0.5
-
 - add smartasses functionality
-- abort running/penfing task using ,/xcption.py abort 
+- abort running/pending task using ,/xcption.py abort 
 - force rebaseline using ./xcption.py baseline -f 
 
 2.7.0.6
 - smartasses job cannot be nfs root path (ex. nfssrv:/) due to xcp limitation
+
+2.8.0.2 
+- support for xcp 1.6
+- fix for robocopy stops unexpectdly without exit code 
+- change the log tail mechanism to use os tail command (should be faster)
