@@ -19,6 +19,7 @@ foreach ($a in $args) {
     
 }
 
+Write-host $arguments
 
 $oInfo = New-Object System.Diagnostics.ProcessStartInfo
 $oInfo.FileName  = "robocopy"
@@ -44,6 +45,9 @@ $same = 0
 
 $newbytes = 0
 
+#will be set to true if the unique string to robocopy successful end will be found in the output, if not the exit code will be failure 
+$endstring = $False
+
 while (!$bDone)
 {
 
@@ -54,7 +58,8 @@ while (!$bDone)
 
     if ($processexited) {
          $lines += $oProcess.StandardOutput.ReadToEnd()
-    }
+         $bDone = $True
+    } 
 
     $SpanTime = New-TimeSpan -Start $StartTime -End (Get-Date)
     $seconds = $SpanTime.Seconds
@@ -64,6 +69,7 @@ while (!$bDone)
     $logtick = [math]::truncate($seconds / 10)
 
     ForEach ($line in $lines) {
+        
         if ($line) {
             if ($line -match '\s+Modified\s+(\d+)') {
                 $modified += 1
@@ -80,12 +86,12 @@ while (!$bDone)
             } elseif ($line -match '\s+New Dir\s+(\d+)') {
                 $new += 1 
             } elseif ($line -match '\s+same\s+(\d+)') {
-                $same += 1                 
+                $same += 1             
             } elseif ($line -match '(^|\s+)same\s+') {
                 #in some cases lines with same are splited (robocopy bug)
-                $same += 1               
+                $same += 1             
             } elseif ($line -match '\s+tweaked\s+(\d+)') {
-                $modified += 1                                       
+                $modified += 1         
             } elseif ($line -match '^\s*\*EXTRA File\s+(\d+)') {
                 $filegone += 1 
             } elseif ($line -match '^\s*\*EXTRA Dir\s+-?(\d+)') {
@@ -93,16 +99,20 @@ while (!$bDone)
             } elseif ($line -match '^\s+(\d+)\s+\\.+\\\s*$') {
                 $dir += 1 
             } elseif ($line -match 'ERROR \d') {
-                Write-Host $line 
+                Write-Output $line 
                 $errors += 1
             } elseif ($line -match '^\s*\\\\') {
-                #skip split                                       
+                #skip split            
             } elseif ($line -match '^\s*(\d+)%\s*$') {
                 #skipp
             } elseif ($line -match '^\s*$') {
                 #empty        
             } else {
                 Write-Host "$($line)"
+            }
+
+            if ($line -match "Ended \:") {
+                $endstring = $True            
             }
         }
     }
@@ -139,28 +149,37 @@ while (!$bDone)
 
         #add new line before the final line 
         if ($processexited) {
-            Write-Host ""
-            Write-Host ""
+            Write-Output ""
+            Write-Output ""
         }
         
         Write-Host $('{0:N0}' -f ($scanned)) 'scanned,' $('{0:N0}' -f ($new)) 'copied,' $('{0:N0}' -f ($modified)) 'modification,' $('{0:N0}' -f ($errors)) 'error,' $('{0:N0}' -f ($filegone)) 'file.gone,' $('{0:N0}' -f ($dirgone)) 'dir.gone,' "$($bw)$($bwqunatifier) ($($bws)$($bwsquantifier))," $time
     }
     
-    if ($processexited)
-    {
+    if ($bDone) {
         $exitcode = $oProcess.ExitCode 
         if ($exitcode -le 16 -and $exitcode -ge 0) {
             $exitmessage = $RobocopyErrorCodes[$exitcode]
-            #Write-Host "Original Exit Code: $exitcode"
+            #Write-Output "Original Exit Code: $exitcode"
             $exitcode = 0
         } else {                 
-            $exitmessage = $RobocopyErrorCodes[$exitcode]
+            $exitmessage = "robocopy ended with undocumented exitcode: $exitcode"
         }
 
-        Write-Host ""
-        Write-Host "Exit Code: $exitcode Exit Message: $exitmessage"
-        $bDone = $True
+        Write-Output ""
+
+        if ($exitcode -lt -1 -or $exitcode -gt 16) {
+            $exitmessage = "robocopy ended with undocumented exitcode: $exitcode"
+            $exitcode = 1
+        }
+        Write-Output "Exit Code: $exitcode Exit Message: $exitmessage"
     }    
+}
+
+if (-not $endstring) {
+    $exitmessage = 'could not identify the robocopy summary indicating the job is completed'
+    $exitcode = 1
+    Write-Output "Exit Code: $exitcode Exit Message: $exitmessage"
 }
 
 exit $exitcode
