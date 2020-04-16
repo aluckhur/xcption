@@ -98,8 +98,6 @@ while (!$bDone)
             } elseif ($line -match 'ERROR \d') {
                 Write-Host $line 
                 $errors += 1
-            } elseif ($line -match 'Ended \:') {
-                $endstring = $True
             } elseif ($line -match '^\s*\\\\') {
                 #skip split                                       
             } elseif ($line -match '^\s*(\d+)%\s*$') {
@@ -108,6 +106,10 @@ while (!$bDone)
                 #empty        
             } else {
                 Write-Host "$($line)"
+            }
+
+            if ($line -match 'Ended \:') {
+                $endstring = $True            
             }
         }
     }
