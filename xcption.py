@@ -1073,7 +1073,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if 'time' in results:
 			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['contentotherlog'],re.M|re.I):
 				results['bwout'] = match.group(1)
-		if otherloglastline != '' and lastline = '':
+		if otherloglastline != '' and lastline == '':
 			lastline = otherloglastline	
 		
 	
