@@ -1136,7 +1136,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if matchObj:
 			results['found'] = matchObj.group(1)
 
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?\%?) (found )?\(([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) have data\)", otherloglastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?\%?|\d+) (found )?\(([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) have data\)", otherloglastline, re.M|re.I)
 		if matchObj: 
 			results['found'] = matchObj.group(1)
 			results['withdata'] = matchObj.group(2)
@@ -1144,7 +1144,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['verified']='yes'
 				results['found']=results['scanned']
 			else:
-				results['found']=format(int(results['found']),',')
+				results['found']=format(int(results['found'].replace(',','')),',')
 		
 		matchObj = re.search("100\% verified \(attrs, mods\)", lastline, re.M|re.I)
 		if matchObj:
