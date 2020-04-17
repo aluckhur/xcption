@@ -1067,6 +1067,14 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
 			otherloglastline = match.group(0)
 		results['otherloglastline'] = otherloglastline
+		#updated for xcp1.6 log format:
+		for match in re.finditer(r"Total Time\s+\:\s+(\S+[s|m|h])\.?$",results['contentotherlog'],re.M|re.I):
+			results['time'] = match.group(1)		
+		if 'time' in results:
+			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['contentotherlog'],re.M|re.I):
+				results['bwout'] = match.group(1)
+		if otherloglastline != '' and lastline = '':
+			lastline = otherloglastline	
 		
 	
 	#for xcp logs 	
