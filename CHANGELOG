@@ -1,5 +1,5 @@
 2.7.0.5
-- add smartasses functionality
+- add smartassess functionality
 - abort running/pending task using ,/xcption.py abort 
 - force rebaseline using ./xcption.py baseline -f 
 
@@ -12,5 +12,5 @@
 - change the log tail mechanism to use os tail command (should be faster)
 
 2.8.0.3
-- chnaged asses to assess (command line parameters changed)
+- chnaged asses to assess and smartasses to smartassess(command line parameters changed)
 - add the ability to modify schedule, cpu and ram to each task (until now it was only job name) using the modify subcommand 
