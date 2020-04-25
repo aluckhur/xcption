@@ -1,4 +1,4 @@
-job "{{ smartasses_job_name }}" {
+job "{{ smartassess_job_name }}" {
   datacenters = ["{{ dcname }}"]
 
   type = "batch"
