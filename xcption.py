@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.8.0.2'
+version = '2.8.0.3'
 
 import csv
 import argparse
@@ -49,7 +49,7 @@ xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime -parallel 8"
 
 #robocopy windows location
 robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
-robocopywinpathasses = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
+robocopywinpathassess = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
 robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /V /BYTES /NDL '
 
 #location of the script 
@@ -68,8 +68,8 @@ xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 cachedir = os.path.join(xcprepopath,'nomadcache')
 #cachedir = os.path.join(root,'nomadcache')
 
-#smartasses dir for current state 
-smartassesdir = os.path.join(xcprepopath,'smartasses')
+#smartassess dir for current state 
+smartassessdir = os.path.join(xcprepopath,'smartassess')
 
 #path to nomad bin 
 nomadpath = '/usr/local/bin/nomad'
@@ -83,8 +83,8 @@ excludedir = os.path.join(xcprepopath,'excludedir')
 #file containing loaded jobs 
 jobdictjson = os.path.join(jobsdir,'jobs.json')
 
-#smartasses json jobs file
-smartassesjobdictjson = os.path.join(smartassesdir,'smartassesjobs.json')
+#smartassess json jobs file
+smartassessjobdictjson = os.path.join(smartassessdir,'smartassessjobs.json')
 
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
@@ -109,7 +109,7 @@ defaultmemory = 800
 #max logs for status -l 
 maxloglinestodisplay = 50
 
-#smartasses globals 
+#smartassess globals 
 
 minsizekfortask_minborder = 0.5*1024*1024*1024 #512GB
 mininodespertask_minborder = 100000 
@@ -130,7 +130,7 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 # create the sub commands 
 parser_nodestatus   = subparser.add_parser('nodestatus',help='display cluster nodes status',parents=[parent_parser])	
 parser_status       = subparser.add_parser('status',    help='display status',parents=[parent_parser])	
-parser_asses        = subparser.add_parser('asses',     help='asses fielsystem and create csv file',parents=[parent_parser])
+parser_assess       = subparser.add_parser('assess',    help='assess filesystem and create csv file',parents=[parent_parser])
 parser_load         = subparser.add_parser('load',      help='load/update configuration from csv file',parents=[parent_parser])
 parser_baseline     = subparser.add_parser('baseline',  help='start baseline (xcp copy)',parents=[parent_parser])
 parser_sync         = subparser.add_parser('sync',      help='start schedule updates (xcp sync)',parents=[parent_parser])
@@ -152,16 +152,16 @@ parser_status.add_argument('-n','--node',help="change the scope of the command t
 parser_status.add_argument('-e','--error',help="change the scope of the command to jobs with errors (requires -v/--verbose)", required=False,action='store_true')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
-parser_asses.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
-parser_asses.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
-parser_asses.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
-parser_asses.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
-parser_asses.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
-parser_asses.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
-parser_asses.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
-parser_asses.add_argument('-u','--failbackuser',help="failback user required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
-parser_asses.add_argument('-g','--failbackgroup',help="failback group required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
-parser_asses.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
+parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_assess.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
+parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
+parser_assess.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
+parser_assess.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
+parser_assess.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
+parser_assess.add_argument('-r','--robocopy',help="use robocopy instead of xcp for windows jobs", required=False,action='store_true')
+parser_assess.add_argument('-u','--failbackuser',help="failback user required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
+parser_assess.add_argument('-g','--failbackgroup',help="failback group required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
+parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -197,20 +197,23 @@ parser_delete.add_argument('-f','--force',help="force delete", required=False,ac
 
 parser_modify.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_modify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_modify.add_argument('-t','--tojob',help="move selected tasks to this job", required=True,type=str,metavar='tojob')
-parser_modify.add_argument('-f','--force',help="force move", required=False,action='store_true')
+parser_modify.add_argument('-t','--tojob',help="move selected tasks to this job", required=False,type=str,metavar='tojob')
+parser_modify.add_argument('-c','--cron',help="modify the sync schedule for this job", required=False,type=str,metavar='cron')
+parser_modify.add_argument('-p','--cpu',help="modify CPU allocation in MHz for each job",required=False,type=int)
+parser_modify.add_argument('-m','--ram',help="modify RAM allocation in MB for each job",required=False,type=int)
+parser_modify.add_argument('-f','--force',help="force modify", required=False,action='store_true')
 
-parser_smartasses   = subparser.add_parser('smartasses',help='create tasks based on capacity and file count (nfs only)',parents=[parent_parser])
+parser_smartassess   = subparser.add_parser('smartassess',help='create tasks based on capacity and file count (nfs only)',parents=[parent_parser])
 
-action_subparser = parser_smartasses.add_subparsers(title="action",dest="smartasses_command")                                                                                                               
-parser_smartasses_start     = action_subparser.add_parser('start',help='scan src to create tasks based on capacity and inode count (nfs only)',parents=[parent_parser])
-parser_smartasses_status    = action_subparser.add_parser('status',help='display scan status and filesystem info',parents=[parent_parser])
-parser_smartasses_createcsv = action_subparser.add_parser('createcsv',help='create csv job file based on the scan results',parents=[parent_parser])
-parser_smartasses_delete    = action_subparser.add_parser('delete',help='delete existing scan information',parents=[parent_parser])
+action_subparser = parser_smartassess.add_subparsers(title="action",dest="smartassess_command")                                                                                                               
+parser_smartassess_start     = action_subparser.add_parser('start',help='scan src to create tasks based on capacity and inode count (nfs only)',parents=[parent_parser])
+parser_smartassess_status    = action_subparser.add_parser('status',help='display scan status and filesystem info',parents=[parent_parser])
+parser_smartassess_createcsv = action_subparser.add_parser('createcsv',help='create csv job file based on the scan results',parents=[parent_parser])
+parser_smartassess_delete    = action_subparser.add_parser('delete',help='delete existing scan information',parents=[parent_parser])
 
-parser_smartasses_start.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
-parser_smartasses_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
-parser_smartasses_start.add_argument('-k','--locate-cross-task-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
+parser_smartassess_start.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_smartassess_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
+parser_smartassess_start.add_argument('-k','--locate-cross-task-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
 #check capacity parameter 
 def checkcapacity (capacity):
@@ -231,23 +234,23 @@ def k_to_hr (k):
 		hr = format(int(k/1024/1024/1024),',')+'TiB'
 	return hr	
 
-parser_smartasses_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_smartasses_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='mininodes')
-parser_smartasses_status.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
-parser_smartasses_status.add_argument('-t','--tasks',help="provide verbose task information per suggested path", required=False,action='store_true')
-parser_smartasses_status.add_argument('-l','--hardlinks',help="provide cross task hardlink information per suggested path", required=False,action='store_true')
+parser_smartassess_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartassess_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='mininodes')
+parser_smartassess_status.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
+parser_smartassess_status.add_argument('-t','--tasks',help="provide verbose task information per suggested path", required=False,action='store_true')
+parser_smartassess_status.add_argument('-l','--hardlinks',help="provide cross task hardlink information per suggested path", required=False,action='store_true')
 
-parser_smartasses_createcsv.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_smartasses_createcsv.add_argument('-d','--destination',help="change the scope of the command to specific path", required=False,type=str,metavar='dstpath')
-parser_smartasses_createcsv.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
-parser_smartasses_createcsv.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
-parser_smartasses_createcsv.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
-parser_smartasses_createcsv.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
-parser_smartasses_createcsv.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
-parser_smartasses_createcsv.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
+parser_smartassess_createcsv.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartassess_createcsv.add_argument('-d','--destination',help="change the scope of the command to specific path", required=False,type=str,metavar='dstpath')
+parser_smartassess_createcsv.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
+parser_smartassess_createcsv.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
+parser_smartassess_createcsv.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
+parser_smartassess_createcsv.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
+parser_smartassess_createcsv.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
+parser_smartassess_createcsv.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 
-parser_smartasses_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_smartasses_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
+parser_smartassess_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartassess_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
 
 args = parser.parse_args()
 
@@ -282,7 +285,7 @@ logging.debug("starting " + os.path.basename(sys.argv[0]))
 
 #initialize dict objects
 jobsdict = {}
-smartassesdict = {}
+smartassessdict = {}
 dstdict = {}
 nomadout = {}
 
@@ -300,14 +303,14 @@ def getnomadjobdetails (nomadjobname):
 		assert not job 
 	return job
 
-#load smartasses from json 
-def load_smartasses_jobs_from_json (jobdictjson):
-	global smartassesdict
+#load smartassess from json 
+def load_smartassess_jobs_from_json (jobdictjson):
+	global smartassessdict
 	if os.path.exists(jobdictjson):
 		try:
 			logging.debug("loading existing json file:"+jobdictjson)
 			with open(jobdictjson, 'r') as f:
-				smartassesdict = json.load(f)
+				smartassessdict = json.load(f)
 		except:
 			logging.debug("could not load existing json file:"+jobdictjson)
 
@@ -1285,6 +1288,7 @@ def create_status (reporttype,displaylogs=False):
 					tool              = jobdetails['tool']
 					excludedirfile    = jobdetails['excludedirfile']
 					
+					#xcp logs for linux are in stderr for windows they are in stdout 
 					if ostype=='windows': logtype = 'stdout'
 					if ostype=='linux': logtype = 'stderr'
 
@@ -2460,7 +2464,7 @@ def parse_nomad_jobs_to_files ():
 
 	for job in jobs:
 
-		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify') or job['ID'].startswith('smartasses')):
+		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify') or job['ID'].startswith('smartassess')):
 			continue
 
 		jobdir = os.path.join(cachedir,'job_'+job['ID'])	
@@ -2527,7 +2531,7 @@ def parse_nomad_jobs_to_files ():
 				task = 'sync'	
 				if alloc['TaskGroup'].startswith('baseline'): task='baseline'
 				if alloc['TaskGroup'].startswith('verify'): task='verify'
-				if alloc['TaskGroup'].startswith('smartasses'): task='smartasses'
+				if alloc['TaskGroup'].startswith('smartassess'): task='smartassess'
 
 				#get stderr and stdout logs
 				for logtype in ['stderr','stdout']:
@@ -2537,8 +2541,8 @@ def parse_nomad_jobs_to_files ():
 						logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
 						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
 						try:
-							#for smartasses jobs always pull a full file 
-							if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartasses'):
+							#for smartassess jobs always pull a full file 
+							if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess'):
 								with open(alloclogfile, 'w') as fp:
 									logging.debug("dumping log to log file:"+alloclogfile)
 									fp.write(response.content)
@@ -2658,7 +2662,7 @@ def nfs_mount(export, mountpoint):
 
 
 #check job status 
-def check_smartasses_job_status (jobname):
+def check_smartassess_job_status (jobname):
 
 	jobcachedir = os.path.join(cachedir,'job_'+jobname)
 
@@ -2676,7 +2680,7 @@ def check_smartasses_job_status (jobname):
 		job = None
 
 	if not job and not os.path.exists(jobcachedir):
-		logging.debug("smartasses job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
+		logging.debug("smartassess job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
 		results['status'] = 'not started'
 		return results
 
@@ -2698,7 +2702,7 @@ def check_smartasses_job_status (jobname):
 				with open(alloccachefile) as f:
 					logging.debug('loading cached info alloc file:'+alloccachefile)
 					allocdata = json.load(f)
-				 	starttime = allocdata['TaskStates']['smartasses']['StartedAt']
+				 	starttime = allocdata['TaskStates']['smartassess']['StartedAt']
 				 	starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
 					results['starttime'] = starttime
 
@@ -2853,52 +2857,52 @@ def gethardlinklistpertask(hardlinks,src):
 
 	return hardlinkpaths
 
-#delete smartasses scan data 
-def smartasses_fs_linux_delete(forceparam):
-	smartassesdictcopy = copy.deepcopy(smartassesdict)
-	for smartassessjob in smartassesdict:
-		src = smartassesdictcopy[smartassessjob]['src']
+#delete smartassess scan data 
+def smartassess_fs_linux_delete(forceparam):
+	smartassessdictcopy = copy.deepcopy(smartassessdict)
+	for smartassessjob in smartassessdict:
+		src = smartassessdictcopy[smartassessjob]['src']
 		if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 			force = forceparam
 			if not force: force = query_yes_no("delete job for source:"+src,'no')
 			if force:
-				logging.info("delete smartasses job for source:"+src) 
-				#delete smartasses jobs 
+				logging.info("delete smartassess job for source:"+src) 
+				#delete smartassess jobs 
 				delete_job_by_prefix(smartassessjob)
 
 				jobcachedir = os.path.join(cachedir,'job_'+smartassessjob)
 				if os.path.exists(jobcachedir):
-					logging.debug("delete smartasses cache dir:"+jobcachedir)
+					logging.debug("delete smartassess cache dir:"+jobcachedir)
 					try:
 						rmout = shutil.rmtree(jobcachedir) 
 					except:
-						logging.error("could not delete smartasses cache dir:"+jobcachedir)
+						logging.error("could not delete smartassess cache dir:"+jobcachedir)
 
 				jobcachedir = os.path.join(cachedir,'job_'+smartassessjob+'_hardlink_scan')
 				if os.path.exists(jobcachedir):
-					logging.debug("delete smartasses cache dir:"+jobcachedir)
+					logging.debug("delete smartassess cache dir:"+jobcachedir)
 					try:
 						rmout = shutil.rmtree(jobcachedir) 
 					except:
-						logging.error("could not delete smartasses cache dir:"+jobcachedir)
+						logging.error("could not delete smartassess cache dir:"+jobcachedir)
 
 
-				#delete entry from smartassesdictcopy
-				del smartassesdictcopy[smartassessjob]
+				#delete entry from smartassessdictcopy
+				del smartassessdictcopy[smartassessjob]
 
-	#dumping smartassesdictcopy to json file 
+	#dumping smartassessdictcopy to json file 
 	try:
-		with open(smartassesjobdictjson, 'w') as fp:
-			json.dump(smartassesdictcopy, fp)
+		with open(smartassessjobdictjson, 'w') as fp:
+			json.dump(smartassessdictcopy, fp)
 		fp.close()
 	except:
-		logging.error("cannot write job json file:"+smartassesjobdictjson)
+		logging.error("cannot write job json file:"+smartassessjobdictjson)
 		exit(1)												
 
-#show status of the smartasses jobs/create csv file 
-def smartasses_fs_linux_status_createcsv(args,createcsv):
+#show status of the smartassess jobs/create csv file 
+def smartassess_fs_linux_status_createcsv(args,createcsv):
 	global mininodespertask_minborder, mininodespertask
-	global smartassesdict
+	global smartassessdict
 	global totaljobscreated,totaljobssizek
 
 	dirtree = Tree()
@@ -2915,7 +2919,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 	try:
 		if not createcsv:
 			#validate we are ready for status 
-			logging.debug("starting smartasses status") 
+			logging.debug("starting smartassess status") 
 			displaytasks = args.tasks
 			displaylinks = args.hardlinks	
 				
@@ -2924,7 +2928,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 			src = args.source
 			dst = args.destination
 
-			logging.debug("starting smartasses createcsv") 	
+			logging.debug("starting smartassess createcsv") 	
 
 			if not re.search("\S+\:\/\S+", src):
 				logging.error("source format is incorrect: " + src) 
@@ -2949,7 +2953,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 				exit(1)
 
 			jobname = args.job
-			if jobname == '' or not jobname: jobname = 'smartasses'+str(os.getpid())
+			if jobname == '' or not jobname: jobname = 'smartassess'+str(os.getpid())
 
 			defaultprocessor = defaultcpu
 			if args.cpu: 
@@ -2971,17 +2975,17 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 		table = PrettyTable()
 		table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
 
-		for smartassesjob in smartassesdict:
+		for smartassessjob in smartassessdict:
 			totaljobscreated = 0 
 			totaljobssizek = 0 
 
-			src = smartassesdict[smartassesjob]['src']
+			src = smartassessdict[smartassessjob]['src']
 
 			if (not createcsv and (srcfilter == '' or fnmatch.fnmatch(src, srcfilter))) or (createcsv and src == args.source):
 
-				results = check_smartasses_job_status(smartassesjob)
+				results = check_smartassess_job_status(smartassessjob)
 				if not createcsv:
-					resultshardlink = check_smartasses_job_status(smartassesjob+'_hardlink_scan')
+					resultshardlink = check_smartassess_job_status(smartassessjob+'_hardlink_scan')
 				else:
 					resultshardlink = {}
 					resultshardlink['status'] = 'not relevant'
@@ -3020,7 +3024,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 
 				if results['status'] == 'completed' and (resultshardlink['status'] in ['not started','completed','not relevant']):
 					#parsing log to tree
-					dirtree = smartasses_parse_log_to_tree(src,results['stdoutlog'])
+					dirtree = smartassess_parse_log_to_tree(src,results['stdoutlog'])
 					dirtree = createtasksfromtree(dirtree, dirtree.get_node(src))
 
 					if resultshardlink['status'] == 'completed':
@@ -3211,7 +3215,7 @@ def smartasses_fs_linux_status_createcsv(args,createcsv):
 	nfs_unmount(tempmountpointdst)
 
 
-def smartasses_parse_log_to_tree (basepath, inputfile):
+def smartassess_parse_log_to_tree (basepath, inputfile):
 	
 	dirtree = Tree()
 
@@ -3298,20 +3302,20 @@ def smartasses_parse_log_to_tree (basepath, inputfile):
 	return dirtree
 
 
-#smart assesment for linux based on capacity and inode count. this will initiate a scan 
-def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
-	global smartassesdict
+#smart assessment for linux based on capacity and inode count. this will initiate a scan 
+def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
+	global smartassessdict
 
-	logging.debug("starting smartasses jobs for src:"+src) 
+	logging.debug("starting smartassess jobs for src:"+src) 
 
-	smartasses_job_name = 'smartasses_'+src.replace(':/','-_')
-	smartasses_job_name = smartasses_job_name.replace('/','_')
-	smartasses_job_name = smartasses_job_name.replace(' ','-')
-	smartasses_job_name = smartasses_job_name.replace('\\','_')
-	smartasses_job_name = smartasses_job_name.replace('$','_dollar')	
+	smartassess_job_name = 'smartassess_'+src.replace(':/','-_')
+	smartassess_job_name = smartassess_job_name.replace('/','_')
+	smartassess_job_name = smartassess_job_name.replace(' ','-')
+	smartassess_job_name = smartassess_job_name.replace('\\','_')
+	smartassess_job_name = smartassess_job_name.replace('$','_dollar')	
 
-	if smartasses_job_name in smartassesdict.keys():
-		logging.error("smartasses job already exists for src:"+src+', to run again please delete exisiting task 1st') 
+	if smartassess_job_name in smartassessdict.keys():
+		logging.error("smartassess job already exists for src:"+src+', to run again please delete exisiting task 1st') 
 		exit(1)	
 
 	if not re.search("^\S+\:\/\S+", src):
@@ -3339,19 +3343,19 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
 		exit(1)	
 
-	#create smartasses job
+	#create smartassess job
 
 	#loading job ginga2 templates 
 	templates_dir = ginga2templatedir
 	env = Environment(loader=FileSystemLoader(templates_dir) )
 	
 	try:
-		smartasses_template = env.get_template('nomad_smartassses.txt')
+		smartassess_template = env.get_template('nomad_smartassses.txt')
 	except:
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_smartassses.txt'))
 		exit(1)
 
-	jobdir = os.path.join(smartassesdir,smartasses_job_name)
+	jobdir = os.path.join(smartassessdir,smartassess_job_name)
 	if not os.path.exists(jobdir):
 		logging.debug("creating job dir:"+jobdir)
 		try:
@@ -3362,9 +3366,9 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 
 	srchost,srcpath = src.split(":")
 
-	#creating smaetasses job 
-	smartassesjob_file = os.path.join(jobdir,smartasses_job_name+'.hcl')	
-	logging.debug("creating smartasses job file: " + smartassesjob_file)				
+	#creating smaetassess job 
+	smartassessjob_file = os.path.join(jobdir,smartassess_job_name+'.hcl')	
+	logging.debug("creating smartassess job file: " + smartassessjob_file)				
 		
 	#check if job dir exists
 	if os.path.exists(jobdir):
@@ -3381,37 +3385,37 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 	depth += 1
 	cmdargs = "diag\",\"find\",\"-v\",\"-branch-match\",\"depth<"+str(depth)+"\",\""+src
 
-	with open(smartassesjob_file, 'w') as fh:
-		fh.write(smartasses_template.render(
+	with open(smartassessjob_file, 'w') as fh:
+		fh.write(smartassess_template.render(
 			dcname=dcname,
 			os=ostype,
-			smartasses_job_name=smartasses_job_name,
+			smartassess_job_name=smartassess_job_name,
 			xcppath=xcpbinpath,
 			args=cmdargs,
 			memory=defaultram,
 			cpu=defaultprocessor
 		))
 
-	logging.info("starting smartasses scan for src:"+src)
-	if not start_nomad_job_from_hcl(smartassesjob_file, smartasses_job_name):
-		logging.error("failed to create nomad job:"+smartasses_job_name)
+	logging.info("starting smartassess scan for src:"+src)
+	if not start_nomad_job_from_hcl(smartassessjob_file, smartassess_job_name):
+		logging.error("failed to create nomad job:"+smartassess_job_name)
 		exit(1)
-	response = requests.post(nomadapiurl+'job/'+smartasses_job_name+'/periodic/force')	
+	response = requests.post(nomadapiurl+'job/'+smartassess_job_name+'/periodic/force')	
 	if not response.ok:
-		logging.error("job:"+smartasses_job_name+" force start failed") 
+		logging.error("job:"+smartassess_job_name+" force start failed") 
 		exit(1)		
 
-	#creating hadlink scan smaetasses job 
-	smartasses_hardlink_job_name = smartasses_job_name+'_hardlink_scan'
-	hardlinksmartassesjob_file = os.path.join(jobdir,smartasses_hardlink_job_name+'.hcl')	
-	logging.debug("creating hardlink smartasses job file: " + hardlinksmartassesjob_file)			
+	#creating hadlink scan smaetassess job 
+	smartassess_hardlink_job_name = smartassess_job_name+'_hardlink_scan'
+	hardlinksmartassessjob_file = os.path.join(jobdir,smartassess_hardlink_job_name+'.hcl')	
+	logging.debug("creating hardlink smartassess job file: " + hardlinksmartassessjob_file)			
 
 	cmdargs = "scan\",\"-noid\",\"-match\",\"type == f and nlinks > 1\",\"-fmt\",\"'{},{}'.format(x,fileid)\",\""+src
-	with open(hardlinksmartassesjob_file, 'w') as fh:
-		fh.write(smartasses_template.render(
+	with open(hardlinksmartassessjob_file, 'w') as fh:
+		fh.write(smartassess_template.render(
 			dcname=dcname,
 			os=ostype,
-			smartasses_job_name=smartasses_hardlink_job_name,
+			smartassess_job_name=smartassess_hardlink_job_name,
 			xcppath=xcpbinpath,
 			args=cmdargs,
 			memory=defaultram,
@@ -3419,39 +3423,39 @@ def smartasses_fs_linux_start(src,depth,locate_cross_task_hardlink):
 		))
 
 	if locate_cross_task_hardlink:
-		logging.info("starting smartasses hardlink scan:"+smartasses_hardlink_job_name)
-		if not start_nomad_job_from_hcl(hardlinksmartassesjob_file, smartasses_hardlink_job_name):
-			logging.error("failed to create nomad job:"+smartasses_hardlink_job_name)
+		logging.info("starting smartassess hardlink scan:"+smartassess_hardlink_job_name)
+		if not start_nomad_job_from_hcl(hardlinksmartassessjob_file, smartassess_hardlink_job_name):
+			logging.error("failed to create nomad job:"+smartassess_hardlink_job_name)
 			exit(1)
-		response = requests.post(nomadapiurl+'job/'+smartasses_hardlink_job_name+'/periodic/force')	
+		response = requests.post(nomadapiurl+'job/'+smartassess_hardlink_job_name+'/periodic/force')	
 		if not response.ok:
-			logging.error("job:"+smartasses_hardlink_job_name+" force start failed") 
+			logging.error("job:"+smartassess_hardlink_job_name+" force start failed") 
 			exit(1)		
 
 	#fill dict with info
-	smartassesdict[smartasses_job_name] = {}
-	smartassesdict[smartasses_job_name]['src'] = src
-	smartassesdict[smartasses_job_name]['src'] = src
-	smartassesdict[smartasses_job_name]['cpu'] = defaultprocessor
-	smartassesdict[smartasses_job_name]['memory'] = defaultram
-	smartassesdict[smartasses_job_name]['ostype'] = ostype
-	smartassesdict[smartasses_job_name]['depth'] = depth
-	smartassesdict[smartasses_job_name]['locate_cross_task_hardlink'] = locate_cross_task_hardlink
-	smartassesdict[smartasses_job_name]['dcname'] = dcname
+	smartassessdict[smartassess_job_name] = {}
+	smartassessdict[smartassess_job_name]['src'] = src
+	smartassessdict[smartassess_job_name]['src'] = src
+	smartassessdict[smartassess_job_name]['cpu'] = defaultprocessor
+	smartassessdict[smartassess_job_name]['memory'] = defaultram
+	smartassessdict[smartassess_job_name]['ostype'] = ostype
+	smartassessdict[smartassess_job_name]['depth'] = depth
+	smartassessdict[smartassess_job_name]['locate_cross_task_hardlink'] = locate_cross_task_hardlink
+	smartassessdict[smartassess_job_name]['dcname'] = dcname
 
 	#dumping jobsdict to json file 
 	try:
-		with open(smartassesjobdictjson, 'w') as fp:
-			json.dump(smartassesdict, fp)
+		with open(smartassessjobdictjson, 'w') as fp:
+			json.dump(smartassessdict, fp)
 		fp.close()
 	except:
-		logging.error("cannot write smart asses job json file:"+smartassesjobdictjson)
+		logging.error("cannot write smart assess job json file:"+smartassessjobdictjson)
 		exit(1)
 
 
-#assesment of filesystem and creation of csv file out of it 
-def asses_fs_linux(csvfile,src,dst,depth,jobname):
-	logging.debug("starting to asses src:" + src + " dst:" + dst) 
+#assessment of filesystem and creation of csv file out of it 
+def assess_fs_linux(csvfile,src,dst,depth,jobname):
+	logging.debug("starting to assess src:" + src + " dst:" + dst) 
 
 	if not re.search("^\S+\:\/.*", src):
 		logging.error("source format is incorrect: " + src) 
@@ -3688,9 +3692,9 @@ def list_dirs_windows(startpath,depth):
 
 	return dirs
 
-#assesment of filesystem and creation of csv file out of it 
-def asses_fs_windows(csvfile,src,dst,depth,jobname):
-	logging.debug("trying to asses src:" + src + " dst:" + dst) 
+#assessment of filesystem and creation of csv file out of it 
+def assess_fs_windows(csvfile,src,dst,depth,jobname):
+	logging.debug("trying to assess src:" + src + " dst:" + dst) 
 
 	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
 		logging.error("src path format is incorrect: " + src) 
@@ -3827,8 +3831,8 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 		if depth-1 > 0:
 			depthxcpcopy = ''
 
-			pscmd1 = robocopywinpathasses+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
-			pscmd2 = robocopywinpathasses+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
+			pscmd1 = robocopywinpathassess+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
+			pscmd2 = robocopywinpathassess+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
 
 			logging.info("robocopy can be used to create the destination initial directory structure for xcption jobs")
 			logging.info("robocopy command to sync directory structure for the required depth will be:")
@@ -3870,7 +3874,13 @@ def asses_fs_windows(csvfile,src,dst,depth,jobname):
 
 
 #move job 
-def move_job(tojob,forceparam):
+def modify_tasks(args,forceparam):
+
+	tojob = args.tojob
+	tocron = args.cron
+	tocpu = args.cpu
+	toram = args.ram
+
 
 	jobsdictcopy = copy.deepcopy(jobsdict)
 	for jobname in jobsdict:
@@ -3878,72 +3888,80 @@ def move_job(tojob,forceparam):
 			for src in jobsdict[jobname]:
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
-
 					force = forceparam
+					if not force: force = query_yes_no("are you sure you want to modify task properties for source:"+src,'no')
 
-					if jobname == tojob:
-						logging.info("src:"+src+" is already in job:"+tojob+",skipping")
-						continue 
+					if force:
+						if tocron:
+							logging.info("src:"+src+" cron changed to:"+tocron)
+							jobsdictcopy[jobname][src]['cron'] = tocron
+						if tocpu:
+							logging.info("src:"+src+" cpu changed to:"+str(tocpu))
+							jobsdictcopy[jobname][src]['cpu'] = tocpu
+						if toram:
+							logging.info("src:"+src+" ram changed to:"+str(toram))
+							jobsdictcopy[jobname][src]['memory'] = toram					
+						if tojob:
+							if jobname == tojob:
+								logging.info("src:"+src+" is already in job:"+tojob+",skipping")
+							else: 
+								logging.info("moving src:"+src+" to job:"+tojob+" from jobname:"+jobname)
+								#delete entry from jobdict
+								del jobsdictcopy[jobname][src]
+								#delete job when empty 
+								if len(jobsdictcopy[jobname]) == 0:
+									del jobsdictcopy[jobname]
+								if not tojob in jobsdictcopy:
+									jobsdictcopy[tojob] = {}
 
-					if not force: force = query_yes_no("move source:"+src+" from job:"+jobname+" to:"+tojob,'no')
-					if force:					
-						logging.info("moving src:"+src+" to job:"+tojob+" from jobname:"+jobname)
-						#delete entry from jobdict
-						del jobsdictcopy[jobname][src]
-						#delete job when empty 
-						if len(jobsdictcopy[jobname]) == 0:
-							del jobsdictcopy[jobname]
-						if not tojob in jobsdictcopy:
-							jobsdictcopy[tojob] = {}
+								jobsdictcopy[tojob][src] = jobdetails
+								
+								srcjobdir = os.path.join(jobsdir,jobname) 
+								dstjobdir = os.path.join(jobsdir,tojob) 
 
-						jobsdictcopy[tojob][src] = jobdetails
-						
-						srcjobdir = os.path.join(jobsdir,jobname) 
-						dstjobdir = os.path.join(jobsdir,tojob) 
+								baseline_job_file = jobdetails['baseline_job_name']+'.hcl'
+								sync_job_file     = jobdetails['sync_job_name']+'.hcl'
+								verify_job_file   = jobdetails['verify_job_name']+'.hcl'				
 
-						baseline_job_file = jobdetails['baseline_job_name']+'.hcl'
-						sync_job_file     = jobdetails['sync_job_name']+'.hcl'
-						verify_job_file   = jobdetails['verify_job_name']+'.hcl'				
+								#creating new job dir
+								if not os.path.isdir(dstjobdir):
+									try:
+										logging.debug("tryin to create new job dir:"+dstjobdir)
+										os.mkdir(dstjobdir)
+									except:
+										logging.error("could not create new job dir:" + dstjobdir)
+										exit (1)
 
-						#creating new job dir
-						if not os.path.isdir(dstjobdir):
+								#moving files 
+								try:
+									logging.debug("tring to move:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
+									shutil.copy(os.path.join(srcjobdir,baseline_job_file),os.path.join(dstjobdir,baseline_job_file))
+								except:
+									logging.error("could not move file:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
+									exit (1)						
+
+								try:
+									logging.debug("tring to move:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
+									shutil.copy(os.path.join(srcjobdir,sync_job_file),os.path.join(dstjobdir,sync_job_file))
+								except:
+									logging.error("could not move file:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
+									exit (1)	
+
+								try:
+									logging.debug("tring to move:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
+									shutil.copy(os.path.join(srcjobdir,verify_job_file),os.path.join(dstjobdir,verify_job_file))
+								except:
+									logging.error("could not move file:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
+									exit (1)	
+
+							#dumping jobsdict to json file 
 							try:
-								logging.debug("tryin to create new job dir:"+dstjobdir)
-								os.mkdir(dstjobdir)
+								with open(jobdictjson, 'w') as fp:
+									json.dump(jobsdictcopy, fp)
+								fp.close()
 							except:
-								logging.error("could not create new job dir:" + dstjobdir)
-								exit (1)
-
-						#moving files 
-						try:
-							logging.debug("tring to move:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
-							shutil.copy(os.path.join(srcjobdir,baseline_job_file),os.path.join(dstjobdir,baseline_job_file))
-						except:
-							logging.error("could not move file:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
-							exit (1)						
-
-						try:
-							logging.debug("tring to move:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
-							shutil.copy(os.path.join(srcjobdir,sync_job_file),os.path.join(dstjobdir,sync_job_file))
-						except:
-							logging.error("could not move file:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
-							exit (1)	
-
-						try:
-							logging.debug("tring to move:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
-							shutil.copy(os.path.join(srcjobdir,verify_job_file),os.path.join(dstjobdir,verify_job_file))
-						except:
-							logging.error("could not move file:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
-							exit (1)	
-
-						#dumping jobsdict to json file 
-						try:
-							with open(jobdictjson, 'w') as fp:
-								json.dump(jobsdictcopy, fp)
-							fp.close()
-						except:
-							logging.error("cannot write job json file:"+jobdictjson)
-							exit(1)	
+								logging.error("cannot write job json file:"+jobdictjson)
+								exit(1)	
 
 #abort jobs 
 def abort_jobs(jobtype, forceparam):
@@ -4086,11 +4104,11 @@ if args.subparser_name == 'nomad':
 	parse_nomad_jobs_to_files()
 	exit (0)
 
-if args.subparser_name == 'asses':
+if args.subparser_name == 'assess':
 	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
-		asses_fs_linux(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+		assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 	else:
-		asses_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+		assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
@@ -4125,16 +4143,28 @@ if args.subparser_name == 'abort':
 	abort_jobs(args.type, args.force)
 
 if args.subparser_name == 'modify':
-	move_job(args.tojob,args.force)
+	if not args.tojob  and not args.cpu and not args.ram and not args.cron:
+		logging.error("please provide one or more properties to modify")		
+		exit(1)
+	if args.cron:
+		try:
+			now = datetime.datetime.now()
+			cront = croniter.croniter(args.cron, now)
+		except:
+			logging.error('cron format: "'+args.cron+ '" is incorrect')
+			exit(1)	
+
+	modify_tasks(args,args.force)
+	create_nomad_jobs()
 	parse_nomad_jobs_to_files()
 
-if args.subparser_name == 'smartasses':
-	load_smartasses_jobs_from_json(smartassesjobdictjson)
+if args.subparser_name == 'smartassess':
+	load_smartassess_jobs_from_json(smartassessjobdictjson)
 
-	if args.smartasses_command == 'start':
-		smartasses_fs_linux_start(args.source,args.depth,args.locate_cross_task_hardlink)
+	if args.smartassess_command == 'start':
+		smartassess_fs_linux_start(args.source,args.depth,args.locate_cross_task_hardlink)
 
-	if args.smartasses_command in ['status','createcsv']:
+	if args.smartassess_command in ['status','createcsv']:
 		if args.min_capacity:
 			matchObj = re.match("^(\d+)(\s*)((K|M|G|T)(i)?B)$",args.min_capacity)
 			if matchObj.group(4) == 'K': minsizekfortask_minborder=int(matchObj.group(1))
@@ -4148,11 +4178,11 @@ if args.subparser_name == 'smartasses':
 		mininodespertask = mininodespertask_minborder + 200000
 		parse_nomad_jobs_to_files()
 
-	if args.smartasses_command == 'status':
-		smartasses_fs_linux_status_createcsv(args,False)
+	if args.smartassess_command == 'status':
+		smartassess_fs_linux_status_createcsv(args,False)
 
-	if args.smartasses_command == 'createcsv':
-		smartasses_fs_linux_status_createcsv(args,True)
+	if args.smartassess_command == 'createcsv':
+		smartassess_fs_linux_status_createcsv(args,True)
 
-	if args.smartasses_command == 'delete':	
-		smartasses_fs_linux_delete(args.force)
+	if args.smartassess_command == 'delete':	
+		smartassess_fs_linux_delete(args.force)
