@@ -14,3 +14,4 @@
 2.8.0.3
 - chnaged asses to assess and smartasses to smartassess(command line parameters changed)
 - add the ability to modify schedule, cpu and ram to each task (until now it was only job name) using the modify subcommand 
+- add no validation option for loading new cifs jobs (validation can be slow or failed on busy nodes and this can be used when loading exisitng jobs)

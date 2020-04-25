@@ -166,6 +166,7 @@ parser_assess.add_argument('-j','--job',help="xcption job name", required=False,
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_load.add_argument('-v','--novalidation',help="load can be faster for windows paths since valaidation is prevented", required=False,action='store_true')
 
 parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -458,20 +459,23 @@ def parse_csv(csv_path):
 							logging.error("dst path format is incorrect: " + dst)
 							exit(1)	
 
-						logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows servers") 
-						
-						pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
-						psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
-						if  psstatus != 'complete':
-							logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
-							exit(1)								
-						
-						pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
-						psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+						if not args.novalidation:
+							logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows servers") 
+							
+							pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
+							psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+							if  psstatus != 'complete':
+								logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
+								exit(1)								
+							
+							pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
+							psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 
-						if  psstatus != 'complete':
-							logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
-							exit(1)	
+							if  psstatus != 'complete':
+								logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
+								exit(1)	
+						else:
+							logging.debug("skipping path validation src:"+src+" dst:"+dst)
 							
 						srchost = src.split('\\')[2]
 						srcpath = src.replace('\\\\'+srchost,'')
