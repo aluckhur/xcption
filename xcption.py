@@ -142,6 +142,7 @@ parser_verify       = subparser.add_parser('verify',    help='start verify to va
 parser_delete       = subparser.add_parser('delete',    help='delete existing config',parents=[parent_parser])
 parser_modify       = subparser.add_parser('modify',    help='modify task job',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
+parser_export       = subparser.add_parser('export',    help='export existing jobs to csv',parents=[parent_parser])
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -203,6 +204,10 @@ parser_modify.add_argument('-c','--cron',help="modify the sync schedule for this
 parser_modify.add_argument('-p','--cpu',help="modify CPU allocation in MHz for each job",required=False,type=int)
 parser_modify.add_argument('-m','--ram',help="modify RAM allocation in MB for each job",required=False,type=int)
 parser_modify.add_argument('-f','--force',help="force modify", required=False,action='store_true')
+
+parser_export.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
+parser_export.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
+parser_export.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
 parser_smartassess   = subparser.add_parser('smartassess',help='create tasks based on capacity and file count (nfs only)',parents=[parent_parser])
 
@@ -4062,6 +4067,53 @@ def abort_jobs(jobtype, forceparam):
 							if not jobaborted:
 								logging.info("no running/pending jobs found")
 
+#export csv file 
+def export_csv(csvfile):
+
+	if os.path.isfile(csvfile):
+		if not query_yes_no("csv file:"+csvfile+" already exists, overwrite ?",'no'):
+			exit(0)
+
+	try: 
+		with open(csvfile, 'w') as file:
+			writer = csv.writer(file)
+			writer.writerow(["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"])
+
+			for jobname in jobsdict:
+				
+				if jobfilter == '' or jobfilter == jobname:
+
+					jobdir = os.path.join(jobsdir,jobname)
+					
+					#check if job dir exists
+					if os.path.exists(jobdir):
+						logging.debug("job directory:" + jobdir + " - already exists") 
+					else:	
+						if os.makedirs(jobdir):
+							logging.error("could not create output directory: " + jobdir)				
+							exit(1)
+							
+					for src in jobsdict[jobname]:
+						if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
+							jobdetails = jobsdict[jobname][src]
+							
+							dst	              = jobdetails['dst']
+							srcbase           = jobdetails['srcbase']
+							dstbase           = jobdetails['dstbase']
+							jobcron           = jobdetails['cron']
+							cpu    			  = jobdetails['cpu']
+							memory            = jobdetails['memory']
+							ostype			  = jobdetails['ostype']
+							tool              = jobdetails['tool']
+							failbackuser      = jobdetails['failbackuser']
+							failbackgroup     = jobdetails['failbackgroup']
+							excludedirfile    = jobdetails['excludedirfile']
+							
+							logging.info("exporting src:"+src+" to dst:"+dst+" info")
+							writer.writerow([jobname,src,dst,jobcron,cpu,memory,tool,failbackuser,failbackgroup,excludedirfile])
+	except:
+		logging.error("error exporting to csv file:"+csvfile)
+		exit(1)
 
 #####################################################################################################
 ###################                        MAIN                                        ##############
@@ -4161,6 +4213,10 @@ if args.subparser_name == 'modify':
 	modify_tasks(args,args.force)
 	create_nomad_jobs()
 	parse_nomad_jobs_to_files()
+
+if args.subparser_name == 'export':	
+	parse_nomad_jobs_to_files()
+	export_csv(args.csvfile)
 
 if args.subparser_name == 'smartassess':
 	load_smartassess_jobs_from_json(smartassessjobdictjson)
