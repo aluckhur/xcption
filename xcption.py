@@ -2933,6 +2933,9 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 			displaylinks = args.hardlinks	
 				
 		else:
+			if not args.destination:
+				logging.error("destination is required when creating csv")
+				exit(1)	
 			#validate we are ready for csv creation
 			src = args.source
 			dst = args.destination
