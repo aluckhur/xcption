@@ -13,7 +13,7 @@ job "{{ smartassess_job_name }}" {
     value     = "{{ os }}"
   }
   
-  group "{{ smartasses_job_name }}" {
+  group "{{ smartassess_job_name }}" {
     count = 1
     reschedule {
       attempts = 0
@@ -22,7 +22,7 @@ job "{{ smartassess_job_name }}" {
       attempts = 0
       mode     = "fail"
     }
-    task "smartasses" {
+    task "smartassess" {
       driver = "raw_exec"
 	  resources {
 	    cpu    = {{ cpu }}
