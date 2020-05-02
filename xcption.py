@@ -60,6 +60,7 @@ xcprepopath = os.path.join(root,'system','xcp_repo')
 
 #xcplinux path - need wrapper to support xcp 1.6
 xcppath = os.path.join(root,'system','xcp_wrapper.sh')
+xcplocation = '/usr/local/bin/xcp'
 
 #xcp indexes path 
 xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
@@ -908,9 +909,9 @@ def start_nomad_jobs(action, force):
 							if query_yes_no("are you sure you want to rebaseline "+src+" to "+dst+" ?",'no'):
 								logging.info("destroying existing baseline job")
 								if ostype == 'linux' and (tool == 'xcp' or tool == ''):
-									logging.debug("destroying xcp index:"+xcppath+' diag -rmid '+xcpindexname)
+									logging.debug("destroying xcp index:"+xcplocation+' diag -rmid '+xcpindexname)
 									DEVNULL = open(os.devnull, 'wb')
-									if subprocess.call( [ xcppath, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
+									if subprocess.call( [ xcplocation, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
 										logging.debug("failed to delete xcp index:"+xcpindexname)								
 								#delete baseline jobs 
 								logging.debug("destroying job prefixed by:"+nomadjobname)
@@ -2568,7 +2569,7 @@ def parse_nomad_jobs_to_files ():
 								logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfile)
 								apendtologfile = open(alloclogfile, 'a')
 								DEVNULL = open(os.devnull, 'wb')
-								subprocess.call( ['comm','-13',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
+								subprocess.call( ['comm','-13','--check-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
 								apendtologfile.close()
 								os.remove(tmpalloclogfile)	
 						except:
@@ -4031,9 +4032,9 @@ def abort_jobs(jobtype, forceparam):
 
 									if jobtype == 'baseline' and ostype == 'linux' and tool == 'xcp':
 										logging.info("destroying xcp index for aborted job")
-										logging.debug("running the command:"+xcppath+' diag -rmid '+xcpindexname)
+										logging.debug("running the command:"+xcplocation+' diag -rmid '+xcpindexname)
 										DEVNULL = open(os.devnull, 'wb')
-										if subprocess.call( [ xcppath, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
+										if subprocess.call( [ xcplocation, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
 											logging.debug("failed to delete xcp index:"+xcpindexname)
 
 									jobaborted = True
