@@ -176,6 +176,8 @@ client {
   enabled       = true
   network_speed = 10
   servers = ["${LOCAL_IPV4}"]
+  gc_inode_usage_threshold = 90
+  gc_disk_usage_threshold = 90
   options {
     "driver.raw_exec.enable" = "1"
   }
@@ -204,6 +206,8 @@ client {
   enabled       = true
   network_speed = 10
   servers = ["${SERVERIP}"]
+  gc_inode_usage_threshold = 90
+  gc_disk_usage_threshold = 90
   options {
     "driver.raw_exec.enable" = "1"
   }
