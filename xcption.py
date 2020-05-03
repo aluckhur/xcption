@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.8.0.3'
+version = '2.8.0.4'
 
 import csv
 import argparse
@@ -466,7 +466,7 @@ def parse_csv(csv_path):
 							exit(1)	
 
 						if not args.novalidation:
-							logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows servers") 
+							logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are available from one of the windows servers") 
 							
 							pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
 							psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
@@ -599,14 +599,14 @@ def check_job_status (jobname,log=False):
 	if log == True and (results['status'] == 'complete' or results['status'] == 'failed') and allocid != '':
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stdout&plain=true')
 		if response.ok:
-			logging.debug("stdout log for job:"+jobname+" is avaialble using api")								
+			logging.debug("stdout log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
 				results['stdout'] = response.content						
 		
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stderr&plain=true')
 		if response.ok:
-			logging.debug("stderr log for job:"+jobname+" is avaialble using api")								
+			logging.debug("stderr log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
 				results['stderr'] = response.content	
@@ -1050,13 +1050,13 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		allocid = name
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+task+'&type='+logtype+'&plain=true')
 		if response.ok and re.search("\d", response.content, re.M|re.I):
-			logging.debug("log for job:"+allocid+" is avaialble using api")								
+			logging.debug("log for job:"+allocid+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
 				#lastline = lines[-1]
 				results['content'] = response.content
 		else:
-			logging.debug("log for job:"+allocid+" is not avaialble using api")																								
+			logging.debug("log for job:"+allocid+" is not available using api")																								
 
 	if results['content'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['content'],re.M|re.I):
@@ -1720,9 +1720,9 @@ def create_status (reporttype,displaylogs=False):
 							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
 							 			except:
 							 				logging.debug("logfilepath wasnt found in results ")
-							 			if baselinestatsresults['content'] =='': print "log:"+logtype+" is not avaialble"
+							 			if baselinestatsresults['content'] =='': print "log:"+logtype+" is not available"
 									except:
-										print "log:"+logtype+" is not avaialble"
+										print "log:"+logtype+" is not available"
 
 									print ""
 									print ""
@@ -1739,12 +1739,13 @@ def create_status (reporttype,displaylogs=False):
 							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
 							 			except:
 							 				logging.debug("logfilepath wasnt found in results ")													
-							 			if baselinestatsresults['contentotherlog'] =='': print "log:"+otherlogtype+" is not avaialble"
+							 			if baselinestatsresults['contentotherlog'] =='': print "log:"+otherlogtype+" is not available"
 									except:
-										print "log:"+otherlogtype+" is not avaialble"
+										print "log:"+otherlogtype+" is not available"
 
 									print ""
 									print ""
+
 									verbosetable = PrettyTable()
 									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
@@ -1958,9 +1959,9 @@ def create_status (reporttype,displaylogs=False):
 								 			except:
 								 				logging.debug("logfilepath wasnt found in results ")
 										except:
-											print "log:"+logtype+" is not avaialble"
+											print "log:"+logtype+" is not available"
 
-										if currentlog['content'] =='': print "log:"+logtype+" is not avaialble"
+										if currentlog['content'] =='': print "log:"+logtype+" is not available"
 
 										print ""
 										print ""
@@ -1977,9 +1978,9 @@ def create_status (reporttype,displaylogs=False):
 								 			except:
 								 				logging.debug("logfilepath wasnt found in results ")													
 										except:
-											print "log:"+otherlogtype+" is not avaialble"
+											print "log:"+otherlogtype+" is not available"
 
-										if currentlog['contentotherlog'] =='': print "log:"+otherlogtype+" is not avaialble"
+										if currentlog['contentotherlog'] =='': print "log:"+otherlogtype+" is not available"
 
 										print ""
 										verbosetable = PrettyTable()
@@ -2283,7 +2284,7 @@ def delete_jobs(forceparam):
 							logging.error("cannot write job json file:"+jobdictjson)
 							exit(1)						
 
-#check if nomad is available + run the xcption_gc_system job if not avaialble 
+#check if nomad is available + run the xcption_gc_system job if not available 
 def nomadstatus():
 	logging.debug("getting list of nomad nodes")
 	response = requests.get(nomadapiurl+'nodes')	
@@ -2358,7 +2359,7 @@ def nomadstatus():
 		print ""
 		print table			
 
-#check if nomad is available + run the xcption_gc_system job if not avaialble 
+#check if nomad is available + run the xcption_gc_system job if not available 
 def check_nomad():
 	response = requests.get(nomadapiurl+'nodes')	
 	if not response.ok:
@@ -2413,7 +2414,7 @@ def check_nomad():
 			logging.debug("xcption_gc_system job is running")
 
 #used to parse nomad jobs to files, will be used as a cache in case of nomad GC removed ended jobs 
-def parse_nomad_jobs_to_files ():
+def parse_nomad_jobs_to_files (parselog=True):
 	#get nomad allocations 
 	jobs = {}
 	allocs = {}
@@ -2543,69 +2544,46 @@ def parse_nomad_jobs_to_files ():
 				if alloc['TaskGroup'].startswith('verify'): task='verify'
 				if alloc['TaskGroup'].startswith('smartassess'): task='smartassess'
 
-				#get stderr and stdout logs
-				for logtype in ['stderr','stdout']:
-					#try to get the log file using api
-					response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+'&type='+logtype+'&plain=true')
-					if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
-						logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
-						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
-						try:
-							#for smartassess jobs always pull a full file 
-							if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess'):
-								with open(alloclogfile, 'w') as fp:
-									logging.debug("dumping log to log file:"+alloclogfile)
-									fp.write(response.content)
-									fp.close()
-									
-							else:
-								#this is used to be able to add delta to the cahce file to enable tail to work
-								tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
-								with open(tmpalloclogfile, 'w') as fp:
-									logging.debug("dumping log to temp log file:"+tmpalloclogfile)
-									fp.write(response.content)
-									fp.close()								
+				# don't cache logs to make xcption status run faster (updated info will be abit delayed (max 10s) until next gc will run
+				if parselog:
+					#get stderr and stdout logs
+					for logtype in ['stderr','stdout']:
+						#try to get the log file using api
+						response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+'&type='+logtype+'&plain=true')
+						if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
+							logging.debug("log for job:"+alloc['ID']+" is available using api")
+							alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
+							try:
+								#for smartassess jobs always pull a full file 
+								if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess'):
+									with open(alloclogfile, 'w') as fp:
+										logging.debug("dumping log to log file:"+alloclogfile)
+										fp.write(response.content)
+										fp.close()
+										
+								else:
+									#this is used to be able to add delta to the cache file to enable tail to work
+									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
+									with open(tmpalloclogfile, 'w') as fp:
+										logging.debug("dumping log to temp log file:"+tmpalloclogfile)
+										fp.write(response.content)
+										fp.close()								
 
-								logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfile)
-								apendtologfile = open(alloclogfile, 'a')
-								DEVNULL = open(os.devnull, 'wb')
-								subprocess.call( ['comm','-13','--check-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
-								apendtologfile.close()
-								os.remove(tmpalloclogfile)	
-						except:
-							logging.error("cannot create file:"+alloclogfile)
-							exit(1)
-
-				# #get stderr logs
-				# logtype = '&type=stdout'
-				# #try to get the log file using api
-				# response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
-				# if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
-				# 	logging.debug("stdout log for job:"+alloc['ID']+" is avaialble using api")
-				# 	alloclogfile = os.path.join(jobdir,'stdoutlog_'+alloc['ID']+'.log')
-				# 	try:
-				# 		with open(alloclogfile, 'w') as fp:
-				# 			fp.write(response.content)
-				# 			logging.debug("dumping log to log file:"+alloclogfile)		
-				# 	except:
-				# 		logging.error("cannot create file:"+alloclogfile)
-				# 		exit(1)						
-
-				# if alloc['TaskGroup'].startswith('verify'): 
-				# 	#get stderr logs for verify
-				# 	logtype = '&type=stdout'						
-				# 	#try to get the log file using api
-				# 	response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+logtype+'&plain=true')
-				# 	if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
-				# 		logging.debug("log for job:"+alloc['ID']+" is avaialble using api")
-				# 		alloclogfile = os.path.join(jobdir,'log_'+alloc['ID']+'.log')
-				# 		try:
-				# 			with open(alloclogfile, 'a+') as fp:
-				# 				fp.write(response.content)
-				# 				logging.debug("appending log to log file:"+alloclogfile)		
-				# 		except:
-				# 			logging.error("cannot create file:"+alloclogfile)
-				# 			exit(1)
+									logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfile)
+									apendtologfile = open(alloclogfile, 'a')
+									DEVNULL = open(os.devnull, 'wb')
+									#subprocess.call( ['comm','-13','--nocheck-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
+									diff = "diff "+alloclogfile+" "+tmpalloclogfile+" | grep '^>' | cut -c 3-"
+									logging.debug("running diff:"+diff)
+									subprocess.call(diff,shell=True,stdout=apendtologfile,stderr=DEVNULL)
+									apendtologfile.close()
+									os.remove(tmpalloclogfile)	
+									logging.debug("diff ended and new entries merged into the old cached log  file")
+							except:
+								logging.error("cannot create file:"+alloclogfile)
+								exit(1)
+				else:
+					logging.debug("skpping log cache update for:"+job['ID'])
 
 				logging.debug("caching alloc:"+alloc['ID'])
 
@@ -3210,7 +3188,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 						print tasktable								
 
 					else:
-						print '     vebose information not yet avaialable. it will be avaialble when scan will be completed'
+						print '     vebose information not yet avaialable. it will be available when scan will be completed'
 		
 		if not displaytasks and infofound and not createcsv:
 			table.border = False
@@ -3744,7 +3722,7 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 		failbackuser = args.failbackuser
 		failbackgroup = args.failbackgroup		
 
-	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are avaialble from one of the windows servers") 
+	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are available from one of the windows servers") 
 	pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
 	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
 	if  psstatus != 'complete':
@@ -4187,10 +4165,12 @@ if args.subparser_name == 'verify':
 	start_nomad_jobs('verify',False)
 
 if args.subparser_name == 'status' and not args.verbose:
-	parse_nomad_jobs_to_files()
+	#False is passed to skip log parsing and make it faster
+	parse_nomad_jobs_to_files(False)
 	create_status('general',args.logs)
 if args.subparser_name == 'status' and args.verbose:
-	parse_nomad_jobs_to_files()
+	#False is passed to skip log parsing and make it faster
+	parse_nomad_jobs_to_files(False)
 	create_status('verbose',args.logs)
 
 if args.subparser_name in ['pause','resume','syncnow']:
