@@ -2587,7 +2587,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 
 				logging.debug("caching alloc:"+alloc['ID'])
 
-		if jobcomplete and not cachecomplete:
+		if jobcomplete and not cachecomplete and parselog:
 			logging.debug("creating file:"+cachecompletefile+" to preven further caching of the job")
 			subprocess.call(['touch', cachecompletefile])
 			
