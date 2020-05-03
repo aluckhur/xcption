@@ -16,3 +16,8 @@
 - add the ability to modify schedule, cpu and ram to each task (until now it was only job name) using the modify subcommand 
 - add no validation option for loading new cifs jobs (validation can be slow or failed on busy nodes and this can be used when loading exisitng jobs)
 - add export subcommand to enable export of existing task list to csv
+
+2.8.0.4
+- changed log file comparision mechanis to use diff and not comm 
+- performance improvments of the status command (it will display 10s older information)
+- 

@@ -2587,6 +2587,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 
 				logging.debug("caching alloc:"+alloc['ID'])
 
+		# mark jobs as completed only as part of nomad subcommand and not status
 		if jobcomplete and not cachecomplete and parselog:
 			logging.debug("creating file:"+cachecompletefile+" to preven further caching of the job")
 			subprocess.call(['touch', cachecompletefile])
