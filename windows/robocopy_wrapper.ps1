@@ -57,7 +57,8 @@ while (!$bDone)
     $processexited = $oProcess.HasExited
 
     if ($processexited) {
-         $lines += $oProcess.StandardOutput.ReadToEnd()
+         $lines += $oProcess.StandardOutput.ReadToEnd().Split([Environment]::NewLine) 
+
          $bDone = $True
     } 
 
