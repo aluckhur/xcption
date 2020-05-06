@@ -1095,10 +1095,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		matchObj = re.search("\s+(\S*\d+[s|m|h])(\.)?$", lastline, re.M|re.I)
 		if matchObj: 
 			results['time'] = matchObj.group(1)
-				#reviewed in xcp linux, compared xcp windows
-                matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(reviewed|compared)", lastline, re.M|re.I)
-                if matchObj:
-                        results['reviewed'] = matchObj.group(1)
+		
+		#reviewed in xcp linux, compared xcp windows
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(reviewed|compared)", lastline, re.M|re.I)
+		if matchObj:
+			results['reviewed'] = matchObj.group(1)
 
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj:
@@ -1109,8 +1110,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if matchObj: 
 			if 	matchObj.group(1) != '0':		
 				results['scanned'] = matchObj.group(1)		
-		
-
 	
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) copied", lastline, re.M|re.I)
 		if matchObj: 
