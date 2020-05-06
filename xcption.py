@@ -1207,7 +1207,7 @@ def get_next_cron_time (cron):
 
 	hours, remainder = divmod(s, 3600)
 	minutes, seconds = divmod(remainder, 60)	
-	return '{:02}:{:02}:{:02}'.format(int(hours), int(minutes), int(seconds))
+	return '{:}d{:02}h{:02}m{:02}s'.format(int(delta.days),int(hours), int(minutes), int(seconds))
 
 def sec_to_time(sec):
 	sec = int(round(sec,0))
