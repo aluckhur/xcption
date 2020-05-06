@@ -52,7 +52,7 @@ while (!$bDone)
 {
 
     $lines = @()
-    $lines += $oProcess.StandardOutput.ReadLine()
+    $lines += $oProcess.StandardOutput.ReadLine().Split([Environment]::NewLine)
 
     $processexited = $oProcess.HasExited
 
