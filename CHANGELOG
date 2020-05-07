@@ -20,4 +20,6 @@
 2.8.0.4
 - changed log file comparision mechanis to use diff and not comm 
 - performance improvments of the status command (it will display 10s older information)
-- 
+
+2.8.0.5
+- fail jobs when xcp license is expired on not exists

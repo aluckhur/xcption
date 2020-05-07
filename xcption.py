@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.8.0.4'
+version = '2.8.0.5'
 
 import csv
 import argparse
@@ -1075,6 +1075,9 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if not lastline and logtype == 'stderr':
 			for match in re.finditer(r"Cannot start ?(\bcopy\b|\bsync\b|\bverify\b)\:",results['content'],re.M|re.I):
 				results['failure'] = True
+			for match in re.finditer(r"xcp: ERROR: License file.+not found",results['content'],re.M|re.I):
+				results['failure'] = True
+
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
