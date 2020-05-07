@@ -171,7 +171,7 @@ Set-Content -Value "bind_addr = ""0.0.0.0""" -Path $NomadClientHCLFile
 Add-Content -Value "region             = ""DC1""" -Path $NomadClientHCLFile 
 Add-Content -Value "datacenter         = ""DC1""" -Path $NomadClientHCLFile 
 Add-Content -Value "data_dir           = ""$(($InstallDir -Replace "\\","/")+'lib')""" -Path $NomadClientHCLFile 
-Add-Content -Value "log_level          = ""DEBUG""" -Path $NomadClientHCLFile 
+#Add-Content -Value "log_level          = ""DEBUG""" -Path $NomadClientHCLFile 
 Add-Content -Value "leave_on_interrupt = true" -Path $NomadClientHCLFile 
 Add-Content -Value "leave_on_terminate = true" -Path $NomadClientHCLFile 
 Add-Content -Value "client {" -Path $NomadClientHCLFile 

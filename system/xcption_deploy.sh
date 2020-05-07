@@ -165,7 +165,7 @@ bind_addr = "0.0.0.0"
 region             = "${DATACENTER_NAME}"
 datacenter         = "${DATACENTER_NAME}"
 data_dir           = "/var/lib/nomad/"
-log_level          = "DEBUG"
+#log_level          = "DEBUG"
 leave_on_interrupt = true
 leave_on_terminate = true
 server {
@@ -199,7 +199,7 @@ bind_addr = "0.0.0.0"
 region             = "${DATACENTER_NAME}"
 datacenter         = "${DATACENTER_NAME}"
 data_dir           = "/var/lib/nomad/"
-log_level          = "DEBUG"
+#log_level          = "DEBUG"
 leave_on_interrupt = true
 leave_on_terminate = true
 client {
