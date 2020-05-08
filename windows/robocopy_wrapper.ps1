@@ -86,11 +86,8 @@ while (!$bDone)
                 $newbytes += $matches[1]
             } elseif ($line -match '\s+New Dir\s+(\d+)') {
                 $new += 1 
-            } elseif ($line -match '\s+same\s+(\d+)') {
-                $same += 1             
-            } elseif ($line -match '(^|\s+)same\s+') {
-                #in some cases lines with same are splited (robocopy bug)
-                $same += 1             
+            } elseif ($line -match '\ssame\s+\d+') {                
+                $same += [regex]::Matches($line, "\ssame\s+\d+").count          
             } elseif ($line -match '\s+tweaked\s+(\d+)') {
                 $modified += 1         
             } elseif ($line -match '^\s*\*EXTRA File\s+(\d+)') {
