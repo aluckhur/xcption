@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.8.0.5'
+version = '2.8.0.5	'
 
 import csv
 import argparse
@@ -2194,7 +2194,11 @@ def delete_job_by_prefix(prefix):
 			if not response.ok:
 				logging.error("can't delete job:"+nomadjob['ID']) 
 				exit(1)
-
+			#ruuning gabage collection to kill deleted job
+			response = requests.put(nomadapiurl+'system/gc')
+			if not response.ok:
+				logging.debug("can't run gc") 
+				exit(1)
 #delete jobs 
 def delete_jobs(forceparam):
 
@@ -2580,7 +2584,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 									subprocess.call(diff,shell=True,stdout=apendtologfile,stderr=DEVNULL)
 									apendtologfile.close()
 									os.remove(tmpalloclogfile)	
-									logging.debug("diff ended and new entries merged into the old cached log  file")
+									logging.debug("diff ended and new entries merged into the old cached log file")
 							except:
 								logging.error("cannot create file:"+alloclogfile)
 								exit(1)
