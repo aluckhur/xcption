@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.8.0.5	'
+version = '2.8.0.5'
 
 import csv
 import argparse
@@ -152,6 +152,7 @@ parser_status.add_argument('-v','--verbose',help="provide verbose per phase info
 parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)", required=False,type=str,metavar='phase')
 parser_status.add_argument('-n','--node',help="change the scope of the command to specific node (requires -v/--verbose)", required=False,type=str,metavar='node')
 parser_status.add_argument('-e','--error',help="change the scope of the command to jobs with errors (requires -v/--verbose)", required=False,action='store_true')
+#parser_status.add_argument('-o','--output',help="json output", required=False,required=False,type=str,metavar='output')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
 parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
@@ -1442,11 +1443,7 @@ def create_status (reporttype,displaylogs=False):
 								synclogcachefile = os.path.join(synccachedir,file)
 								logallocid = file.replace(logtype+'log_','').replace('.log','')
 								logging.debug('loading cached info log file:'+synclogcachefile)
-								statsresults = parse_stats_from_log('file',synclogcachefile,logtype)
-								#if 'time' in statsresults.keys(): 
-								#	synctime = statsresults['time']
-								#if 'bwout' in statsresults.keys(): 
-								#	syncsent = statsresults['bwout']								
+								statsresults = parse_stats_from_log('file',synclogcachefile,logtype)							
 								if not syncjobsstructure.has_key('logs'): syncjobsstructure['logs'] = {}
 								syncjobsstructure['logs'][logallocid] = {}										
 								syncjobsstructure['logs'][logallocid] = statsresults
@@ -1880,7 +1877,7 @@ def create_status (reporttype,displaylogs=False):
 							 				sent = '-'
 
 										try:
-											nodeid = baselinealloc['NodeID']
+											nodeid = currentalloc['NodeID']
 											if nodeid:
 												for node in nodes:
 													if node['ID'] == nodeid: nodename = node['Name']
