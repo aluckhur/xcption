@@ -70,6 +70,8 @@ while (!$bDone)
     $logtick = [math]::truncate($seconds / 10)
 
     ForEach ($line in $lines) {
+
+        $line = $line -replace "`0", ""
         
         if ($line) {
             if ($line -match '\s+Modified\s+(\d+)') {

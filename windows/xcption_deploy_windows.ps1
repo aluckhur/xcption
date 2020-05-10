@@ -178,6 +178,8 @@ Add-Content -Value "client {" -Path $NomadClientHCLFile
 Add-Content -Value "  enabled       = true" -Path $NomadClientHCLFile 
 Add-Content -Value "  network_speed = 10" -Path $NomadClientHCLFile 
 Add-Content -Value "  servers = [""$($XCPtionServer)""]" -Path $NomadClientHCLFile 
+Add-Content -Value "  gc_inode_usage_threshold = 90" -Path $NomadClientHCLFile 
+Add-Content -Value "  gc_disk_usage_threshold = 90" -Path $NomadClientHCLFile 
 Add-Content -Value "  options { "-Path $NomadClientHCLFile 
 Add-Content -Value "    ""driver.raw_exec.enable"" = ""1""" -Path $NomadClientHCLFile 
 Add-Content -Value "  }" -Path $NomadClientHCLFile 
@@ -187,8 +189,6 @@ Add-Content -Value "  http = ""$($env:computername):4646""" -Path $NomadClientHC
 Add-Content -Value "  rpc  = ""$($env:computername):4647""" -Path $NomadClientHCLFile 
 Add-Content -Value "  serf = ""$($env:computername):4648""" -Path $NomadClientHCLFile 
 Add-Content -Value "}" -Path $NomadClientHCLFile 
-
-
 
 
 if (Get-Service $XCPtionServiceName -ErrorAction SilentlyContinue)

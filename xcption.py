@@ -924,6 +924,21 @@ def start_nomad_jobs(action, force):
 										rmout = shutil.rmtree(baselinecachedir) 
 									except:
 										logging.error("could not delete baseline cache dir:"+baselinecachedir)								
+
+								#pausing sync job if exists 
+								syncjobname = jobdetails['sync_job_name']
+								try:	
+									syncjob = n.job.get_job(syncjobname)
+								except:
+									syncjob = False
+								
+								if syncjob:
+									logging.info("pausing existing sync job for src:"+src)
+									syncjob["Stop"] = True
+									syncjob1={}
+									syncjob1['Job']=syncjob
+									nomadout = n.job.register_job(syncjobname, syncjob1)
+
 								forcebaseline=True
 
 					if (action != 'baseline' and job) or forcebaseline or not job:
