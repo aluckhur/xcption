@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.8.0.5'
+version = '2.9.0.0'
 
 import csv
 import argparse
@@ -152,7 +152,7 @@ parser_status.add_argument('-v','--verbose',help="provide verbose per phase info
 parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)", required=False,type=str,metavar='phase')
 parser_status.add_argument('-n','--node',help="change the scope of the command to specific node (requires -v/--verbose)", required=False,type=str,metavar='node')
 parser_status.add_argument('-e','--error',help="change the scope of the command to jobs with errors (requires -v/--verbose)", required=False,action='store_true')
-#parser_status.add_argument('-o','--output',help="json output", required=False,required=False,type=str,metavar='output')
+parser_status.add_argument('-o','--output',help="output type: [text(default)|json|html]",choices=['text','json','html'],required=False,type=str,metavar='output')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
 parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
@@ -1044,9 +1044,19 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		#store also other logtype
 		otherlogfilepath = name
 		if logtype == 'stderr':
+
 			otherlogfilepath = otherlogfilepath.replace('stderr','stdout',1) 
+			results['stderrlogpath'] = logfilepath
+			results['stdoutlogpath'] = otherlogfilepath
 		else:
 			otherlogfilepath = otherlogfilepath.replace('stdout','stderr',1) 
+			results['stdoutlogpath'] = logfilepath
+			results['stderrlogpath'] = otherlogfilepath			
+
+		results['stdoutlogexists'] = False
+		results['stderrlogexists'] = False
+		if os.path.isfile(results['stdoutlogpath']): results['stdoutlogexists'] = True
+		if os.path.isfile(results['stderrlogpath']): results['stderrlogexists'] = True
 
 		try:
 			logfilesize = os.path.getsize(otherlogfilepath)			
@@ -1059,6 +1069,8 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		except:
 			logging.debug("cannot read other log file:"+otherlogfilepath)							
 			results['contentotherlog'] = ''
+
+
 
 
 	elif type == 'alloc':						
@@ -1252,17 +1264,111 @@ def truncate_middle(s, n):
     n_1 = n - n_2 - 3
     return '{0}...{1}'.format(s[:n_1], s[-n_2:])
 
+#create status json 
+def addtostatusjson(jobname,src,details,jsondict):
+	(task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,status,stdoutlogpath,stderrlogpath,stdoutlogexists,stderrlogexists,stdoutlogcontent,stderrlogcontent) = details
+
+	if not jobname in jsondict: jsondict[jobname] = {}
+	if not src in jsondict[jobname]: 
+		jsondict[jobname][src] = {}
+		jsondict[jobname][src] = jobsdict[jobname][src]
+	if not 'phases' in jsondict[jobname][src]: jsondict[jobname][src]['phases'] = []
+
+	jsondict[jobname][src]['phases'].append( {
+												"task": task,
+												"starttime": starttime,
+												"endtime": endtime,
+												"duration": duration,
+												"scanned": scanned,
+												"reviewed": reviewed,
+												"copied": copied,
+												"modified": modified,
+												"deleted": deleted,
+												"errors": errors,
+												"sent": sent,
+												"nodename": nodename,
+												"stdoutlogpath": stdoutlogpath,
+												"stderrlogpath": stderrlogpath,
+												"stdoutlogexists": stdoutlogexists,
+												"stderrlogexists": stderrlogexists,
+												"stdoutlogcontent": stdoutlogcontent,
+												"stderrlogcontent": stderrlogcontent,												
+												"status": status}
+		)
+	return jsondict
+
+#create verbose status 
+def create_verbose_status (jsondict, displaylogs=False):
+
+	for job in jsondict:
+		for src in jsondict[job]:
+		
+			jobdetails = copy.deepcopy(jsondict[job][src])
+
+			#print general information 
+			print "JOB: "+job
+			print "SRC: "+src
+			print "DST: "+jobdetails['dst']
+			print "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+get_next_cron_time(jobdetails['cron'])+")"
+			if jobdetails['ostype'] =='linux': print "XCP INDEX NAME: "+jobdetails['xcpindexname']
+			if jobdetails['excludedirfile'] != '': print "EXCLUDE DIRS FILE:"+jobdetails['excludedirfile']
+			print "OS: "+jobdetails['ostype'].upper()
+			if jobdetails['ostype']=='windows': print "TOOL NAME: "+tool
+			print ""
+
+			begining = True 
+			for phase in jobdetails['phases']:
+				if begining or displaylogs:
+					verbosetable = PrettyTable()
+					verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+					begining = False
+
+				verbosetable.add_row([phase['task'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status']])
+
+				if displaylogs:
+					verbosetable.border = False
+					verbosetable.align = 'l'
+					print verbosetable.get_string(sortby="Start Time")
+					print ""
+
+					for logtype in ['stdout','stderr']:
+						print "Log type:"+logtype
+						if phase[logtype+'logexists']:
+							print phase[logtype+'logcontent']
+							print "the last "+str(maxloglinestodisplay)+" lines are displayed"
+							print "full log file path: " +phase[logtype+'logpath']
+						else:
+							print "log:"+logtype+" is not available"
+							print ""
+					
+					print ""
+
+			if not displaylogs:
+				verbosetable.border = False
+				verbosetable.align = 'l'
+				print verbosetable.get_string(sortby="Start Time")
+				print ""
+
+
 #create general status
-def create_status (reporttype,displaylogs=False):
+def create_status (reporttype,displaylogs=False, output='text'):
+
+	#text output if output not provided 
+	if not output: output = 'text'
 
 	#get nomad allocations 
 	jobs = {}
 	allocs = {}
 	nodes = {}
 
+	#used to create json outpput 
+	jsondict = {}
 
 	#if display logs then print verbose 
 	if displaylogs==True: reporttype = 'verbose' 	
+
+	#if output is json or html report type is verbose 
+	if output in ['json','html']: reporttype = 'verbose' 
 
 	try:
 		jobs  = n.jobs.get_jobs()
@@ -1611,11 +1717,6 @@ def create_status (reporttype,displaylogs=False):
 
 					#printing verbose information
 					if reporttype == 'verbose':
-
-						#building verbose details table for the job
-						verbosetable = PrettyTable()
-						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
-
 					 	#for baseline 
 					 	if baselinejob and baselinealloc:
 			 				task = 'baseline'
@@ -1707,61 +1808,15 @@ def create_status (reporttype,displaylogs=False):
 								addrow = False								
 
 							if addrow:								
-				 				verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus])
-				 				if displaylogs:
-									if displayheader:
-										#print general information 
-										print "JOB: "+jobname
-										print "SRC: "+src
-										print "DST: "+dst
-										print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
-										if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
-										if excludedirfile != '': print "EXCLUDE DIRS FILE:"+excludedirfile
-										print "OS: "+ostype.upper()
-										if ostype =='windows': print "TOOL NAME: "+tool
-										print ""
-										displayheader = False
-									verbosetable.border = False
-									verbosetable.align = 'l'
-									print verbosetable
-									print ""
+				 				stdoutkey = 'content'; stderrkey = 'contentotherlog'
+				 				if logtype == 'stderr': 
+				 					stdoutkey = 'contentotherlog'
+				 					stderrkey = 'content'
+				 				jsondict = addtostatusjson(jobname,src,[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus,
+				 												baselinestatsresults['stdoutlogpath'],baselinestatsresults['stderrlogpath'],
+				 												baselinestatsresults['stdoutlogexists'],baselinestatsresults['stderrlogexists'],
+				 												baselinestatsresults[stdoutkey],baselinestatsresults[stderrkey]],jsondict)
 
-									try:
-										print "Log type:"+logtype
-										print baselinestatsresults['content']
-							 			try:
-							 				print ""
-							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfilepath']
-							 			except:
-							 				logging.debug("logfilepath wasnt found in results ")
-							 			if baselinestatsresults['content'] =='': print "log:"+logtype+" is not available"
-									except:
-										print "log:"+logtype+" is not available"
-
-									print ""
-									print ""
-
-									otherlogtype = 'stdout'
-									if logtype == 'stdout': otherlogtype = 'stderr'
-
-									print "Log type:"+otherlogtype
-									try:
-
-										print baselinestatsresults['contentotherlog']
-							 			try:
-							 				print ""
-							 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +baselinestatsresults['logfileotherpath']
-							 			except:
-							 				logging.debug("logfilepath wasnt found in results ")													
-							 			if baselinestatsresults['contentotherlog'] =='': print "log:"+otherlogtype+" is not available"
-									except:
-										print "log:"+otherlogtype+" is not available"
-
-									print ""
-									print ""
-
-									verbosetable = PrettyTable()
-									verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 
 
 						#get the last sync number will be used for lastsync filter 
@@ -1898,7 +1953,7 @@ def create_status (reporttype,displaylogs=False):
 											jobstatus = '-'
 
 										try:
-											#job failed but did not exit wit error 
+											#job failed but did not exit with error 
 											if 'failure' in currentlog.keys(): jobstatus = 'failed'
 										except:
 											pp.pprint(currentlog)											
@@ -1907,7 +1962,6 @@ def create_status (reporttype,displaylogs=False):
 
 								#handle aborted jobs 
 								if currentperiodic['Status'] == 'dead' and currentperiodic['Stop']: jobstatus = 'aborted'											
-
 
 								#validate aborted time 
 								if jobstatus == 'running': endtime = '-' 
@@ -1929,7 +1983,19 @@ def create_status (reporttype,displaylogs=False):
 									addrow = False
 													
 								if addrow:
-			 						verbosetable.add_row([task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus])
+
+					 				stdoutkey = 'content'; stderrkey = 'contentotherlog'
+					 				if logtype == 'stderr': 
+					 					stdoutkey = 'contentotherlog'
+					 					stderrkey = 'content'
+
+			 						jsondict = addtostatusjson(jobname,src,
+			 													[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus,
+			 													 currentlog['stdoutlogpath'],currentlog['stderrlogpath'],
+				 												 currentlog['stdoutlogexists'],currentlog['stderrlogexists'],
+				 												 currentlog[stdoutkey],currentlog[stderrkey]],
+				 												jsondict)			 						
+
 			 						task = ''
 			 						starttime='-'
 			 						endtime='-'
@@ -1944,90 +2010,15 @@ def create_status (reporttype,displaylogs=False):
 			 						nodename='-'
 			 						jobstatus='-'
 
+	if reporttype == 'verbose':
+		if output == 'text':
+			if len(jsondict.keys()) > 0:
+				create_verbose_status(jsondict,displaylogs)
+			else:
+				print "no data found"				
 
-					 				if displaylogs:
-										if displayheader:
-											#print general information 
-											print "JOB: "+jobname
-											print "SRC: "+src
-											print "DST: "+dst
-											print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
-											if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
-											if excludedirfile != '': print "EXCLUDE DIRS FILE:"+excludedirfile
-											print "OS: "+ostype.upper()
-											if ostype =='windows': print "TOOL NAME: "+tool
-											print ""
-											displayheader = False
-										verbosetable.border = False
-										verbosetable.align = 'l'
-										print verbosetable.get_string(sortby="Start Time")
-										print ""
-
-										try:
-											if not 'content' in currentlog: currentlog['content'] = ''
-											print "Log type:"+logtype
-											print currentlog['content']
-								 			try:
-								 				print ""
-								 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfilepath']
-								 			except:
-								 				logging.debug("logfilepath wasnt found in results ")
-										except:
-											print "log:"+logtype+" is not available"
-
-										if currentlog['content'] =='': print "log:"+logtype+" is not available"
-
-										print ""
-										print ""
-										
-										otherlogtype = 'stdout'
-										if logtype == 'stdout': otherlogtype = 'stderr'
-										print "Log type:"+otherlogtype
-										try:
-											if not 'contentotherlog' in currentlog: currentlog['contentotherlog'] = ''
-											print currentlog['contentotherlog']
-								 			try:
-								 				print ""
-								 				print "the last "+str(maxloglinestodisplay)+" lines are displayed, full log file can be found in the following path: " +currentlog['logfileotherpath']
-								 			except:
-								 				logging.debug("logfilepath wasnt found in results ")													
-										except:
-											print "log:"+otherlogtype+" is not available"
-
-										if currentlog['contentotherlog'] =='': print "log:"+otherlogtype+" is not available"
-
-										print ""
-										verbosetable = PrettyTable()
-										verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
-						
-						if displayheader:
-							#print general information 
-							print "JOB: "+jobname
-							print "SRC: "+src
-							print "DST: "+dst
-							print "SYNC CRON: "+jobcron+" (NEXT RUN "+syncsched+")"
-							if ostype =='linux': print "XCP INDEX NAME: "+xcpindexname
-							if excludedirfile != '': print "EXCLUDE DIRS FILE:"+excludedirfile
-							print "OS: "+ostype.upper()
-							if ostype =='windows': print "TOOL NAME: "+tool
-							print ""
-							displayheader = False
-
-						try:
-							#used to check if verbosetable contains data
-							verbosetable[0]
-
-							#print the table 
-							verbosetable.border = False
-							verbosetable.align = 'l'
-							print verbosetable.get_string(sortby="Start Time")
-							print ""							
-					 	except:
-					 		#dispaly no data found if verbosetable is empty or no jobs at all (not baseline job)
-					 		if not displaylogs or not baselinejob:
-						 		logging.debug("no results for verbose table for src:"+src+", skipping")
-						 		print "   no data found "
-						 		print ""
+		elif output == 'json':
+			print json.dumps(jsondict)
 					
 	#dispaly general report
 	if rowcount > 0 and reporttype == 'general':
@@ -2035,10 +2026,10 @@ def create_status (reporttype,displaylogs=False):
 		table.align = 'l'
 		print "\n BL=Baseline SY=Sync VR=Verify\n"
 		print table
-
 	elif reporttype == 'general':
 		print "no data found"
 
+	
 #update nomad job status (pause,resume)
 def update_nomad_job_status(action):
 
@@ -2095,7 +2086,7 @@ def update_nomad_job_status(action):
 						if syncjobdetails["Stop"] != True : currentstopstatus = 'resume' 
 							
 						if action == 'resume' and baselinestatus != 'baseline is complete' and currentstopstatus == 'pause':
-							logging.warning("cannot resume job:"+nomadjobname+" status changed to:"+action+"since baseline is not complete") 
+							logging.warning("cannot resume job:"+nomadjobname+" status changed to:"+action+" since baseline is not complete") 
 						elif action in ['pause','resume'] and currentstopstatus != action:
 							nomadjobdict["Job"]["Stop"] = newstate
 
@@ -4183,14 +4174,13 @@ if args.subparser_name == 'sync':
 if args.subparser_name == 'verify':
 	start_nomad_jobs('verify',False)
 
-if args.subparser_name == 'status' and not args.verbose:
+if args.subparser_name == 'status':
 	#False is passed to skip log parsing and make it faster
 	parse_nomad_jobs_to_files(False)
-	create_status('general',args.logs)
-if args.subparser_name == 'status' and args.verbose:
-	#False is passed to skip log parsing and make it faster
-	parse_nomad_jobs_to_files(False)
-	create_status('verbose',args.logs)
+	if not args.verbose:
+		create_status('general',args.logs,args.output)
+	else:
+		create_status('verbose',args.logs,args.output)
 
 if args.subparser_name in ['pause','resume','syncnow']:
 	update_nomad_job_status(args.subparser_name)
