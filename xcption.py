@@ -32,6 +32,8 @@ from prettytable import PrettyTable
 from jinja2 import Environment, FileSystemLoader
 from treelib import Node, Tree
 
+from json2html import *
+
 pp = pprint.PrettyPrinter(indent=1)
 
 #general settings
@@ -39,7 +41,6 @@ dcname = 'DC1'
 
 #default windows tool
 defaultwintool = 'xcp'
-
 
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
@@ -121,6 +122,9 @@ totaljobssizek = 0
 totaljobsinode = 0
 totaljobscreated = 0
 
+#default http port for flask 
+defaulthttpport = 1234
+
 parent_parser = argparse.ArgumentParser(add_help=False)
 
 parser = argparse.ArgumentParser()
@@ -144,6 +148,7 @@ parser_delete       = subparser.add_parser('delete',    help='delete existing co
 parser_modify       = subparser.add_parser('modify',    help='modify task job',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',    help='export existing jobs to csv',parents=[parent_parser])
+parser_web          = subparser.add_parser('web',       help='start web interface to display status',parents=[parent_parser])
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -152,7 +157,7 @@ parser_status.add_argument('-v','--verbose',help="provide verbose per phase info
 parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)", required=False,type=str,metavar='phase')
 parser_status.add_argument('-n','--node',help="change the scope of the command to specific node (requires -v/--verbose)", required=False,type=str,metavar='node')
 parser_status.add_argument('-e','--error',help="change the scope of the command to jobs with errors (requires -v/--verbose)", required=False,action='store_true')
-parser_status.add_argument('-o','--output',help="output type: [text(default)|json|html]",choices=['text','json','html'],required=False,type=str,metavar='output')
+parser_status.add_argument('-o','--output',help="output type: [csv|json]",choices=['csv','json'],required=False,type=str,metavar='output')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
 parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
@@ -210,6 +215,8 @@ parser_modify.add_argument('-f','--force',help="force modify", required=False,ac
 parser_export.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_export.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_export.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+
+parser_web.add_argument('-p','--port',help="tcp port to start the web server on (default:"+str(defaulthttpport)+')', required=False,default=defaulthttpport,type=int,metavar='port')
 
 parser_smartassess   = subparser.add_parser('smartassess',help='create tasks based on capacity and file count (nfs only)',parents=[parent_parser])
 
@@ -1264,6 +1271,28 @@ def truncate_middle(s, n):
     n_1 = n - n_2 - 3
     return '{0}...{1}'.format(s[:n_1], s[-n_2:])
 
+#create eneral status json 
+def addtogeneralstatusjson(details,jsongeneraldict):
+	(jobname,src,dst,baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter) = details 
+	jsongeneraldict.append( {
+		'jobname': jobname,
+		'src': src,
+		'dst': dst,
+		'baselinestatus':baselinestatus,
+		'baselinetime':baselinetime,
+		'baselinesentshort':baselinesentshort,
+		'syncstatus':syncstatus,
+		'syncsched':syncsched,
+		'synctime':synctime,
+		'syncsentshort':syncsentshort,
+		'synccounter':synccounter,
+		'verifystatus':verifystatus,
+		'verifystarttime':verifystarttime,
+		'verifyratio':verifyratio,
+		'verifycounter':verifycounter
+		})
+	return jsongeneraldict
+
 #create status json 
 def addtostatusjson(jobname,src,details,jsondict):
 	(task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,status,stdoutlogpath,stderrlogpath,stdoutlogexists,stderrlogexists,stdoutlogcontent,stderrlogcontent) = details
@@ -1275,7 +1304,7 @@ def addtostatusjson(jobname,src,details,jsondict):
 	if not 'phases' in jsondict[jobname][src]: jsondict[jobname][src]['phases'] = []
 
 	jsondict[jobname][src]['phases'].append( {
-												"task": task,
+												"phase": task,
 												"starttime": starttime,
 												"endtime": endtime,
 												"duration": duration,
@@ -1297,8 +1326,52 @@ def addtostatusjson(jobname,src,details,jsondict):
 		)
 	return jsondict
 
+#create vcsv status 
+def create_csv_status (jsondict):
+	try: 
+		writer = csv.writer(sys.stdout)
+		writer.writerow(["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","EXCLUDE DIRS","PHASE",'Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status'])
+
+		for job in jsondict:
+			for src in jsondict[job]:		
+				jobdetails = copy.deepcopy(jsondict[job][src])
+				for phase in jobdetails['phases']:
+					writer.writerow([job,src,jobdetails['dst'],jobdetails['cron'],jobdetails['cpu'],jobdetails['memory'],jobdetails['tool'],jobdetails['excludedirfile'],
+						phase['phase'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],
+						phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status']])
+	except:
+		logging.error("error creating csv file:"+csvfile)
+		exit(1)
+
+
+#create general status
+def create_general_status (jsongeneraldict,output='print'):
+	
+	if len(jsongeneraldict) == 0 and output == 'print':
+		print "no data found"
+		return
+
+	#build the table object
+	table = PrettyTable()
+	table.field_names = ["Job","Source Path","Dest Path","BL Status","BL Time","BL Sent","SY Status","Next SY","SY Time","SY Sent","SY#","VR Status","VR Start","VR Ratio","VR#"]
+	rowcount = 0
+	for job in 	jsongeneraldict:
+		table.add_row([job['jobname'],job['src'],truncate_middle(job['dst'],30),job['baselinestatus'],job['baselinetime'],job['baselinesentshort'],
+			job['syncstatus'],job['syncsched'],job['synctime'],job['syncsentshort'],job['synccounter'],job['verifystatus'],
+			job['verifystarttime'],job['verifyratio'],job['verifycounter']])
+	
+	table.border = False
+	table.align = 'l'
+	if output == 'print':
+		print "\n BL=Baseline SY=Sync VR=Verify\n"
+		print table
+	
+	if output == 'html':
+		return table.get_html_string()
+
+
 #create verbose status 
-def create_verbose_status (jsondict, displaylogs=False):
+def create_verbose_status (jsondict, displaylogs=False,output='html'):
 
 	for job in jsondict:
 		for src in jsondict[job]:
@@ -1323,7 +1396,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 					verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
 					begining = False
 
-				verbosetable.add_row([phase['task'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status']])
+				verbosetable.add_row([phase['phase'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status']])
 
 				if displaylogs:
 					verbosetable.border = False
@@ -1348,6 +1421,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 				verbosetable.align = 'l'
 				print verbosetable.get_string(sortby="Start Time")
 				print ""
+				
 
 
 #create general status
@@ -1363,12 +1437,13 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 	#used to create json outpput 
 	jsondict = {}
+	jsongeneraldict = []
 
 	#if display logs then print verbose 
 	if displaylogs==True: reporttype = 'verbose' 	
 
 	#if output is json or html report type is verbose 
-	if output in ['json','html']: reporttype = 'verbose' 
+	if output in ['json','csv']: reporttype = 'verbose' 
 
 	try:
 		jobs  = n.jobs.get_jobs()
@@ -1388,11 +1463,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 	nodename = '-'
 	
-	#build the table object
-	table = PrettyTable()
-	table.field_names = ["Job","Source Path","Dest Path","BL Status","BL Time","BL Sent","SY Status","Next SY","SY Time","SY Sent","SY#","VR Status","VR Start","VR Ratio","VR#"]
 	rowcount = 0
-	
 	for jobname in jobsdict:
 		if jobfilter == '' or jobfilter == jobname:
 			jobdir = os.path.join(jobsdir,jobname)
@@ -1706,12 +1777,15 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 					#work on error filter 
 					addrow = True
-					if args.jobstatus and not baselinestatus.startswith(args.jobstatus) and not syncstatus.startswith(args.jobstatus) and not verifystatus.startswith(args.jobstatus):
-						addrow = False 
+					try:
+						if args.jobstatus and not baselinestatus.startswith(args.jobstatus) and not syncstatus.startswith(args.jobstatus) and not verifystatus.startswith(args.jobstatus):
+							addrow = False 
+					except:
+						logging.debug("filter was not passed")
 				
 
-					if addrow:
-						table.add_row([jobname,src,truncate_middle(dst,30),baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter])
+					if addrow:		
+						jsongeneraldict = addtogeneralstatusjson([jobname,src,dst,baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter],jsongeneraldict)
 						rowcount += 1
 
 
@@ -1794,18 +1868,21 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 							if baselinestatus == 'running': endtime = '-' 
 
-							#filter out results based on scope 
-							if phasefilter and not task.startswith(phasefilter):
-								addrow = False  
-							if args.node and not nodename.startswith(args.node):
-								addrow = False
-							if args.jobstatus and not baselinestatus.startswith(args.jobstatus):
-								addrow = False 
-							if args.error and errors.isdigit():
-								if int(errors) == 0:
+							try:
+								#filter out results based on scope 
+								if phasefilter and not task.startswith(phasefilter):
+									addrow = False  
+								if args.node and not nodename.startswith(args.node):
 									addrow = False
-							if args.error and errors == '-':
-								addrow = False								
+								if args.jobstatus and not baselinestatus.startswith(args.jobstatus):
+									addrow = False 
+								if args.error and errors.isdigit():
+									if int(errors) == 0:
+										addrow = False
+								if args.error and errors == '-':
+									addrow = False								
+							except:
+								logging.debug("filter was not passed")
 
 							if addrow:								
 				 				stdoutkey = 'content'; stderrkey = 'contentotherlog'
@@ -1968,19 +2045,22 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								
 								#filter results
 								addrow = True 
-								if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
-									addrow = False
-								if phasefilter == 'lastsync' and task != 'sync'+str(lastsync):
-									addrow = False 											
-								if args.node and not nodename.startswith(args.node):
-									addrow = False
-								if args.jobstatus and not jobstatus.startswith(args.jobstatus):
-									addrow = False 
-								if args.error and errors.isdigit():
-									if int(errors) == 0:
+								try:
+									if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
 										addrow = False
-								if args.error and errors == '-':
-									addrow = False
+									if phasefilter == 'lastsync' and task != 'sync'+str(lastsync):
+										addrow = False 											
+									if args.node and not nodename.startswith(args.node):
+										addrow = False
+									if args.jobstatus and not jobstatus.startswith(args.jobstatus):
+										addrow = False 
+									if args.error and errors.isdigit():
+										if int(errors) == 0:
+											addrow = False
+									if args.error and errors == '-':
+										addrow = False
+								except:
+									logging.debug("filter was not passed")
 													
 								if addrow:
 
@@ -2019,15 +2099,15 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 		elif output == 'json':
 			print json.dumps(jsondict)
+		elif output == 'csv':
+			create_csv_status(jsondict)
+
+		return jsondict,jsongeneraldict
 					
 	#dispaly general report
-	if rowcount > 0 and reporttype == 'general':
-		table.border = False
-		table.align = 'l'
-		print "\n BL=Baseline SY=Sync VR=Verify\n"
-		print table
-	elif reporttype == 'general':
-		print "no data found"
+	if reporttype == 'general':
+		create_general_status(jsongeneraldict)
+		
 
 	
 #update nomad job status (pause,resume)
@@ -4107,6 +4187,94 @@ def export_csv(csvfile):
 		logging.error("error exporting to csv file:"+csvfile)
 		exit(1)
 
+#remove logs from dict 
+def normalizedict (jsondict):
+	for job in jsondict:
+		for src in jsondict[job]:		
+			for phase in jsondict[job][src]['phases']:
+				if 'stderrlogcontent' in phase: del phase['stderrlogcontent']
+				if 'stdoutlogcontent' in phase: del phase['stdoutlogcontent']
+				if 'stdoutlogpath' in phase: del phase['stdoutlogpath']
+				if 'stderrlogpath' in phase: del phase['stderrlogpath']
+				if 'stdoutlogexists' in phase: del phase['stdoutlogexists']
+				if 'stderrlogexists' in phase: del phase['stderrlogexists']
+
+				for key in phase:
+					if key in ['errors','deleted','modified','reviewed','scanned','copied']:
+						
+						phase[key] = str(phase[key]).replace(',','')
+						if phase[key] in ['-','']: phase[key] = 0
+
+						if 'M' in str(phase[key]):
+							phase[key] = int(phase[key].replace('M',''))*1000000
+						try:
+							phase[key] = int(phase[key])
+						except:
+							logging.error("cannot convert:"+str(phase[key])+" to int")
+							exit(1)
+					if key == 'duration':
+						matchObj = re.match("((\d+)h)?((\d+)m)?(\d+)s",phase[key])
+						if matchObj:
+							durationsec = 0
+							if matchObj.group(2) > 0: durationsec += int(matchObj.group(2))*3600 
+							if matchObj.group(4) > 0: durationsec += int(matchObj.group(4))*60
+							if matchObj.group(5) > 0: durationsec += int(matchObj.group(5))
+							durationsec
+						else:
+							durationsec = 0
+
+				phase['durationsec'] = durationsec
+
+	return jsondict
+
+#def start web server using flask
+def start_flask(tcpport, jsondict,jsongeneraldict):
+	from flask import Flask
+	import pygal
+	
+	#create json without logs
+	normalizedjsondict = normalizedict (jsondict)
+
+	#disable flask logging
+	cli = sys.modules['flask.cli']
+	cli.show_server_banner = lambda *x: None
+
+	app = Flask(__name__)
+
+	@app.route('/')
+	def index():
+		line_chart = pygal.Bar()
+		line_chart.title = 'Browser usage evolution (in %)'
+		line_chart.x_labels = map(str, range(2002, 2013))
+		line_chart.add('Firefox', [None, None, 0, 16.6,   25,   31, 36.4, 45.5, 46.3, 42.8, 37.1])
+		line_chart.add('Chrome',  [None, None, None, None, None, None,    0,  3.9, 10.8, 23.8, 35.3])
+		line_chart.add('IE',      [85.8, 84.6, 84.7, 74.5,   66, 58.6, 54.7, 44.8, 36.2, 26.6, 20.1])
+		line_chart.add('Others',  [14.2, 15.4, 15.3,  8.9,    9, 10.4,  8.9,  5.8,  6.7,  6.8,  7.5])
+		line_chart.value_formatter = lambda x: '%.2f%%' % x if x is not None else '0'
+		return line_chart.render_table(style=True)
+
+	@app.route("/job/<string:job>/")
+	def hello(job):
+		return "job:"+job+" not found"
+
+	@app.route("/status")
+	def status():
+		return create_general_status (jsongeneraldict,'html')
+
+	@app.route("/status/verbose")
+	def status():
+		return create_verbose_status (jsongeneraldict,'html')
+
+	@app.route("/json")
+	def jsonout():
+		return json2html.convert(json = json.dumps(normalizedjsondict))
+
+	
+	hostname = socket.gethostname()    
+	ip = socket.gethostbyname(hostname)  
+	app.run(host='0.0.0.0',port=tcpport)
+
+
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
@@ -4210,6 +4378,11 @@ if args.subparser_name == 'modify':
 if args.subparser_name == 'export':	
 	parse_nomad_jobs_to_files()
 	export_csv(args.csvfile)
+
+if args.subparser_name == 'web':	
+	parse_nomad_jobs_to_files(False)
+	jsondict,jsongeneraldict = create_status('verbose',False,'silent')
+	start_flask(args.port,jsondict,jsongeneraldict)
 
 if args.subparser_name == 'smartassess':
 	load_smartassess_jobs_from_json(smartassessjobdictjson)
