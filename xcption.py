@@ -32,8 +32,6 @@ from prettytable import PrettyTable
 from jinja2 import Environment, FileSystemLoader
 from treelib import Node, Tree
 
-from json2html import *
-
 pp = pprint.PrettyPrinter(indent=1)
 
 #general settings
@@ -90,6 +88,9 @@ smartassessjobdictjson = os.path.join(smartassessdir,'smartassessjobs.json')
 
 #job template dirs
 ginga2templatedir = os.path.join(root,'template') 
+
+#webtemplates 
+webtemplatedir = os.path.join(root,'webtemplates') 
 
 #log file location
 logdirpath = os.path.join(root,'log') 
@@ -1345,9 +1346,9 @@ def create_csv_status (jsondict):
 
 
 #create general status
-def create_general_status (jsongeneraldict,output='print'):
+def create_general_status (jsongeneraldict):
 	
-	if len(jsongeneraldict) == 0 and output == 'print':
+	if len(jsongeneraldict) == 0:
 		print "no data found"
 		return
 
@@ -1362,32 +1363,29 @@ def create_general_status (jsongeneraldict,output='print'):
 	
 	table.border = False
 	table.align = 'l'
-	if output == 'print':
-		print "\n BL=Baseline SY=Sync VR=Verify\n"
-		print table
+	print "\n BL=Baseline SY=Sync VR=Verify\n"
+	print table
 	
-	if output == 'html':
-		return table.get_html_string()
-
 
 #create verbose status 
-def create_verbose_status (jsondict, displaylogs=False,output='html'):
+def create_verbose_status (jsondict, displaylogs=False):
+
+	print ''
 
 	for job in jsondict:
 		for src in jsondict[job]:
-		
 			jobdetails = copy.deepcopy(jsondict[job][src])
 
 			#print general information 
 			print "JOB: "+job
-			print "SRC: "+src
-			print "DST: "+jobdetails['dst']
-			print "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+get_next_cron_time(jobdetails['cron'])+")"
-			if jobdetails['ostype'] =='linux': print "XCP INDEX NAME: "+jobdetails['xcpindexname']
-			if jobdetails['excludedirfile'] != '': print "EXCLUDE DIRS FILE:"+jobdetails['excludedirfile']
-			print "OS: "+jobdetails['ostype'].upper()
-			if jobdetails['ostype']=='windows': print "TOOL NAME: "+tool
-			print ""
+			print  "SRC: "+src
+			print  "DST: "+jobdetails['dst']
+			print  "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+get_next_cron_time(jobdetails['cron'])+")"
+			if jobdetails['ostype'] =='linux': print  "XCP INDEX NAME: "+jobdetails['xcpindexname']
+			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE:"+jobdetails['excludedirfile']
+			print  "OS: "+jobdetails['ostype'].upper()
+			if jobdetails['ostype']=='windows': print  "TOOL NAME: "+tool
+			print  ""
 
 			begining = True 
 			for phase in jobdetails['phases']:
@@ -1420,8 +1418,6 @@ def create_verbose_status (jsondict, displaylogs=False,output='html'):
 				verbosetable.border = False
 				verbosetable.align = 'l'
 				print verbosetable.get_string(sortby="Start Time")
-				print ""
-				
 
 
 #create general status
@@ -4189,15 +4185,16 @@ def export_csv(csvfile):
 
 #remove logs from dict 
 def normalizedict (jsondict):
-	for job in jsondict:
-		for src in jsondict[job]:		
-			for phase in jsondict[job][src]['phases']:
-				if 'stderrlogcontent' in phase: del phase['stderrlogcontent']
-				if 'stdoutlogcontent' in phase: del phase['stdoutlogcontent']
-				if 'stdoutlogpath' in phase: del phase['stdoutlogpath']
-				if 'stderrlogpath' in phase: del phase['stderrlogpath']
-				if 'stdoutlogexists' in phase: del phase['stdoutlogexists']
-				if 'stderrlogexists' in phase: del phase['stderrlogexists']
+	jsondictnormalized = copy.deepcopy(jsondict)
+	for job in jsondictnormalized:
+		for src in jsondictnormalized[job]:		
+			for phase in jsondictnormalized[job][src]['phases']:
+				#if 'stderrlogcontent' in phase: del phase['stderrlogcontent']
+				#if 'stdoutlogcontent' in phase: del phase['stdoutlogcontent']
+				#if 'stdoutlogpath' in phase: del phase['stdoutlogpath']
+				#if 'stderrlogpath' in phase: del phase['stderrlogpath']
+				#if 'stdoutlogexists' in phase: del phase['stdoutlogexists']
+				#if 'stderrlogexists' in phase: del phase['stderrlogexists']
 
 				for key in phase:
 					if key in ['errors','deleted','modified','reviewed','scanned','copied']:
@@ -4225,23 +4222,19 @@ def normalizedict (jsondict):
 
 				phase['durationsec'] = durationsec
 
-	return jsondict
+	return jsondictnormalized
 
 #def start web server using flask
-def start_flask(tcpport, jsondict,jsongeneraldict):
-	from flask import Flask
-	import pygal
-	
-	#create json without logs
-	normalizedjsondict = normalizedict (jsondict)
+def start_flask(tcpport):
+	from flask import Flask,render_template, send_file, send_from_directory
 
 	#disable flask logging
 	cli = sys.modules['flask.cli']
 	cli.show_server_banner = lambda *x: None
 
-	app = Flask(__name__)
+	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
 
-	@app.route('/')
+	@app.route('/koko')
 	def index():
 		line_chart = pygal.Bar()
 		line_chart.title = 'Browser usage evolution (in %)'
@@ -4253,23 +4246,41 @@ def start_flask(tcpport, jsondict,jsongeneraldict):
 		line_chart.value_formatter = lambda x: '%.2f%%' % x if x is not None else '0'
 		return line_chart.render_table(style=True)
 
-	@app.route("/job/<string:job>/")
-	def hello(job):
-		return "job:"+job+" not found"
+	@app.route("/")
+	@app.route("/index.html")
+	def tableindex():
+		parse_nomad_jobs_to_files(False)
+		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
+		#create json without logs
+		normalizedjsondict = normalizedict (jsondict)
+		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=normalizedjsondict)
+		#return send_file(os.path.join(webtemplatedir,'index.html'))
+	@app.route("/index1.html")
+	def tableindex1():
+		parse_nomad_jobs_to_files(False)
+		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
+		#create json without logs
+		normalizedjsondict = normalizedict (jsondict)
 
-	@app.route("/status")
-	def status():
-		return create_general_status (jsongeneraldict,'html')
+		pp.pprint(normalizedjsondict)
+		return render_template('index1.html', jsongeneraldict=jsongeneraldict, jsondict=normalizedjsondict)
+		#return send_file(os.path.join(webtemplatedir,'index.html'))
 
-	@app.route("/status/verbose")
-	def status():
-		return create_verbose_status (jsongeneraldict,'html')
 
-	@app.route("/json")
-	def jsonout():
-		return json2html.convert(json = json.dumps(normalizedjsondict))
+	@app.route("/<path>")
+	def table(path):
+		return send_from_directory(webtemplatedir,path)
+	@app.route("/<path>/<path1>")
+	def table1(path,path1):
+		logging.info("yo")
+		return send_from_directory(webtemplatedir,os.path.join(path,path1))
 
-	
+	@app.route("/<path>/<path1>/<path2>")
+	def table2(path,path1,path2):
+		logging.info(os.path.join(webtemplatedir,path,path1,path2))
+		return send_from_directory(webtemplatedir,os.path.join(path,path1,path2))
+
+
 	hostname = socket.gethostname()    
 	ip = socket.gethostbyname(hostname)  
 	app.run(host='0.0.0.0',port=tcpport)
@@ -4380,9 +4391,7 @@ if args.subparser_name == 'export':
 	export_csv(args.csvfile)
 
 if args.subparser_name == 'web':	
-	parse_nomad_jobs_to_files(False)
-	jsondict,jsongeneraldict = create_status('verbose',False,'silent')
-	start_flask(args.port,jsondict,jsongeneraldict)
+	start_flask(args.port)
 
 if args.subparser_name == 'smartassess':
 	load_smartassess_jobs_from_json(smartassessjobdictjson)

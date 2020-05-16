@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link href="/css/tabulator.min.css" rel="stylesheet">
+    </head>
+    <body>       
+        <div id="table1"></div>
+            <script type="text/javascript" src="/js/tabulator.min.js"></script>
+            <script type="text/javascript" src="/js/jquery-3.4.0.min.js"></script>
+        <script type="text/javascript">
+    //table data
+    var tabledata = [
+    {% for job in jsongeneraldict %}    
+        {
+            id:{{ loop.index }}, 
+            jobname:"{{ job.jobname }}", 
+            src:"{{ job.src }}", 
+            dst:"{{ job.dst }}", 
+            baselinestatus:"{{ job.baselinestatus }}", 
+            baselinetime:"{{ job.baselinetime }}", 
+            baselinesentshort:"{{ job.baselinesentshort }}", 
+            syncstatus:"{{ job.syncstatus }}", 
+            syncsched:"{{ job.syncsched }}", 
+            synctime:"{{ job.synctime }}", 
+            syncsentshort:"{{ job.syncsentshort }}", 
+            synccounter:"{{ job.synccounter }}", 
+            verifystatus:"{{ job.verifystatus }}", 
+            verifystarttime:"{{ job.verifystarttime }}", 
+            verifyratio:"{{ job.verifyratio }}", 
+            verifycounter:"{{ job.verifycounter }}",
+            serviceHistory:[
+                
+            {% if 'phases' in jsondict[job.jobname][job.src] %}            
+                {% for phase in jsondict[job.jobname][job.src]['phases'] %}        
+                {
+                    phase:"{{ phase.phase }}",
+                    starttime:"{{ phase.starttime }}",
+                    endtime:"{{ phase.endtime }}",
+                    duration:"{{ phase.duration }}",
+                    scanned:"{{ phase.scanned }}",
+                    reviewed:"{{ phase.reviewed }}",
+                    copied:"{{ phase.copied }}",
+                    modified:"{{ phase.modified }}",
+                    errors:"{{ phase.errors }}",
+                    sent:"{{ phase.sent }}",
+                    nodename:"{{ phase.nodename }}",
+                    status:"{{ phase.status }}",                
+                },
+                {% endfor %} 
+            {% endif %}
+                
+            ],
+
+        },
+    {% endfor %}        
+    ];
+
+    var hideIcon = function(cell, formatterParams, onRendered){ //plain text value
+        return "<i class='fa fa-eye-slash'></i>";
+    };
+
+    var table1 = new Tabulator("#table1", {
+        height:"100%",
+        columnHeaderVertAlign:"bottom", //align header contents to bottom of cell
+        layout:"fitdataStreach",        
+        selectable: true,
+        data:tabledata,
+        columns:[
+            {formatter:hideIcon, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
+                const id = row.getData().id;
+                $(".subTable"+id).toggle();}
+            },
+            {title:"Job Name", field:"jobname"},
+            {title:"Source", field:"src"},
+            {title:"Destination", field:"dst"},
+            {//create column group
+                title:"Baseline",
+                columns:[
+                    {title:"Status", field:"baselinestatus",},
+                    {title:"Duration", field:"baselinetime"},
+                    {title:"Sent", field:"baselinesentshort"},
+                ],
+            },
+            {//create column group
+                title:"Lst Sync",
+                columns:[
+                {title:"Status", field:"syncstatus"},
+                {title:"Next Schedule", field:"syncsched"},
+                {title:"Duration", field:"synctime"},
+                {title:"Sent", field:"syncsentshort"},
+                {title:"Count", field:"synccounter"},
+                ],
+            },
+            {//create column group
+                title:"Last Verify",
+                columns:[
+                    {title:"Status", field:"verifystatus"},{title:"Start Time", field:"verifystarttime"}, {title:"Ratio", field:"verifyratio"},{title:"Count", field:"verifycounter"},
+                ],
+            },   
+
+        ],
+        rowFormatter:function(row) {
+            //create and style holder elements
+            var holderEl = document.createElement("div");
+            var tableEl = document.createElement("div");
+
+            const id = row.getData().id;
+
+            holderEl.style.boxSizing = "border-box";
+            holderEl.style.padding = "10px 10px 10px 10px";
+            holderEl.style.borderTop = "1px solid #333";
+            holderEl.style.borderBotom = "1px solid #333";
+            holderEl.style.background = "#ddd";
+            holderEl.style.display = "none";
+            holderEl.setAttribute('class', "subTable" + id + "");
+            
+    
+            tableEl.style.border = "1px solid #333";
+            tableEl.style.display = "none";
+            tableEl.setAttribute('class', "subTable" + id + "");
+            
+
+            holderEl.appendChild(tableEl);
+
+            row.getElement().appendChild(holderEl);
+
+            var subTable = new Tabulator(tableEl, {
+                layout:"fitColumns",        
+                data:row.getData().serviceHistory,
+                columns:[
+                    {title:"Phase",      field:"phase"},
+                    {title:"Start Time", field:"starttime", sorter:"datetime", sorterParams:{format:"YYYY-MM-DD hh:mm:ss",},},
+                    {title:"End Time",   field:"endtime"},
+                    {title:"Duration",   field:"duration"},
+                    {title:"Scanned",    field:"scanned"},
+                    {title:"Reviewed",   field:"reviewed"},
+                    {title:"Copied",     field:"copied"},
+                    {title:"Modified",   field:"modified"},
+                    {title:"Errors",     field:"errors"},
+                    {title:"Data Sent",  field:"sent"},
+                    {title:"Node",       field:"nodename"},
+                    {title:"Status",     field:"status"},                
+                ]
+            })        
+        },
+    });
+        </script>
+    </body>
+</html>
