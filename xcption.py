@@ -1418,6 +1418,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 				verbosetable.border = False
 				verbosetable.align = 'l'
 				print verbosetable.get_string(sortby="Start Time")
+				print ""
 
 
 #create general status
@@ -3958,7 +3959,6 @@ def modify_tasks(args,forceparam):
 	tocpu = args.cpu
 	toram = args.ram
 
-
 	jobsdictcopy = copy.deepcopy(jobsdict)
 	for jobname in jobsdict:
 		if jobfilter == '' or jobfilter == jobname:			
@@ -4031,14 +4031,14 @@ def modify_tasks(args,forceparam):
 									logging.error("could not move file:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
 									exit (1)	
 
-							#dumping jobsdict to json file 
-							try:
-								with open(jobdictjson, 'w') as fp:
-									json.dump(jobsdictcopy, fp)
-								fp.close()
-							except:
-								logging.error("cannot write job json file:"+jobdictjson)
-								exit(1)	
+						#dumping jobsdict to json file 
+						try:
+							with open(jobdictjson, 'w') as fp:
+								json.dump(jobsdictcopy, fp)
+							fp.close()
+						except:
+							logging.error("cannot write job json file:"+jobdictjson)
+							exit(1)	
 
 #abort jobs 
 def abort_jobs(jobtype, forceparam):
@@ -4234,50 +4234,28 @@ def start_flask(tcpport):
 
 	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
 
-	@app.route('/koko')
-	def index():
-		line_chart = pygal.Bar()
-		line_chart.title = 'Browser usage evolution (in %)'
-		line_chart.x_labels = map(str, range(2002, 2013))
-		line_chart.add('Firefox', [None, None, 0, 16.6,   25,   31, 36.4, 45.5, 46.3, 42.8, 37.1])
-		line_chart.add('Chrome',  [None, None, None, None, None, None,    0,  3.9, 10.8, 23.8, 35.3])
-		line_chart.add('IE',      [85.8, 84.6, 84.7, 74.5,   66, 58.6, 54.7, 44.8, 36.2, 26.6, 20.1])
-		line_chart.add('Others',  [14.2, 15.4, 15.3,  8.9,    9, 10.4,  8.9,  5.8,  6.7,  6.8,  7.5])
-		line_chart.value_formatter = lambda x: '%.2f%%' % x if x is not None else '0'
-		return line_chart.render_table(style=True)
-
 	@app.route("/")
 	@app.route("/index.html")
 	def tableindex():
+
 		parse_nomad_jobs_to_files(False)
+		global srcfilter 
+		global phasefilter
+		#srcfilter = "*9*"
 		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
-		#create json without logs
 		normalizedjsondict = normalizedict (jsondict)
 		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=normalizedjsondict)
-		#return send_file(os.path.join(webtemplatedir,'index.html'))
-	@app.route("/index1.html")
-	def tableindex1():
-		parse_nomad_jobs_to_files(False)
-		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
-		#create json without logs
-		normalizedjsondict = normalizedict (jsondict)
 
-		pp.pprint(normalizedjsondict)
-		return render_template('index1.html', jsongeneraldict=jsongeneraldict, jsondict=normalizedjsondict)
-		#return send_file(os.path.join(webtemplatedir,'index.html'))
-
-
+	#return all other files up to 3 level deep (css,js)
 	@app.route("/<path>")
 	def table(path):
 		return send_from_directory(webtemplatedir,path)
 	@app.route("/<path>/<path1>")
 	def table1(path,path1):
-		logging.info("yo")
 		return send_from_directory(webtemplatedir,os.path.join(path,path1))
 
 	@app.route("/<path>/<path1>/<path2>")
 	def table2(path,path1,path2):
-		logging.info(os.path.join(webtemplatedir,path,path1,path2))
 		return send_from_directory(webtemplatedir,os.path.join(path,path1,path2))
 
 

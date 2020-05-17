@@ -14,7 +14,6 @@
     {% for job in jsongeneraldict %}    
         {
             id:{{ loop.index }}, 
-            expand:"+",
             jobname:"{{ job.jobname }}", 
             src:"{{ job.src }}", 
             dst:"{{ job.dst }}", 
@@ -30,11 +29,12 @@
             verifystarttime:"{{ job.verifystarttime }}", 
             verifyratio:"{{ job.verifyratio }}", 
             verifycounter:"{{ job.verifycounter }}",
-            serviceHistory:[
+            verboseDetails:[
                 
             {% if 'phases' in jsondict[job.jobname][job.src] %}            
                 {% for phase in jsondict[job.jobname][job.src]['phases'] %}        
                 {
+                    id:{{ loop.index+10000 }}, 
                     phase:"{{ phase.phase }}",
                     starttime:"{{ phase.starttime }}",
                     endtime:"{{ phase.endtime }}",
@@ -46,7 +46,12 @@
                     errors:"{{ phase.errors }}",
                     sent:"{{ phase.sent }}",
                     nodename:"{{ phase.nodename }}",
-                    status:"{{ phase.status }}",                
+                    status:"{{ phase.status }}",
+                    logsdata:[
+                        {
+                            stdout:"{{ ('\n' ~ phase.stderrlogcontent) | replace('\n', '\\n') }}"
+                        },
+                    ],
                 },
                 {% endfor %} 
             {% else %}
@@ -73,7 +78,7 @@
         selectable: true,
         data:tabledata,
         columns:[
-            {title:"+", field:"expand", formatter:hideIcon, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
+            {formatter:"handle", align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
                 const id = row.getData().id;
                 $(".subTable"+id).toggle();table1.height = "100%";}
 
@@ -138,8 +143,15 @@
             var subTable = new Tabulator(tableEl, {
                 layout:"fitColumns",        
                 selectable: true,
-                data:row.getData().serviceHistory,
+                columnHeaderVertAlign:"bottom", //align header contents to bottom of cell
+                //layout:"fitData",                       
+                data:row.getData().verboseDetails,
                 columns:[
+                    {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
+                        const id = row.getData().id;
+                        $(".logTable"+id).toggle();table1.height = "100%";}
+
+                    },                
                     {title:"Phase",      field:"phase"},
                     {title:"Start Time", field:"starttime", sorter:"datetime", sorterParams:{format:"YYYY-MM-DD hh:mm:ss",},},
                     {title:"End Time",   field:"endtime"},
@@ -152,8 +164,39 @@
                     {title:"Data Sent",  field:"sent"},
                     {title:"Node",       field:"nodename"},
                     {title:"Status",     field:"status"},                
-                ]
-            })        
+                ], 
+                rowFormatter:function(row) {
+                    //create and style holder elements
+                    var holderEl1 = document.createElement("div");
+                    var tableEl1 = document.createElement("div");
+
+                    const id = row.getData().id;
+
+                    holderEl1.style.boxSizing = "border-box";
+                    holderEl1.style.padding = "10px 10px 10px 10px";
+                    holderEl1.style.borderTop = "1px solid #333";
+                    holderEl1.style.borderBotom = "1px solid #333";
+                    holderEl1.style.background = "#ddd";
+                    holderEl1.style.display = "none";
+                    holderEl1.setAttribute('class', "logTable" + id + "");
+                    
+                    tableEl1.style.border = "1px solid #333";
+                    tableEl1.style.display = "none";
+                    tableEl1.setAttribute('class', "logTable" + id + "");
+                    
+                    holderEl1.appendChild(tableEl1);
+
+                    row.getElement().appendChild(holderEl1);
+                    
+                    var logTable = new Tabulator(tableEl1, {
+                        layout:"fitColumns",        
+                        data:row.getData().logsdata,
+                        columns:[
+                            {title:"stdout", field:"stdout",formatter:"textarea"},
+                        ],   
+                    });                 
+                },
+            });        
         },
     });
         </script>
