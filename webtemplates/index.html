@@ -14,6 +14,7 @@
     {% for job in jsongeneraldict %}    
         {
             id:{{ loop.index }}, 
+            expand:"+",
             jobname:"{{ job.jobname }}", 
             src:"{{ job.src }}", 
             dst:"{{ job.dst }}", 
@@ -48,7 +49,12 @@
                     status:"{{ phase.status }}",                
                 },
                 {% endfor %} 
+            {% else %}
+                {
+                    phase:"no data",
+                }
             {% endif %}
+
                 
             ],
 
@@ -67,12 +73,12 @@
         selectable: true,
         data:tabledata,
         columns:[
-            {formatter:hideIcon, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
+            {title:"+", field:"expand", formatter:hideIcon, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
                 const id = row.getData().id;
                 $(".subTable"+id).toggle();table1.height = "100%";}
 
             },
-            {title:"Job Name", field:"jobname"},
+            {title:"Job Name", field:"jobname", sorter:"string"},
             {title:"Source", field:"src"},
             {title:"Destination", field:"dst"},
             {//create column group
@@ -86,17 +92,20 @@
             {//create column group
                 title:"Lst Sync",
                 columns:[
-                {title:"Status", field:"syncstatus"},
-                {title:"Next Schedule", field:"syncsched"},
-                {title:"Duration", field:"synctime"},
-                {title:"Sent", field:"syncsentshort"},
-                {title:"Count", field:"synccounter"},
+                    {title:"Status", field:"syncstatus"},
+                    {title:"Next Schedule", field:"syncsched"},
+                    {title:"Duration", field:"synctime"},
+                    {title:"Sent", field:"syncsentshort"},
+                    {title:"Count", field:"synccounter"},
                 ],
             },
             {//create column group
                 title:"Last Verify",
                 columns:[
-                    {title:"Status", field:"verifystatus"},{title:"Start Time", field:"verifystarttime"}, {title:"Ratio", field:"verifyratio"},{title:"Count", field:"verifycounter"},
+                    {title:"Status", field:"verifystatus"},
+                    {title:"Start Time", field:"verifystarttime"}, 
+                    {title:"Ratio", field:"verifyratio"},
+                    {title:"Count", field:"verifycounter"},
                 ],
             },   
 
