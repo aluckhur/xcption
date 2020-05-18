@@ -23,3 +23,8 @@
 
 2.8.0.5
 - fail jobs when xcp license is expired on not exists
+
+2.9.0.0
+- add web insteface for status 
+- add json and csv output for status 
+
