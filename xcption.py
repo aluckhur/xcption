@@ -4259,6 +4259,7 @@ def start_flask(tcpport):
 	cli.show_server_banner = lambda *x: None
 
 	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
+	app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 
 	@app.route("/")
 	@app.route("/index.html")
@@ -4268,8 +4269,19 @@ def start_flask(tcpport):
 		global srcfilter 
 		global phasefilter
 		global jobfilter 
-		#srcfilter = "*9*"
+
+		global jobsdict
+		global jsondict 
+		global jsongeneraldict
+
+		jobsdict = {}
+		jsondict = {}
+		jsongeneraldict = {}
+		
+		load_jobs_from_json(jobdictjson)
+		parse_nomad_jobs_to_files(False)
 		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
+		pp.pprint(jsondict)
 		normalizedjsondict = normalizedict (jsondict)
 		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict)
 
