@@ -129,7 +129,7 @@ if [ "$ONLINE" == "true" ]; then
 else
   mkdir -p /tmp/pip_unzip_loc
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
-  pip install /tmp/pip_unzip_loc/pip/*
+  find /tmp/pip_unzip_loc -name "*" | awk '{system("pip install "$1)}'
   rm -rf /tmp/pip_unzip_loc
 fi
 
