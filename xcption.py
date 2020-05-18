@@ -2572,31 +2572,32 @@ def parse_nomad_jobs_to_files (parselog=True):
 							logging.debug("log for job:"+alloc['ID']+" is available using api")
 							alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
 							try:
-								#for smartassess jobs always pull a full file 
-								if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess'):
-									with open(alloclogfile, 'w') as fp:
-										logging.debug("dumping log to log file:"+alloclogfile)
-										fp.write(response.content)
-										fp.close()
-										
-								else:
-									#this is used to be able to add delta to the cache file to enable tail to work
-									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
-									with open(tmpalloclogfile, 'w') as fp:
-										logging.debug("dumping log to temp log file:"+tmpalloclogfile)
-										fp.write(response.content)
-										fp.close()								
+								#this is used to be able to add delta to the cache file to enable tail to work
+								tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
+								with open(tmpalloclogfile, 'w') as fp:
+									logging.debug("dumping log to temp log file:"+tmpalloclogfile)
+									fp.write(response.content)
+									fp.close()								
+								
+								tmpalloclogfilenobin = tmpalloclogfile+".nobin"
+								DEVNULL = open(os.devnull, 'wb')
+								tr = "tr -cd '"+'\11\12\15\40-\176'+"' < "+tmpalloclogfile+" > "+tmpalloclogfilenobin
 
-									logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfile)
-									apendtologfile = open(alloclogfile, 'a')
-									DEVNULL = open(os.devnull, 'wb')
-									#subprocess.call( ['comm','-13','--nocheck-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
-									diff = "diff "+alloclogfile+" "+tmpalloclogfile+" | grep '^>' | cut -c 3-"
-									logging.debug("running diff:"+diff)
-									subprocess.call(diff,shell=True,stdout=apendtologfile,stderr=DEVNULL)
-									apendtologfile.close()
-									os.remove(tmpalloclogfile)	
-									logging.debug("diff ended and new entries merged into the old cached log file")
+								logging.debug("running tr:"+tr)
+								subprocess.call(tr,shell=True,stdout=DEVNULL,stderr=DEVNULL)
+
+								logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfilenobin)
+								apendtologfile = open(alloclogfile, 'a')
+								DEVNULL = open(os.devnull, 'wb')
+								#subprocess.call( ['comm','-13','--nocheck-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
+								diff = "diff "+alloclogfile+" "+tmpalloclogfilenobin+" | grep '^>' | cut -c 3-"
+								logging.debug("running diff:"+diff)
+								subprocess.call(diff,shell=True,stdout=apendtologfile,stderr=DEVNULL)
+
+								apendtologfile.close()
+								os.remove(tmpalloclogfile)	
+								os.remove(tmpalloclogfilenobin)	
+								logging.debug("diff ended and new entries merged into the old cached log file")
 							except:
 								logging.error("cannot create file:"+alloclogfile)
 								exit(1)
@@ -3964,14 +3965,14 @@ def modify_tasks(args,forceparam):
 									logging.error("could not move file:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
 									exit (1)	
 
-							#dumping jobsdict to json file 
-							try:
-								with open(jobdictjson, 'w') as fp:
-									json.dump(jobsdictcopy, fp)
-								fp.close()
-							except:
-								logging.error("cannot write job json file:"+jobdictjson)
-								exit(1)	
+						#dumping jobsdict to json file 
+						try:
+							with open(jobdictjson, 'w') as fp:
+								json.dump(jobsdictcopy, fp)
+							fp.close()
+						except:
+							logging.error("cannot write job json file:"+jobdictjson)
+							exit(1)	
 
 #abort jobs 
 def abort_jobs(jobtype, forceparam):
