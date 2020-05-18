@@ -1052,7 +1052,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		#store also other logtype
 		otherlogfilepath = name
 		if logtype == 'stderr':
-
 			otherlogfilepath = otherlogfilepath.replace('stderr','stdout',1) 
 			results['stderrlogpath'] = logfilepath
 			results['stdoutlogpath'] = otherlogfilepath
@@ -1886,6 +1885,15 @@ def create_status (reporttype,displaylogs=False, output='text'):
 				 				if logtype == 'stderr': 
 				 					stdoutkey = 'contentotherlog'
 				 					stderrkey = 'content'
+
+				 				#prevent excption if current log is not avaialble yet
+				 				if not 'stdoutlogpath' in baselinestatsresults: baselinestatsresults['stdoutlogpath'] = ''
+				 				if not 'stderrlogpath' in baselinestatsresults: baselinestatsresults['stderrlogpath'] = ''
+			 					if not 'stdoutlogexists' in baselinestatsresults: baselinestatsresults['stdoutlogexists'] = ''
+			 					if not 'stderrlogexists' in baselinestatsresults: baselinestatsresults['stderrlogexists'] = ''
+			 					if not stdoutkey in baselinestatsresults: baselinestatsresults[stdoutkey] = ''
+			 					if not stderrkey in baselinestatsresults: baselinestatsresults[stderrkey] = ''
+
 				 				jsondict = addtostatusjson(jobname,src,[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus,
 				 												baselinestatsresults['stdoutlogpath'],baselinestatsresults['stderrlogpath'],
 				 												baselinestatsresults['stdoutlogexists'],baselinestatsresults['stderrlogexists'],
@@ -2065,6 +2073,14 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					 				if logtype == 'stderr': 
 					 					stdoutkey = 'contentotherlog'
 					 					stderrkey = 'content'
+
+					 				#prevent excption if current log is not avaialble yet
+					 				if not 'stdoutlogpath' in currentlog: currentlog['stdoutlogpath'] = ''
+					 				if not 'stderrlogpath' in currentlog: currentlog['stderrlogpath'] = ''
+				 					if not 'stdoutlogexists' in currentlog: currentlog['stdoutlogexists'] = ''
+				 					if not 'stderrlogexists' in currentlog: currentlog['stderrlogexists'] = ''
+				 					if not stdoutkey in currentlog: currentlog[stdoutkey] = ''
+				 					if not stderrkey in currentlog: currentlog[stderrkey] = ''
 
 			 						jsondict = addtostatusjson(jobname,src,
 			 													[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus,
@@ -2654,16 +2670,25 @@ def parse_nomad_jobs_to_files (parselog=True):
 										logging.debug("dumping log to temp log file:"+tmpalloclogfile)
 										fp.write(response.content)
 										fp.close()								
+									
+									tmpalloclogfilenobin = tmpalloclogfile+".nobin"
+									DEVNULL = open(os.devnull, 'wb')
+									tr = "tr -cd '"+'\11\12\15\40-\176'+"' < "+tmpalloclogfile+" > "+tmpalloclogfilenobin
 
-									logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfile)
+									logging.debug("running tr:"+tr)
+									subprocess.call(tr,shell=True,stdout=DEVNULL,stderr=DEVNULL)
+
+									logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfilenobin)
 									apendtologfile = open(alloclogfile, 'a')
 									DEVNULL = open(os.devnull, 'wb')
 									#subprocess.call( ['comm','-13','--nocheck-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
-									diff = "diff "+alloclogfile+" "+tmpalloclogfile+" | grep '^>' | cut -c 3-"
+									diff = "diff "+alloclogfile+" "+tmpalloclogfilenobin+" | grep '^>' | cut -c 3-"
 									logging.debug("running diff:"+diff)
 									subprocess.call(diff,shell=True,stdout=apendtologfile,stderr=DEVNULL)
+
 									apendtologfile.close()
 									os.remove(tmpalloclogfile)	
+									os.remove(tmpalloclogfilenobin)	
 									logging.debug("diff ended and new entries merged into the old cached log file")
 							except:
 								logging.error("cannot create file:"+alloclogfile)
@@ -4197,7 +4222,8 @@ def normalizedict (jsondict):
 				#if 'stderrlogexists' in phase: del phase['stderrlogexists']
 
 				for key in phase:
-					if key in ['errors','deleted','modified','reviewed','scanned','copied']:
+					#if key in ['errors','deleted','modified','reviewed','scanned','copied']:
+					if key in ['deleted','modified','reviewed','copied']:
 						
 						phase[key] = str(phase[key]).replace(',','')
 						if phase[key] in ['-','']: phase[key] = 0
@@ -4241,10 +4267,11 @@ def start_flask(tcpport):
 		parse_nomad_jobs_to_files(False)
 		global srcfilter 
 		global phasefilter
+		global jobfilter 
 		#srcfilter = "*9*"
 		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
 		normalizedjsondict = normalizedict (jsondict)
-		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=normalizedjsondict)
+		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict)
 
 	#return all other files up to 3 level deep (css,js)
 	@app.route("/<path>")
