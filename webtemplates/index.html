@@ -15,8 +15,8 @@
         {
             id:{{ loop.index }}, 
             jobname:"{{ job.jobname }}", 
-            src:"{{ job.src | replace ('\','\\') }}", 
-            dst:"{{ job.dst | replace ('\','\\') }}", 
+            src:"{{ job.src | replace ("\\","\\\\") }}", 
+            dst:"{{ job.dst | replace ("\\","\\\\") }}", 
             baselinestatus:"{{ job.baselinestatus }}", 
             baselinetime:"{{ job.baselinetime }}", 
             baselinesentshort:"{{ job.baselinesentshort }}", 
