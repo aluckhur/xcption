@@ -25,6 +25,6 @@
 - fail jobs when xcp license is expired on not exists
 
 2.9.0.0
-- add web insteface for status 
-- add json and csv output for status 
+- add web insteface for status. web interface can be start using the web subcommand 
+- add json and csv output for status. use the status -o subcommand 
 
