@@ -3,6 +3,11 @@
 <html lang="en">
     <head>
         <link href="/css/tabulator.min.css" rel="stylesheet">
+        <style>
+            .tabulator-row .tabulator-cell a {
+               white-space: pre-wrap;
+        </style>
+}
     </head>
     <body>       
         <div id="table1"></div>
@@ -50,10 +55,10 @@
                         status:"{{ phase.status }}",
                         logsdata:[
                             {
-                                stderrlogcontent:"{{ phase.stderrlogpath }}",
-                                stdoutlogcontent:"{{ phase.stdoutlogpath }}",                               
-                            },
-                            {   
+                                stderrlogpath:"{{ phase.stderrlogpath }}",
+                                stdoutlogpath:"{{ phase.stdoutlogpath }}",                                
+                                stdouturl: "{{ phase.stdoutlogpath }}".slice("{{ phase.stdoutlogpath }}".indexOf("nomadcache")-1,"{{ phase.stdoutlogpath }}".length),
+                                stderrurl: "{{ phase.stderrlogpath }}".slice("{{ phase.stderrlogpath }}".indexOf("nomadcache")-1,"{{ phase.stderrlogpath }}".length),
                                 stderrlogcontent:"{{ phase.stderrlogcontent.encode("string-escape") | replace('"','') }}",
                                 stdoutlogcontent:"{{ phase.stdoutlogcontent.encode("string-escape") | replace('"','') }}",
                             },                    
@@ -270,11 +275,12 @@
                         layout:"fitColumns",         
                         data:row.getData().logsdata,
                         columns:[
+
                             //{formatter:"responsiveCollapse", width:30, minWidth:30, align:"center", resizable:false, headerSort:false},
                             //{title:"STDERR Log Path", field:"stderrlogpath",formatter:"link", formatterParams: { url: 'http://cnn.com' }, headerSort:false},
                             //{title:"STDOUT Log Path", field:"stdoutlogpath",formatter:"link", formatterParams: { url: 'http://cnbc.com' }, headerSort:false},
-                            {title:"STDERR Content", field:"stderrlogcontent",formatter:"textarea", headerSort:false},
-                            {title:"STDOUT Content", field:"stdoutlogcontent",formatter:"textarea", headerSort:false},
+                            {title:"STDERR Content", field:"stderrlogcontent",formatter:"link", formatterParams:{ urlField: "stderrurl", target:"_blank",}, headerSort:false},
+                            {title:"STDOUT Content", field:"stdoutlogcontent",formatter:"link", formatterParams:{ urlField: "stdouturl", target:"_blank",}, headerSort:false},
 
                         ],   
                     });                 
