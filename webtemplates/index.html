@@ -15,8 +15,8 @@
         {
             id:{{ loop.index }}, 
             jobname:"{{ job.jobname }}", 
-            src:"{{ job.src }}", 
-            dst:"{{ job.dst }}", 
+            src:"{{ job.src.encode("string-escape") }}", 
+            dst:"{{ job.dst.encode("string-escape") }}", 
             baselinestatus:"{{ job.baselinestatus }}", 
             baselinetime:"{{ job.baselinetime }}", 
             baselinesentshort:"{{ job.baselinesentshort }}", 
