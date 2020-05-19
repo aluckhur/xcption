@@ -95,9 +95,9 @@
                 $(".subTable"+id).toggle();table1.height = "100%";}
 
             },
-            {title:"Job Name", field:"jobname", sorter:"string"},
-            {title:"Source", field:"src"},
-            {title:"Destination", field:"dst"},
+            {title:"Job Name", field:"jobname", sorter:"string", headerFilter:"input"},
+            {title:"Source", field:"src", headerFilter:"input"},
+            {title:"Destination", field:"dst", headerFilter:"input"},
             {//create column group
                 title:"Baseline",
                 columns:[

@@ -4281,7 +4281,6 @@ def start_flask(tcpport):
 		load_jobs_from_json(jobdictjson)
 		parse_nomad_jobs_to_files(False)
 		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
-		pp.pprint(jsondict)
 		normalizedjsondict = normalizedict (jsondict)
 		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict)
 
