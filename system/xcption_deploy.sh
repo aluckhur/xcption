@@ -280,6 +280,8 @@ fi
 mkdir -p ${SCRIPT_DIR}/xcp_repo
 chmod 770 ${SCRIPT_DIR}/xcp_repo
 
+ln -s ../system/xcp_repo/nomadcache ${SCRIPT_DIR}/../webtemplates/nomadcache
+
 if grep -q "${REPO_MOUNT_POINT}" "/etc/fstab"
 then
   echo "${REPO_MOUNT_POINT} already in fstab" 
