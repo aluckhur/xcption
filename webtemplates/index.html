@@ -49,12 +49,12 @@
                         nodename:"{{ phase.nodename }}",
                         status:"{{ phase.status }}",
                         logsdata:[
+                            {
+                                stderrlogcontent:"{{ phase.stderrlogpath }}",
+                                stdoutlogcontent:"{{ phase.stdoutlogpath }}",                               
+                            },
                             {   
-                                stderrlogexists: {{ phase.stderrlogexists|lower }},
-                                stderrlogpath: "{{ phase.stderrlogpath }}",
                                 stderrlogcontent:"{{ ('\n' ~ phase.stderrlogcontent) | replace('\n', '\\n') }}",
-                                stdoutlogexists: {{ phase.stdoutlogexists|lower }},
-                                stdoutlogpath: "{{ phase.stdoutlogpath }}",
                                 stdoutlogcontent:"{{ ('\n' ~ phase.stdoutlogcontent) | replace('\n', '\\n') }}",
                             },                    
                         ],
