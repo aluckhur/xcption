@@ -54,8 +54,8 @@
                                 stdoutlogcontent:"{{ phase.stdoutlogpath }}",                               
                             },
                             {   
-                                stderrlogcontent:"{{ ('\n' ~ phase.stderrlogcontent) | replace('\n', '\\n') }}",
-                                stdoutlogcontent:"{{ ('\n' ~ phase.stdoutlogcontent) | replace('\n', '\\n') }}",
+                                stderrlogcontent:"{{ phase.stderrlogcontent.encode("string-escape") | replace('"','') }}",
+                                stdoutlogcontent:"{{ phase.stdoutlogcontent.encode("string-escape") | replace('"','') }}",
                             },                    
                         ],
                     },
