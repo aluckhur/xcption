@@ -63,17 +63,17 @@ The interaction is done using the following python CLI command (need root access
 
 ```
 [root@rhel1 xcption]# ./xcption.py -h
-usage: xcption.py [-h] [-v] [-d]
 
-                  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,smartasses}
+usage: xcption.py [-h] [-v] [-d]
+                  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,export,web,smartassess}
                   ...
 
 positional arguments:
-  {nodestatus,status,asses,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,smartasses}
+  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,export,web,smartassess}
                         sub commands that can be used
     nodestatus          display cluster nodes status
     status              display status
-    asses               asses fielsystem and create csv file
+    assess              assess filesystem and create csv file
     load                load/update configuration from csv file
     baseline            start baseline (xcp copy)
     sync                start schedule updates (xcp sync)
@@ -85,13 +85,16 @@ positional arguments:
                         and destination (xcp verify)
     delete              delete existing config
     modify              modify task job
-    smartasses          create tasks based on capacity and file count (nfs
+    export              export existing jobs to csv
+    web                 start web interface to display status
+    smartassess         create tasks based on capacity and file count (nfs
                         only)
 
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         print version information
   -d, --debug           log debug messages to console
+
 
 ```
 
