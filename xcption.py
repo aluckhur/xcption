@@ -26,6 +26,7 @@ import time
 import copy
 import fnmatch
 import socket
+import string
 
 from hurry.filesize import size
 from prettytable import PrettyTable
@@ -1383,7 +1384,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 			if jobdetails['ostype'] =='linux': print  "XCP INDEX NAME: "+jobdetails['xcpindexname']
 			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE:"+jobdetails['excludedirfile']
 			print  "OS: "+jobdetails['ostype'].upper()
-			if jobdetails['ostype']=='windows': print  "TOOL NAME: "+tool
+			if jobdetails['ostype']=='windows': print  "TOOL NAME: "+jobdetails['tool']
 			print  ""
 
 			begining = True 
