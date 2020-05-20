@@ -3984,6 +3984,8 @@ def modify_tasks(args,forceparam):
 	tocron = args.cron
 	tocpu = args.cpu
 	toram = args.ram
+	
+	global jobsdict 
 
 	jobsdictcopy = copy.deepcopy(jobsdict)
 	for jobname in jobsdict:
@@ -4065,6 +4067,9 @@ def modify_tasks(args,forceparam):
 						except:
 							logging.error("cannot write job json file:"+jobdictjson)
 							exit(1)	
+						jobsdict = {}
+						jobsdict = copy.deepcopy(jobsdictcopy)
+						create_nomad_jobs()
 
 #abort jobs 
 def abort_jobs(jobtype, forceparam):
