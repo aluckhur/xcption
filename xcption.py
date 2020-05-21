@@ -3985,7 +3985,9 @@ def modify_tasks(args,forceparam):
 	tocpu = args.cpu
 	toram = args.ram
 	
-	global jobsdict 
+	global jobsdict
+
+	chnaged = False 
 
 	jobsdictcopy = copy.deepcopy(jobsdict)
 	for jobname in jobsdict:
@@ -3997,6 +3999,8 @@ def modify_tasks(args,forceparam):
 					if not force: force = query_yes_no("are you sure you want to modify task properties for source:"+src,'no')
 
 					if force:
+						
+
 						if tocron:
 							logging.info("src:"+src+" cron changed to:"+tocron)
 							jobsdictcopy[jobname][src]['cron'] = tocron
@@ -4058,8 +4062,10 @@ def modify_tasks(args,forceparam):
 								except:
 									logging.error("could not move file:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
 									exit (1)	
+						#set to true to recreate hcl files 
+						chnaged = True
 
-						#dumping jobsdict to json file 
+						logging.debug("dumping modified information to jsonfile"+jobdictjson)
 						try:
 							with open(jobdictjson, 'w') as fp:
 								json.dump(jobsdictcopy, fp)
@@ -4067,9 +4073,13 @@ def modify_tasks(args,forceparam):
 						except:
 							logging.error("cannot write job json file:"+jobdictjson)
 							exit(1)	
-						jobsdict = {}
-						jobsdict = copy.deepcopy(jobsdictcopy)
-						create_nomad_jobs()
+	
+	if chnaged and (toram or tocpu or tocron):
+		logging.debug("recreating HCL files from updated json")
+		jobsdict = {}
+		jobsdict = copy.deepcopy(jobsdictcopy)
+		create_nomad_jobs()
+		logging.info("please run sync for relevant tasks to activate modified cpu/ram/scheudle")
 
 #abort jobs 
 def abort_jobs(jobtype, forceparam):
@@ -4405,7 +4415,7 @@ if args.subparser_name == 'modify':
 			exit(1)	
 
 	modify_tasks(args,args.force)
-	create_nomad_jobs()
+	#create_nomad_jobs()
 	parse_nomad_jobs_to_files()
 
 if args.subparser_name == 'export':	
