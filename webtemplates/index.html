@@ -40,7 +40,7 @@
                 {% if 'phases' in jsondict[job.jobname][job.src] %}            
                     {% for phase in jsondict[job.jobname][job.src]['phases'] %}        
                     {
-                        id:{{ loop.index+10000 }}, 
+                        id:"{{ loop.index }}"+btoa("{{ job.src }}"), 
                         phase:"{{ phase.phase }}",
                         starttime:"{{ phase.starttime }}",
                         endtime:"{{ phase.endtime }}",
@@ -97,7 +97,7 @@
         columns:[
             {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
                 const id = row.getData().id;
-                $(".subTable"+id).toggle();table1.height = "100%";}
+                $(".subTable"+id).toggle();table1.setHeight("100%");table1.Redraw();}
 
             },
             {title:"Job Name", field:"jobname", sorter:"string", headerFilter:"input"},
@@ -212,7 +212,7 @@
                 columns:[
                     {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
                         const id = row.getData().id;
-                        $(".logTable"+id).toggle();table1.height = "100%";}
+                        $(".logTable"+id).toggle();subTable.setHeight("100%");table1.height = "100%";table1.blockRedraw();}
 
                     },                
                     {title:"Phase",      field:"phase"},
