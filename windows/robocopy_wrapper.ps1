@@ -84,7 +84,7 @@ while (!$bDone)
                 $modified += 1
                 $newbytes += $matches[1]                                                   
             } elseif ($line -match '\s+New File\s+(\d+)') {
-                $new += 1 
+                $new += [regex]::Matches($line, "\sNew File\s+\d+").count  
                 $newbytes += $matches[1]
             } elseif ($line -match '\s+New Dir\s+(\d+)') {
                 $new += 1 
@@ -98,15 +98,15 @@ while (!$bDone)
                 $dirgone += 1 
             } elseif ($line -match '^\s+(\d+)\s+\\.+\\\s*$') {
                 $dir += 1 
-            } elseif ($line -match 'ERROR \d') {
+            } elseif ($line -match 'ERROR \d+ \(') {
                 Write-Output $line 
                 $errors += 1
             } elseif ($line -match '^\s*\\\\') {
-                #skip split            
+                #skip split lines         
             } elseif ($line -match '^\s*(\d+)%\s*$') {
-                #skipp
+                #skip lines 
             } elseif ($line -match '^\s*$') {
-                #empty        
+                #skip empty lines         
             } else {
                 Write-Host "$($line)"
             }
