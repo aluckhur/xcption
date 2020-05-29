@@ -97,7 +97,7 @@
         columns:[
             {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
                 const id = row.getData().id;
-                $(".subTable"+id).toggle();table1.setHeight("100%");table1.Redraw();}
+                $(".subTable"+id).toggle();table1.setHeight("100%");table1.redraw();}
 
             },
             {title:"Job Name", field:"jobname", sorter:"string", headerFilter:"input"},
