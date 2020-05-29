@@ -42,7 +42,7 @@
                 {% if 'phases' in jsondict[job.jobname][job.src] %}            
                     {% for phase in jsondict[job.jobname][job.src]['phases'] %}        
                     {
-                        id:"{{ loop.index + glob.counter }}"
+                        id:"{{ loop.index + glob.counter }}",
                         phase:"{{ phase.phase }}",
                         starttime:"{{ phase.starttime }}",
                         endtime:"{{ phase.endtime }}",
