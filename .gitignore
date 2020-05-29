@@ -2,3 +2,4 @@
 #ignore logs directory
 log/
 xcp_repo/
+nomadcahe/
