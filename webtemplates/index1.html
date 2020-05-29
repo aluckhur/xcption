@@ -1,0 +1,295 @@
+{% set glob={} %}
+
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <link href="/css/tabulator.min.css" rel="stylesheet">
+        <style>
+            .tabulator-row .tabulator-cell a {
+               white-space: pre-wrap;
+            }
+        </style>
+    </head>
+    <body>       
+        <div id="table1"></div>
+            <script type="text/javascript" src="/js/tabulator.min.js"></script>
+            <script type="text/javascript" src="/js/jquery-3.4.0.min.js"></script>
+        <script type="text/javascript">
+    //table data
+    var tabledata = [
+    {% for job in jsongeneraldict %}    
+        {
+            {% set _ = glob.update({'counter': loop.index*1000}) %}
+            id:{{ loop.index }}, 
+            jobname:"{{ job.jobname }}", 
+            src:"{{ job.src | replace ("\\","\\\\") }}", 
+            dst:"{{ job.dst | replace ("\\","\\\\") }}", 
+            baselinestatus:"{{ job.baselinestatus }}", 
+            baselinetime:"{{ job.baselinetime }}", 
+            baselinesentshort:"{{ job.baselinesentshort }}", 
+            syncstatus:"{{ job.syncstatus }}", 
+            syncsched:"{{ job.syncsched }}", 
+            synctime:"{{ job.synctime }}", 
+            syncsentshort:"{{ job.syncsentshort }}", 
+            synccounter:"{{ job.synccounter }}", 
+            verifystatus:"{{ job.verifystatus }}", 
+            verifystarttime:"{{ job.verifystarttime }}", 
+            verifyratio:"{{ job.verifyratio }}", 
+            verifycounter:"{{ job.verifycounter }}",
+            verboseDetails:[
+            
+            {% if job.jobname in jsondict %}                
+                {% if 'phases' in jsondict[job.jobname][job.src] %}            
+                    {% for phase in jsondict[job.jobname][job.src]['phases'] %}        
+                    {
+                        id:"{{ loop.index + glob.counter }}",
+                        phase:"{{ phase.phase }}",
+                        starttime:"{{ phase.starttime }}",
+                        endtime:"{{ phase.endtime }}",
+                        duration:"{{ phase.duration }}",
+                        scanned:"{{ phase.scanned }}",
+                        reviewed:"{{ phase.reviewed }}",
+                        copied:"{{ phase.copied }}",
+                        modified:"{{ phase.modified }}",
+                        errors:"{{ phase.errors }}",
+                        sent:"{{ phase.sent }}",
+                        nodename:"{{ phase.nodename }}",
+                        status:"{{ phase.status }}",
+                        logsdata:[
+                            {
+                                stderrlogpath:"{{ phase.stderrlogpath }}",
+                                stdoutlogpath:"{{ phase.stdoutlogpath }}",                                
+                                stdouturl: "{{ phase.stdoutlogpath }}".slice("{{ phase.stdoutlogpath }}".indexOf("nomadcache")-1,"{{ phase.stdoutlogpath }}".length),
+                                stderrurl: "{{ phase.stderrlogpath }}".slice("{{ phase.stderrlogpath }}".indexOf("nomadcache")-1,"{{ phase.stderrlogpath }}".length),
+                                stderrlogcontent:"{{ phase.stderrlogcontent.encode("string-escape") | replace('"','') }}",
+                                stdoutlogcontent:"{{ phase.stdoutlogcontent.encode("string-escape") | replace('"','') }}",
+                            },                    
+                        ],
+                    },
+                    {% endfor %} 
+                {% else %}
+                    {
+                        phase:"no data",
+                    }
+                {% endif %}
+            {% else %}
+                {
+                    jobname:"no data",
+                }
+
+            {% endif %}
+
+                
+            ],
+
+        },
+    {% endfor %}        
+    ];
+
+    var hideIcon = function(cell, formatterParams, onRendered){ //plain text value
+        return "<i class='fa fa-eye-slash'></i>";
+    };
+
+    var table1 = new Tabulator("#table1", {
+        height:"100%",
+        columnHeaderVertAlign:"bottom", //align header contents to bottom of cell
+        layout:"fitdataStreach",        
+        selectable: true,
+        data:tabledata,
+        columns:[
+            {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
+                const id = row.getData().id;
+                $(".subTable"+id).toggle();table1.setHeight("100%");table1.redraw();}
+
+            },
+            {title:"Job Name", field:"jobname", sorter:"string", headerFilter:"input"},
+            {title:"Source", field:"src", headerFilter:"input"},
+            {title:"Destination", field:"dst", headerFilter:"input"},
+            {//create column group
+                title:"Baseline",
+                columns:[
+                    {title:"Status", field:"baselinestatus",formatter:function(cell, formatterParams){
+                            var value = cell.getValue();
+                            if(value == "failed"){
+                                return "<span style='color:red; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "running" || value == "complete"){
+                                return "<span style='color:green; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "pending"){
+                                return "<span style='color:orange; font-weight:bold;'>" + value + "</span>";                                
+                            }else{
+                                return value;
+                            }
+                        }
+                    }, 
+                    {title:"Duration", field:"baselinetime"},
+                    {title:"Sent", field:"baselinesentshort"},
+                ],
+            },
+            {//create column group
+                title:"Lst Sync",
+                columns:[
+                    {title:"Status", field:"syncstatus", formatter:function(cell, formatterParams){
+                            var value = cell.getValue();
+                            if(value == "failed"){
+                                return "<span style='color:red; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "running" || value == "complete"){
+                                return "<span style='color:green; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "pending"){
+                                return "<span style='color:orange; font-weight:bold;'>" + value + "</span>";                                                                
+                            }else if(value == "idle"){
+                                return "<span style='color:green; font-weight:bold;'>" + value + "</span>";                                
+                            }else{
+                                return value;
+                            }
+                        }
+                    }, 
+                    {title:"Next Schedule", field:"syncsched", formatter:function(cell, formatterParams){
+                            var value = cell.getValue();
+                            if(value == "-" || value == "paused"){
+                                return "<span style='color:orange; font-weight:bold;'>" + value + "</span>";                                         
+                            }else{
+                                return "<span style='color:green; font-weight:bold;'>" + value + "</span>";  
+                            }
+                        }
+                    },
+                    {title:"Duration", field:"synctime"},
+                    {title:"Sent", field:"syncsentshort"},
+                    {title:"Count", field:"synccounter"},
+                ],
+            },
+            {//create column group
+                title:"Last Verify",
+                columns:[
+                    {title:"Status", field:"verifystatus", formatter:function(cell, formatterParams){
+                            var value = cell.getValue();
+                            if(value == "failed" || value == "diff"){
+                                return "<span style='color:red; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "running" || value == "complete" || value == "equal"){
+                                return "<span style='color:green; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "pending"){
+                                return "<span style='color:orange; font-weight:bold;'>" + value + "</span>";                                                                
+                            }else{
+                                return value;
+                            }
+                        }
+                    }, 
+                    {title:"Start Time", field:"verifystarttime"}, 
+                    {title:"Ratio", field:"verifyratio"},
+                    {title:"Count", field:"verifycounter"},
+                ],
+            },   
+
+        ],
+        rowFormatter:function(row) {
+            //create and style holder elements
+            var holderEl = document.createElement("div");
+            var tableEl = document.createElement("div");
+
+            const id = row.getData().id;
+
+            holderEl.style.boxSizing = "border-box";
+            holderEl.style.padding = "10px 10px 10px 10px";
+            holderEl.style.borderTop = "1px solid #333";
+            holderEl.style.borderBotom = "1px solid #333";
+            holderEl.style.background = "#ddd";
+            holderEl.style.display = "none";
+            holderEl.setAttribute('class', "subTable" + id + "");
+            
+    
+            tableEl.style.border = "1px solid #333";
+            tableEl.style.display = "none";
+            tableEl.setAttribute('class', "subTable" + id + "");
+            
+
+            holderEl.appendChild(tableEl);
+
+            row.getElement().appendChild(holderEl);
+
+            var subTable = new Tabulator(tableEl, {
+                layout:"fitColumns",        
+                selectable: true,
+                columnHeaderVertAlign:"bottom", //align header contents to bottom of cell
+                //layout:"fitData",                       
+                data:row.getData().verboseDetails,
+                columns:[
+                    {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
+                        const id = row.getData().id;
+                        $(".logTable"+id).toggle();subTable.setHeight("100%");table1.height = "100%";table1.blockRedraw();}
+
+                    },                
+                    {title:"Phase",      field:"phase"},
+                    {title:"Start Time", field:"starttime", sorter:"datetime", sorterParams:{format:"YYYY-MM-DD hh:mm:ss",},},
+                    {title:"End Time",   field:"endtime"},
+                    {title:"Duration",   field:"duration"},
+                    {title:"Scanned",    field:"scanned"},
+                    {title:"Reviewed",   field:"reviewed"},
+                    {title:"Copied",     field:"copied"},
+                    {title:"Modified",   field:"modified"},
+                    {title:"Errors",     field:"errors", formatter:function(cell, formatterParams){
+                            var value = cell.getValue();
+                            if(value != "0"){
+                                return "<span style='color:red; font-weight:bold;'>" + value + "</span>";
+                            }else{
+                                return value;
+                            }
+                        }
+                    },                    
+                    {title:"Data Sent",  field:"sent"},
+                    {title:"Node",       field:"nodename"},
+                    {title:"Status",     field:"status", formatter:function(cell, formatterParams){
+                            var value = cell.getValue();
+                            if(value == "failed" || value == "diff"){
+                                return "<span style='color:red; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "running" || value == "complete" || value == "equal"){
+                                return "<span style='color:green; font-weight:bold;'>" + value + "</span>";
+                            }else if(value == "pending"){
+                                return "<span style='color:orange; font-weight:bold;'>" + value + "</span>";                                                                
+                            }else{
+                                return value;
+                            }
+                        }
+                    },                 
+                ], 
+                rowFormatter:function(row) {
+                    //create and style holder elements
+                    var holderEl1 = document.createElement("div");
+                    var tableEl1 = document.createElement("div");
+
+                    const id = row.getData().id;
+
+                    holderEl1.style.boxSizing = "border-box";
+                    holderEl1.style.padding = "10px 10px 10px 10px";
+                    holderEl1.style.borderTop = "1px solid #333";
+                    holderEl1.style.borderBotom = "1px solid #333";
+                    holderEl1.style.background = "#ddd";
+                    holderEl1.style.display = "none";
+                    holderEl1.setAttribute('class', "logTable" + id + "");
+                    
+                    tableEl1.style.border = "1px solid #333";
+                    tableEl1.style.display = "none";
+                    tableEl1.setAttribute('class', "logTable" + id + "");
+                    
+                    holderEl1.appendChild(tableEl1);
+
+                    row.getElement().appendChild(holderEl1);
+                    
+                    var logTable = new Tabulator(tableEl1, {
+                        layout:"fitColumns",         
+                        data:row.getData().logsdata,
+                        columns:[
+
+                            //{formatter:"responsiveCollapse", width:30, minWidth:30, align:"center", resizable:false, headerSort:false},
+                            //{title:"STDERR Log Path", field:"stderrlogpath",formatter:"link", formatterParams: { url: 'http://cnn.com' }, headerSort:false},
+                            //{title:"STDOUT Log Path", field:"stdoutlogpath",formatter:"link", formatterParams: { url: 'http://cnbc.com' }, headerSort:false},
+                            {title:"STDERR Content", field:"stderrlogcontent",formatter:"link", formatterParams:{ urlField: "stderrurl", target:"_blank",}, headerSort:false},
+                            {title:"STDOUT Content", field:"stdoutlogcontent",formatter:"link", formatterParams:{ urlField: "stdouturl", target:"_blank",}, headerSort:false},
+
+                        ],   
+                    });                 
+                },
+            });        
+        },
+    });
+        </script>
+    </body>
+</html>
