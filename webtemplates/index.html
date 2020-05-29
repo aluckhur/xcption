@@ -1,3 +1,4 @@
+{% set glob={} %}
 
 <!DOCTYPE html>
 <html lang="en">
@@ -18,6 +19,7 @@
     var tabledata = [
     {% for job in jsongeneraldict %}    
         {
+            {% set _ = glob.update({'counter': loop.index*1000}) %}
             id:{{ loop.index }}, 
             jobname:"{{ job.jobname }}", 
             src:"{{ job.src | replace ("\\","\\\\") }}", 
@@ -40,7 +42,7 @@
                 {% if 'phases' in jsondict[job.jobname][job.src] %}            
                     {% for phase in jsondict[job.jobname][job.src]['phases'] %}        
                     {
-                        id:"{{ loop.index }}"+btoa("{{ job.src }}"), 
+                        id:"{{ loop.index + glob.counter }}"
                         phase:"{{ phase.phase }}",
                         starttime:"{{ phase.starttime }}",
                         endtime:"{{ phase.endtime }}",
