@@ -17,24 +17,23 @@
         <div>
             <select id="jobfilter" class="large">
                 <option value="all_jobs">All jobs</option>
-            {% for job in jobs %}             
-                <option value="{{ job }}">{{ job }}</option>
-            {% endfor %}
+                {% for job in jobs %}<option value="{{ job }}">{{ job }}</option>
+                {% endfor %}
             </select>
             <input id="srcfilter" type="text" placeholder="Source" class="large">
             <input id="phasefilter" type="text" placeholder="Phase" class="large">
-            
+            <input type="checkbox" id="verbose">Verbose 
+            <input type="checkbox" id="logs">Logs 
             <select id="jobstatus" class="large">
-                <option value="all_statuses">All</option>
+                <option value="all_statuses">All Statuses</option>
                 <option value="complete">Complete</option>
                 <option value="running">Running</option>
                 <option value="failed">Failed</option>
                 <option value="pending">Pending</option>
                 <option value="aborted">Aborted</option>
-            </select>
+            </select>            
             <input type="checkbox" id="errors">Errors 
-            <input type="checkbox" id="verbose">Verbose 
-            <input type="checkbox" id="logs">Logs 
+            
             <button id="filter" class="large">Filter</button>
         </div>
 
