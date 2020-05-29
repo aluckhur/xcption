@@ -8,13 +8,71 @@
             .tabulator-row .tabulator-cell a {
                white-space: pre-wrap;
             }
+            div.large {
+                 font-size: 200%;
+            }
         </style>
     </head>
-    <body>       
+    <body>     
+        <div>
+            <select id="jobfilter" class="large">
+                <option value="all_jobs">All jobs</option>
+            {% for job in jobs %}             
+                <option value="{{ job }}">{{ job }}</option>
+            {% endfor %}
+            </select>
+            <input id="srcfilter" type="text" placeholder="Source" class="large">
+            <input id="phasefilter" type="text" placeholder="Phase" class="large">
+            
+            <select id="jobstatus" class="large">
+                <option value="all_statuses">All</option>
+                <option value="complete">Complete</option>
+                <option value="running">Running</option>
+                <option value="failed">Failed</option>
+                <option value="pending">Pending</option>
+                <option value="aborted">Aborted</option>
+            </select>
+            <input type="checkbox" id="errors">Errors 
+            <input type="checkbox" id="verbose">Verbose 
+            <input type="checkbox" id="logs">Logs 
+            <button id="filter" class="large">Filter</button>
+        </div>
+
         <div id="table1"></div>
             <script type="text/javascript" src="/js/tabulator.min.js"></script>
             <script type="text/javascript" src="/js/jquery-3.4.0.min.js"></script>
         <script type="text/javascript">
+
+    function reload() {
+        var url = window.location.href.split('?')[0];    
+        url += '?jobfilter='+document.getElementById("jobfilter").value+'&srcfilter='+document.getElementById("srcfilter").value+'&phasefilter='+document.getElementById("phasefilter").value;
+
+        window.location.href = url;
+    }
+
+    const urlParams = new URLSearchParams(window.location.href);
+    document.getElementById("srcfilter").value = urlParams.get('srcfilter');
+
+    document.getElementById("srcfilter").addEventListener("keyup", function(event) {
+        if (event.keyCode === 13) {
+            event.preventDefault();
+            document.getElementById("filter").click();
+        }
+    });
+
+    document.getElementById("phasefilter").value = urlParams.get('phasefilter');
+
+    document.getElementById("phasefilter").addEventListener("keyup", function(event) {
+        if (event.keyCode === 13) {
+            event.preventDefault();
+            document.getElementById("filter").click();
+        }
+    });    
+
+    document.getElementById("filter").addEventListener("click", function(){
+       reload();
+    });            
+
     //table data
     var tabledata = [
     {% for job in jsongeneraldict %}    

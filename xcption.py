@@ -4268,7 +4268,7 @@ def normalizedict (jsondict):
 
 #def start web server using flask
 def start_flask(tcpport):
-	from flask import Flask,render_template, send_file, send_from_directory
+	from flask import Flask,render_template, send_file, send_from_directory, request
 
 	#disable flask logging
 	cli = sys.modules['flask.cli']
@@ -4276,6 +4276,7 @@ def start_flask(tcpport):
 
 	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
 	app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
+	app.jinja_options['extensions'].append('jinja2.ext.do')
 
 	@app.route("/")
 	@app.route("/index.html")
@@ -4298,7 +4299,41 @@ def start_flask(tcpport):
 		parse_nomad_jobs_to_files(False)
 		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
 		normalizedjsondict = normalizedict (jsondict)
+
 		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict)
+
+	@app.route("/index1.html")
+	def tableindex1():
+
+		parse_nomad_jobs_to_files(False)
+		global srcfilter 
+		global phasefilter
+		global jobfilter 
+
+		jobfilter = ''; srcfilter = ''; phasefilter = ''
+
+		if request.args.get('jobfilter') != None: jobfilter = request.args.get('jobfilter')
+		if jobfilter == 'all_jobs': jobfilter = ''
+		
+		if request.args.get('srcfilter') != None: srcfilter = request.args.get('srcfilter')
+		if srcfilter != '' and not '*' in srcfilter:
+			srcfilter = '*'+srcfilter+'*'
+		if request.args.get('phasefilter') != None: phasefilter = request.args.get('phasefilter')
+
+		global jobsdict
+		global jsondict 
+		global jsongeneraldict
+
+		jobsdict = {}
+		jsondict = {}
+		jsongeneraldict = {}
+		
+		load_jobs_from_json(jobdictjson)
+		parse_nomad_jobs_to_files(False)
+		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
+		normalizedjsondict = normalizedict (jsondict)
+		return render_template('index1.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict, jobs=jobsdict.keys())
+
 
 	#return all other files up to 3 level deep (css,js)
 	@app.route("/<path>")
