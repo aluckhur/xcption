@@ -1756,7 +1756,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 							if verifystatus == 'failed' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
 
 							#windows
-							if ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
+							if verifystatus != 'running' and ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
 							
 							if verifystatus == 'idle' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
 						except:
