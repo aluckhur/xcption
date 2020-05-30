@@ -2116,12 +2116,12 @@ def create_status (reporttype,displaylogs=False, output='text'):
 		elif output == 'csv':
 			create_csv_status(jsondict)
 
-		return jsondict,jsongeneraldict
-					
 	#dispaly general report
 	if reporttype == 'general':
-		create_general_status(jsongeneraldict)
-		
+		if output == 'text':
+			create_general_status(jsongeneraldict)
+
+	return jsondict,jsongeneraldict
 
 	
 #update nomad job status (pause,resume)
@@ -4287,52 +4287,41 @@ def start_flask(tcpport):
 		global phasefilter
 		global jobfilter 
 
-		global jobsdict
-		global jsondict 
-		global jsongeneraldict
-
-		jobsdict = {}
-		jsondict = {}
-		jsongeneraldict = {}
-		
-		load_jobs_from_json(jobdictjson)
-		parse_nomad_jobs_to_files(False)
-		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
-		normalizedjsondict = normalizedict (jsondict)
-
-		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict)
-
-	@app.route("/index1.html")
-	def tableindex1():
-
-		parse_nomad_jobs_to_files(False)
-		global srcfilter 
-		global phasefilter
-		global jobfilter 
-
 		jobfilter = ''; srcfilter = ''; phasefilter = ''
 
+		#include jobfilter in http
 		if request.args.get('jobfilter') != None: jobfilter = request.args.get('jobfilter')
 		if jobfilter == 'all_jobs': jobfilter = ''
 		
+		#include srcfilter in http
 		if request.args.get('srcfilter') != None: srcfilter = request.args.get('srcfilter')
 		if srcfilter != '' and not '*' in srcfilter:
 			srcfilter = '*'+srcfilter+'*'
+
+		#include phase filter in http
 		if request.args.get('phasefilter') != None: phasefilter = request.args.get('phasefilter')
 
+		#include verbose in httm		
+		statustype = 'general'
+		if request.args.get('verbose') == 'true': statustype = 'verbose'
+
+		#include logs in httm
+		showlogs = False
+		if request.args.get('logs') == 'true' and request.args.get('verbose') == 'true': showlogs = True
+
+		#declare global dicts 
 		global jobsdict
 		global jsondict 
 		global jsongeneraldict
 
-		jobsdict = {}
-		jsondict = {}
-		jsongeneraldict = {}
-		
+		#zero global hash from previous content 
+		jobsdict = {}; jsondict = {}; jsongeneraldict = {}
+	
 		load_jobs_from_json(jobdictjson)
 		parse_nomad_jobs_to_files(False)
-		jsondict,jsongeneraldict = create_status('verbose',False,'silent')
+		jsondict,jsongeneraldict = create_status(statustype,False,'silent')
 		normalizedjsondict = normalizedict (jsondict)
-		return render_template('index1.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict, jobs=jobsdict.keys())
+		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict, jobs=jobsdict.keys(), statustype=statustype, showlogs=showlogs)
 
 
 	#return all other files up to 3 level deep (css,js)

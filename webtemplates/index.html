@@ -8,13 +8,90 @@
             .tabulator-row .tabulator-cell a {
                white-space: pre-wrap;
             }
+            div.large {
+                 font-size: 200%;
+            }
         </style>
     </head>
-    <body>       
+    <body>     
+        <div>
+            <select id="jobfilter" class="large">
+                <option value="all_jobs">All jobs</option>
+                {% for job in jobs %}<option value="{{ job }}">{{ job }}</option>
+                {% endfor %}
+            </select>
+            <input id="srcfilter" type="text" placeholder="Source" class="large">
+            <input type="checkbox" id="verbose" onclick="uncheckVerbose()">Verbose 
+            <input type="checkbox" id="logs" onclick="checkShowLogs()">Show Logs 
+<!--
+            <select id="jobstatus" class="large">
+                <option value="all_statuses">All Statuses</option>
+                <option value="complete">Complete</option>
+                <option value="running">Running</option>
+                <option value="failed">Failed</option>
+                <option value="pending">Pending</option>
+                <option value="aborted">Aborted</option>
+            </select>            
+            <input type="checkbox" id="errors">Errors 
+-->            
+            <button id="filter" class="large">Filter</button>
+        </div>
+
         <div id="table1"></div>
             <script type="text/javascript" src="/js/tabulator.min.js"></script>
             <script type="text/javascript" src="/js/jquery-3.4.0.min.js"></script>
         <script type="text/javascript">
+
+    function uncheckVerbose() {
+        var verbose = document.getElementById('verbose');
+        if (verbose.checked == false) {
+            document.getElementById("logs").checked = false;
+        }
+    }
+
+    function checkShowLogs() {
+        var logs = document.getElementById('logs');
+        if (logs.checked == true) {
+            document.getElementById("verbose").checked = true;
+        }
+    }    
+
+    function reload() {
+        var url = window.location.href.split('?')[0];    
+        url += '?jobfilter='+document.getElementById("jobfilter").value+'&srcfilter='+document.getElementById("srcfilter").value+'&verbose='+document.getElementById("verbose").checked+'&logs='+document.getElementById("logs").checked;
+
+        window.location.href = url;
+    }
+
+    const urlParams = new URLSearchParams(window.location.search.slice(1));
+
+    console.log(window.location.href);
+    if (urlParams.get('jobfilter') != null) {
+
+        document.getElementById("jobfilter").value = urlParams.get('jobfilter');
+    }
+
+    document.getElementById("srcfilter").value = urlParams.get('srcfilter');
+
+    document.getElementById("srcfilter").addEventListener("keyup", function(event) {
+        if (event.keyCode === 13) {
+            event.preventDefault();
+            document.getElementById("filter").click();
+        }
+    });
+  
+
+    document.getElementById("filter").addEventListener("click", function(){
+       reload();
+    });            
+
+    if (urlParams.get('verbose') == 'true') {
+        document.getElementById('verbose').checked = true;
+    }
+    if (urlParams.get('logs') == 'true') {
+        document.getElementById('logs').checked = true;
+    }    
+
     //table data
     var tabledata = [
     {% for job in jsongeneraldict %}    
@@ -36,6 +113,7 @@
             verifystarttime:"{{ job.verifystarttime }}", 
             verifyratio:"{{ job.verifyratio }}", 
             verifycounter:"{{ job.verifycounter }}",
+            {% if statustype == 'verbose' %}
             verboseDetails:[
             
             {% if job.jobname in jsondict %}                
@@ -55,6 +133,7 @@
                         sent:"{{ phase.sent }}",
                         nodename:"{{ phase.nodename }}",
                         status:"{{ phase.status }}",
+                        {% if showlogs == True %}                        
                         logsdata:[
                             {
                                 stderrlogpath:"{{ phase.stderrlogpath }}",
@@ -65,6 +144,7 @@
                                 stdoutlogcontent:"{{ phase.stdoutlogcontent.encode("string-escape") | replace('"','') }}",
                             },                    
                         ],
+                        {% endif %}
                     },
                     {% endfor %} 
                 {% else %}
@@ -78,10 +158,8 @@
                 }
 
             {% endif %}
-
-                
             ],
-
+            {% endif %}
         },
     {% endfor %}        
     ];
@@ -97,11 +175,13 @@
         selectable: true,
         data:tabledata,
         columns:[
+            {% if statustype == 'verbose' %}              
             {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
                 const id = row.getData().id;
                 $(".subTable"+id).toggle();table1.setHeight("100%");table1.redraw();}
 
             },
+            {% endif %}
             {title:"Job Name", field:"jobname", sorter:"string", headerFilter:"input"},
             {title:"Source", field:"src", headerFilter:"input"},
             {title:"Destination", field:"dst", headerFilter:"input"},
@@ -180,6 +260,7 @@
             },   
 
         ],
+        {% if statustype == 'verbose' %}             
         rowFormatter:function(row) {
             //create and style holder elements
             var holderEl = document.createElement("div");
@@ -212,11 +293,13 @@
                 //layout:"fitData",                       
                 data:row.getData().verboseDetails,
                 columns:[
+                    {% if showlogs == True %}        
                     {formatter:"handle", width:10, align:"center", headerSort:false, cellClick:function(e, row, formatterParams){
                         const id = row.getData().id;
                         $(".logTable"+id).toggle();subTable.setHeight("100%");table1.height = "100%";table1.blockRedraw();}
 
                     },                
+                    {% endif %}
                     {title:"Phase",      field:"phase"},
                     {title:"Start Time", field:"starttime", sorter:"datetime", sorterParams:{format:"YYYY-MM-DD hh:mm:ss",},},
                     {title:"End Time",   field:"endtime"},
@@ -250,6 +333,7 @@
                         }
                     },                 
                 ], 
+                {% if showlogs == True %}
                 rowFormatter:function(row) {
                     //create and style holder elements
                     var holderEl1 = document.createElement("div");
@@ -287,8 +371,10 @@
                         ],   
                     });                 
                 },
+                {% endif %}
             });        
         },
+        {% endif %}                
     });
         </script>
     </body>
