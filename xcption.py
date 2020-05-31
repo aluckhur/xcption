@@ -4244,13 +4244,11 @@ def normalizedict (jsondict):
 						phase[key] = str(phase[key]).replace(',','')
 						if phase[key] in ['-','']: phase[key] = 0
 
-						if 'M' in str(phase[key]):
-							phase[key] = int(phase[key].replace('M',''))*1000000
 						try:
+							if 'M' in str(phase[key]): phase[key] = int(phase[key].replace('M',''))*1000000
 							phase[key] = int(phase[key])
 						except:
-							logging.error("cannot convert:"+str(phase[key])+" to int")
-							exit(1)
+							phase[key] = 0 
 					if key == 'duration':
 						matchObj = re.match("((\d+)h)?((\d+)m)?(\d+)s",phase[key])
 						if matchObj:
@@ -4258,7 +4256,6 @@ def normalizedict (jsondict):
 							if matchObj.group(2) > 0: durationsec += int(matchObj.group(2))*3600 
 							if matchObj.group(4) > 0: durationsec += int(matchObj.group(4))*60
 							if matchObj.group(5) > 0: durationsec += int(matchObj.group(5))
-							durationsec
 						else:
 							durationsec = 0
 
@@ -4320,7 +4317,7 @@ def start_flask(tcpport):
 		load_jobs_from_json(jobdictjson)
 		parse_nomad_jobs_to_files(False)
 		jsondict,jsongeneraldict = create_status(statustype,False,'silent')
-		normalizedjsondict = normalizedict (jsondict)
+		#normalizedjsondict = normalizedict (jsondict)
 		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict, jobs=jobsdict.keys(), statustype=statustype, showlogs=showlogs)
 
 
