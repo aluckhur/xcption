@@ -122,7 +122,7 @@ if [ "$ONLINE" == "true" ]; then
   pip install pprint
   pip install requests
   pip install prettytable
-  pip install croniter
+  pip install croniter==0.3.30
   pip install hurry.filesize
   pip install treelib
   pip install flask
