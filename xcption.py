@@ -1111,7 +1111,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if not lastline and logtype == 'stderr':
 			for match in re.finditer(r"Cannot start ?(\bcopy\b|\bsync\b|\bverify\b)\:",results['content'],re.M|re.I):
 				results['failure'] = True
-			for match in re.finditer(r"xcp: ERROR: License file.+not found",results['content'],re.M|re.I):
+			for match in re.finditer(r"xcp: ERROR: License file",results['content'],re.M|re.I):
 				results['failure'] = True
 
 	
@@ -3630,6 +3630,7 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 	srcdirstructure = list_dirs_linux(tempmountpointsrc,depth-1)
 
 	try:
+		taskcounter = 0 
 		for o in srcdirstructure:
 			path = o[0]
 			dircount = o[1]
@@ -3661,9 +3662,10 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
 
 			#check if destination directory exists/contains files
-			if dircount > 20:
-				logging.warning("the amount of directories under: "+nfssrcpath+" is above 20, this will create extensive amount of xcption jobs")
+			if taskcounter > 50:
+				logging.warning("the amount of created jobs is above 50, this will create extensive amount of xcption jobs")
 				warning=True  
+				taskcounter = -1
 
 			#create xcption job entry
 			#print depth,currentdepth,dircount,nfssrcpath,path
@@ -3675,6 +3677,7 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
 				#append data to csv 
 				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":""})
+				if taskcounter != -1: taskcounter += 1
 
 
 		if warning:
