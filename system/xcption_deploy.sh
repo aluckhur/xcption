@@ -281,7 +281,7 @@ fi
 mkdir -p ${SCRIPT_DIR}/xcp_repo
 chmod 770 ${SCRIPT_DIR}/xcp_repo
 
-ln -s ${SCRIPT_DIR}/../webtemplates/nomadcache ${SCRIPT_DIR}/xcp_repo/nomadcache
+ln -s ${SCRIPT_DIR}/xcp_repo/nomadcache ${SCRIPT_DIR}/../webtemplates/nomadcache
 
 if grep -q "${REPO_MOUNT_POINT}" "/etc/fstab"
 then
