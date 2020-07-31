@@ -28,3 +28,5 @@
 - add web insteface for status. web interface can be start using the web subcommand 
 - add json and csv output for status. use the status -o subcommand 
 
+2.9.1.0
+- add XCP 1.6.1 binaries 

@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.0.0'
+version = '2.9.1.0'
 
 import csv
 import argparse
@@ -44,7 +44,7 @@ defaultwintool = 'xcp'
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 xcpwincopyparam = "-preserve-atime -acl -parallel 8"
-xcpwinsyncparam = "-nodata -preserve-atime -acl -parallel 8"
+xcpwinsyncparam = "-preserve-atime -acl -parallel 8"
 xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime -parallel 8"
 
 #robocopy windows location
@@ -782,9 +782,9 @@ def create_nomad_jobs():
 
 					if ostype == 'windows' and tool == 'xcp': 
 						if excludedirfile == '':						
-							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 						else:
-							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst+"\"")
+							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 
 					if ostype == 'windows' and tool == 'robocopy': 
 						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
@@ -808,7 +808,7 @@ def create_nomad_jobs():
 					if ostype == 'linux':
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
 					if ostype == 'windows' and tool == 'xcp': 
-						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user "+failbackuser+" -fallback-group "+failbackgroup+" \""+src+"\" \""+dst)
+						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 					if ostype == 'windows' and tool == 'robocopy': 
 						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
 
