@@ -147,8 +147,8 @@ if [ "$ONLINE" == "true" ]; then
   unzip -o windows/nomad_windows.zip -d ${SCRIPT_DIR}/../windows
 fi
 
-if [ -f ${SCRIPT_DIR}/../windows/xcp_windows_mp.z01 ]; then
-  cat ${SCRIPT_DIR}/../windows/xcp_windows_mp.z* > ${SCRIPT_DIR}/../windows/xcp_windows.zip
+if [ -f ${SCRIPT_DIR}/../windows/xcp_windows.zip.00 ]; then
+  cat ${SCRIPT_DIR}/../windows/xcp_windows.zip.* > ${SCRIPT_DIR}/../windows/xcp_windows.zip
 fi  
 unzip -o ${SCRIPT_DIR}/../windows/xcp_windows.zip -d ${SCRIPT_DIR}/../windows
 
@@ -269,6 +269,7 @@ EONSU
 
 sysctl -p
 
+cat ${SCRIPT_DIR}/xcp.zip.* > ${SCRIPT_DIR}/xcp.zip
 
 if [ -f ${SCRIPT_DIR}/xcp.zip ]; then
         unzip -o ${SCRIPT_DIR}/xcp.zip
@@ -280,7 +281,7 @@ fi
 mkdir -p ${SCRIPT_DIR}/xcp_repo
 chmod 770 ${SCRIPT_DIR}/xcp_repo
 
-ln -s ../system/xcp_repo/nomadcache ${SCRIPT_DIR}/../webtemplates/nomadcache
+ln -s ${SCRIPT_DIR}/../webtemplates/nomadcache ${SCRIPT_DIR}/xcp_repo/nomadcache
 
 if grep -q "${REPO_MOUNT_POINT}" "/etc/fstab"
 then
