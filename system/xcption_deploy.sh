@@ -130,6 +130,8 @@ else
   mkdir -p /tmp/pip_unzip_loc
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
   find /tmp/pip_unzip_loc -name "*" | awk '{system("pip install "$1)}'
+  find /tmp/pip_unzip_loc -name "*" | awk '{system("pip install "$1)}'
+  find /tmp/pip_unzip_loc -name "*" | awk '{system("pip install "$1)}'
   rm -rf /tmp/pip_unzip_loc
 fi
 
