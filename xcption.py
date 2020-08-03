@@ -43,8 +43,8 @@ defaultwintool = 'xcp'
 
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
-xcpwincopyparam = "-preserve-atime -acl -parallel 8"
-xcpwinsyncparam = "-preserve-atime -acl -parallel 8"
+xcpwincopyparam = "-preserve-atime -acl -parallel 8 -root"
+xcpwinsyncparam = "-preserve-atime -acl -parallel 8 -root"
 xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime -parallel 8"
 
 #robocopy windows location
