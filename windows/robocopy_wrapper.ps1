@@ -36,6 +36,7 @@ $bDone = $False
 
 $StartTime = Get-Date
 
+$scanned = 0
 $modified = 0
 $new = 0
 $filegone = 0
@@ -58,7 +59,6 @@ while (!$bDone)
 
     if ($processexited) {
          $lines += $oProcess.StandardOutput.ReadToEnd().Split([Environment]::NewLine) 
-
          $bDone = $True
     } 
 
@@ -101,19 +101,36 @@ while (!$bDone)
             } elseif ($line -match 'ERROR \d+ \(') {
                 Write-Output $line 
                 $errors += 1
-            } elseif ($line -match '^\s*\\\\') {
-                #skip split lines         
-            } elseif ($line -match '^\s*(\d+)%\s*$') {
-                #skip lines 
-            } elseif ($line -match '^\s*$') {
-                #skip empty lines         
+            #removed as part of removal of /V robocopy option due to problematic log
+			#} elseif ($line -match '^\s*\\\\') {
+            #    #skip split lines         
+            #} elseif ($line -match '^\s*(\d+)%\s*$') {
+            #    #skip lines 
+            #} elseif ($line -match '^\s*$') {
+            #    #skip empty lines         
             } else {
                 Write-Host "$($line)"
             }
 
-            if ($line -match "Ended \:") {
-                $endstring = $True            
+            if ($line -match "Dirs \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
+				$errors = [int]$matches[6]
+				$scanned = [int]$matches[1]
+				$new = [int]$matches[2]
             }
+			
+            if ($line -match "Files \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
+				$errors += [int]$matches[6]
+				$scanned += [int]$matches[1]
+				$new += [int]$matches[2]
+            }
+			
+			if ($line -match "Bytes \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
+				$newbytes += [int64]$matches[2]
+            }
+			
+			if ($line -match "Ended \:") {
+				$endstring = $True 
+			}			
         }
     }
     
@@ -145,7 +162,9 @@ while (!$bDone)
             $bwsqunatifier = "TiB" 
         }        
 
-        $scanned = $modified + $new + $same   
+		if (-not $processexited) {
+			$scanned = $modified + $new + $same   
+		}
 
         #add new line before the final line 
         if ($processexited) {
@@ -157,29 +176,30 @@ while (!$bDone)
     }
     
     if ($bDone) {
+		
         $exitcode = $oProcess.ExitCode 
         if ($exitcode -le 16 -and $exitcode -ge 0) {
             $exitmessage = $RobocopyErrorCodes[$exitcode]
-            #Write-Output "Original Exit Code: $exitcode"
             $exitcode = 0
         } else {                 
             $exitmessage = "robocopy ended with undocumented exitcode: $exitcode"
         }
-
-        Write-Output ""
-
+       
         if ($exitcode -lt -1 -or $exitcode -gt 16) {
             $exitmessage = "robocopy ended with undocumented exitcode: $exitcode"
             $exitcode = 1
         }
-        Write-Output "Exit Code: $exitcode Exit Message: $exitmessage"
     }    
 }
 
 if (-not $endstring) {
     $exitmessage = 'could not identify the robocopy summary indicating the job is completed'
     $exitcode = 1
-    Write-Output "Exit Code: $exitcode Exit Message: $exitmessage"
 }
+
+Write-Output ""
+Write-Output "Exit Code: $exitcode Exit Message: $exitmessage"
+#this sleep is required to let nomad pull the log. in some case it been observered that nomad delete the log before the it pulled completly intp the nomad cache on the server 
+Sleep 15
 
 exit $exitcode

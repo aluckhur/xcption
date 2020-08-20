@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.1.0'
+version = '2.9.2.0'
 
 import csv
 import argparse
@@ -43,17 +43,20 @@ defaultwintool = 'xcp'
 
 #xcp windows location
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
-xcpwincopyparam = "-preserve-atime -acl -parallel 8 -root"
-xcpwinsyncparam = "-preserve-atime -acl -parallel 8 -root"
-xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime -parallel 8"
+xcpwincopyparam = "-preserve-atime -acl -root"
+xcpwinsyncparam = "-preserve-atime -acl -root"
+xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime "
 
 #robocopy windows location
 robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
 robocopywinpathassess = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
-robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /V /BYTES /NDL '
+robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /BYTES /NDL '
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
+
+#path to file containing the location of robocopy unicode log file (usefull for hebrew)
+robocopylogpath = os.path.join(root,'windows','robocopy_log_file_dir')
 
 #xcp repo and cache dir loaction 
 xcprepopath = os.path.join(root,'system','xcp_repo')
@@ -786,10 +789,20 @@ def create_nomad_jobs():
 						else:
 							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 
+					robocopyunicodelogpath = ''
 					if ostype == 'windows' and tool == 'robocopy': 
-						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
+						try:
+							f = open(robocopylogpath)
+							robocopyunicodelogpath = f.readline().rstrip()
+							f.close()                        
+						except:
+							logging.debug("robocopy unicode log path cannot be opened: " + robocopylogpath)	
+						
+						if robocopyunicodelogpath != '':
+							robocopyunicodelogpath = " /UNILOG:"+robocopyunicodelogpath+"\\"+xcpindexname+".log"
+						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)                        
+                    
 					
-
 					with open(baseline_job_file, 'w') as fh:
 						fh.write(baseline_template.render(
 							dcname=dcname,
@@ -810,7 +823,7 @@ def create_nomad_jobs():
 					if ostype == 'windows' and tool == 'xcp': 
 						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 					if ostype == 'windows' and tool == 'robocopy': 
-						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs)
+						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
 
 					with open(sync_job_file, 'w') as fh:
 						fh.write(sync_template.render(
