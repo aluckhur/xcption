@@ -1309,7 +1309,6 @@ def addtogeneralstatusjson(details,jsongeneraldict):
 
 #create status json 
 def addtostatusjson(jobname,src,details,jsondict):
-	(task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,status,stdoutlogpath,stderrlogpath,stdoutlogexists,stderrlogexists,stdoutlogcontent,stderrlogcontent) = details
 
 	if not jobname in jsondict: jsondict[jobname] = {}
 	if not src in jsondict[jobname]: 
@@ -1317,7 +1316,10 @@ def addtostatusjson(jobname,src,details,jsondict):
 		jsondict[jobname][src] = jobsdict[jobname][src]
 	if not 'phases' in jsondict[jobname][src]: jsondict[jobname][src]['phases'] = []
 
-	jsondict[jobname][src]['phases'].append( {
+	if len(details) > 0:
+		(task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,status,stdoutlogpath,stderrlogpath,stdoutlogexists,stderrlogexists,stdoutlogcontent,stderrlogcontent) = details
+
+		jsondict[jobname][src]['phases'].append( {
 												"phase": task,
 												"starttime": starttime,
 												"endtime": endtime,
@@ -1338,6 +1340,7 @@ def addtostatusjson(jobname,src,details,jsondict):
 												"stderrlogcontent": stderrlogcontent,												
 												"status": status}
 		)
+
 	return jsondict
 
 #create vcsv status 
@@ -1393,41 +1396,50 @@ def create_verbose_status (jsondict, displaylogs=False):
 			print "JOB: "+job
 			print  "SRC: "+src
 			print  "DST: "+jobdetails['dst']
-			print  "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+get_next_cron_time(jobdetails['cron'])+")"
+
+			nextrun = get_next_cron_time(jobdetails['cron'])
+			if 'paused' in jobdetails:
+				nextrun = 'paused'
+			print  "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"
+
 			if jobdetails['ostype'] =='linux': print  "XCP INDEX NAME: "+jobdetails['xcpindexname']
 			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE:"+jobdetails['excludedirfile']
 			print  "OS: "+jobdetails['ostype'].upper()
 			if jobdetails['ostype']=='windows': print  "TOOL NAME: "+jobdetails['tool']
 			print  ""
 
-			begining = True 
-			for phase in jobdetails['phases']:
-				if begining or displaylogs:
-					verbosetable = PrettyTable()
-					verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
-					begining = False
+			if len(jobdetails['phases']) > 0:
+				begining = True 
+				for phase in jobdetails['phases']:
+					if begining or displaylogs:
+						verbosetable = PrettyTable()
+						verbosetable.field_names = ['Phase','Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status']
+						begining = False
 
-				verbosetable.add_row([phase['phase'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status']])
+					verbosetable.add_row([phase['phase'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status']])
 
-				if displaylogs:
-					verbosetable.border = False
-					verbosetable.align = 'l'
-					print verbosetable.get_string(sortby="Start Time")
-					print ""
+					if displaylogs:
+						verbosetable.border = False
+						verbosetable.align = 'l'
+						print verbosetable.get_string(sortby="Start Time")
+						print ""
 
-					for logtype in ['stdout','stderr']:
-						print "Log type:"+logtype
-						if phase[logtype+'logexists']:
-							print phase[logtype+'logcontent']
-							print "the last "+str(maxloglinestodisplay)+" lines are displayed"
-							print "full log file path: " +phase[logtype+'logpath']
-						else:
-							print "log:"+logtype+" is not available"
-							print ""
-					
-					print ""
+						for logtype in ['stdout','stderr']:
+							print "Log type:"+logtype
+							if phase[logtype+'logexists']:
+								print phase[logtype+'logcontent']
+								print "the last "+str(maxloglinestodisplay)+" lines are displayed"
+								print "full log file path: " +phase[logtype+'logpath']
+							else:
+								print "log:"+logtype+" is not available"
+								print ""
+						
+						print ""
+			else:
+				print " no data found"
+				print ""
 
-			if not displaylogs:
+			if not displaylogs and len(jobdetails['phases']) > 0:
 				verbosetable.border = False
 				verbosetable.align = 'l'
 				print verbosetable.get_string(sortby="Start Time")
@@ -1593,7 +1605,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								with open(synccachefile) as f:
 									logging.debug('loading cached info job file:'+synccachefile)
 									jobdata = json.load(f)
-									if jobdata['Stop']: syncsched = 'paused'
+									if jobdata['Stop']: 
+										syncsched = 'paused'
+										jobsdict[jobname][src]['paused'] = True 
+
 									if not syncjobsstructure.has_key('job'):
 										syncjobsstructure['job'] = {}
 									syncjobsstructure['job'] = jobdata
@@ -1796,11 +1811,13 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 					if addrow:		
 						jsongeneraldict = addtogeneralstatusjson([jobname,src,dst,baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter],jsongeneraldict)
+						jsondict = addtostatusjson(jobname,src,[],jsondict)
 						rowcount += 1
 
 
 					#printing verbose information
 					if reporttype == 'verbose':
+
 					 	#for baseline 
 					 	if baselinejob and baselinealloc:
 			 				task = 'baseline'
@@ -2095,6 +2112,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 				 					if not 'stderrlogexists' in currentlog: currentlog['stderrlogexists'] = ''
 				 					if not stdoutkey in currentlog: currentlog[stdoutkey] = ''
 				 					if not stderrkey in currentlog: currentlog[stderrkey] = ''
+
 
 			 						jsondict = addtostatusjson(jobname,src,
 			 													[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus,
