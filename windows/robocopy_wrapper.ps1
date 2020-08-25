@@ -99,7 +99,7 @@ while (!$bDone)
             } elseif ($line -match '^\s+(\d+)\s+\\.+\\\s*$') {
                 $dir += 1 
             } elseif ($line -match 'ERROR \d+ \(') {
-                Write-Output $line 
+                #Write-Output $line 
                 $errors += 1
             #removed as part of removal of /V robocopy option due to problematic log
 			#} elseif ($line -match '^\s*\\\\') {
@@ -108,9 +108,9 @@ while (!$bDone)
             #    #skip lines 
             #} elseif ($line -match '^\s*$') {
             #    #skip empty lines         
-            } else {
+            }# else {
                 Write-Host "$($line)"
-            }
+            #}
 
             if ($line -match "Dirs \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
 				$errors = [int]$matches[5]
