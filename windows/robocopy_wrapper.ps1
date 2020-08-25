@@ -113,13 +113,13 @@ while (!$bDone)
             }
 
             if ($line -match "Dirs \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
-				$errors = [int]$matches[6]
+				$errors = [int]$matches[5]
 				$scanned = [int]$matches[1]
 				$new = [int]$matches[2]
             }
 			
             if ($line -match "Files \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
-				$errors += [int]$matches[6]
+				$errors += [int]$matches[5]
 				$scanned += [int]$matches[1]
 				$new += [int]$matches[2]
             }
