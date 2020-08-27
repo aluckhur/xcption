@@ -67,7 +67,7 @@ while (!$bDone)
     $minutes = $SpanTime.Minutes
     $hours   = $SpanTime.Hours
 
-    $logtick = [math]::truncate($seconds / 10)
+    $logtick = [math]::truncate($SpanTime.TotalSeconds / 10)
 
     ForEach ($line in $lines) {
 
