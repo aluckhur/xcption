@@ -19,6 +19,7 @@ XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/Red
 `git clone https://gitlab.com/haim.marko/xcption.git`
 
 *ALL instances should be pulled to the same path on all of the servers !!!*
+*To make sure time is consistent timezome on the linux servers should be set to UTC and time should be set to localtime*
 
 For offline istallation the XCPtion package can be downloaded from the following location [xcption-master.tar.gz](https://gitlab.com/haim.marko/xcption/-/archive/master/xcption-master.tar.gz).
 (will require standard yum/apt repository avaialble for the linux servers)
