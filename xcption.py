@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.0'
+version = '2.9.2.1'
 
 import csv
 import argparse
