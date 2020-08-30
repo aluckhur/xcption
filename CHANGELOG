@@ -34,3 +34,6 @@
 2.9.2.0
 - chnaged robocopy logging 
 - add ability to log robocopy uni code log to provided path. the path should be provided in windows/robocopy_log_file_dir on the server before job creation 
+
+2.9.2.1
+- linux assess fix (regration) 

@@ -2747,7 +2747,6 @@ def parse_nomad_jobs_to_files (parselog=True):
 def list_dirs_linux(startpath,depth):
 	num_sep = startpath.count(os.path.sep)
 	for root, dirs, files in os.walk(startpath):
-		#dir1 = root.lstrip(startpath)
 		dir1 = root[len(startpath)+1:]
 		if (dir1.startswith('.snapshot')):
 			del dirs[:]
@@ -2758,6 +2757,7 @@ def list_dirs_linux(startpath,depth):
 			num_sep_this = root.count(os.path.sep)
 			if num_sep + depth <= num_sep_this:
 				del dirs[:]
+			
 
 #unmount filesystem
 def unmountdir(dir):
@@ -3663,21 +3663,24 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 	try:
 		taskcounter = 0 
 		for o in srcdirstructure:
+
 			path = o[0]
 			dircount = o[1]
 			filecount = o[2]
 
-			currentdepth = path.count(os.path.sep)
-			if path == './': currentdepth = 0
+			currentdepth = path.count(os.path.sep) + 1
+			if path == './': currentdepth = 1
 
 			#print path,depth,currentdepth
+			
 			nfssrcpath = src+path.lstrip('.')
 			nfsdstpath = dst+path.lstrip('.')
 
 			dstpath = tempmountpointdst+path.lstrip('.')
 
-
-			if filecount > 0 and (currentdepth < depth-1 or (currentdepth == depth-1 and dircount > 0)):
+			
+			#if filecount > 0 and (currentdepth < depth or (currentdepth == depth and dircount > 0)):
+			if (filecount > 0 and dircount > 0 and currentdepth < depth):
 				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
 	
 				warning=True 
@@ -3700,7 +3703,8 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 
 			#create xcption job entry
 			#print depth,currentdepth,dircount,nfssrcpath,path
-			if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
+			#if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
+			if (currentdepth < depth and dircount == 0) or (currentdepth == depth) or (depth == 1):
 				if nfssrcpath == src+"/" and nfsdstpath == dst+"/": 
 					nfssrcpath = src
 					nfsdstpath = dst
@@ -3727,13 +3731,33 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 				unmountdir(tempmountpointsrc)
 				unmountdir(tempmountpointdst)
 				exit(1)		
-			if depth > 1:
+	 		
+	 		if depth > 1:
+				#use xcp to build the directory structure of the dest filesystem 
+				#xcpcmd = xcplocation + ' copy -noID -match "(type==d and depth=='+str(depth)+') or (type==f and depth<'+str(depth)+')" '+ src  + ' ' + dst
+				# logging.info("xcp can be used to create the destination initial directory structure for xcption jobs")
+				# logging.info("xcp command to sync directory structure for the required depth will be:")				
+				# logging.info(xcpcmd)
+				# if query_yes_no("do you want to run xcp copy to build the directory structure in the dest ?", default="no"): 
+				#  	end=False 
+				#  	logging.info("=================================================================")
+				#  	logging.info("========================Starting xcp=============================")
+				#  	logging.info("=================================================================")
+				#  	#run xcp and check if failed 
+				#  	if os.system(xcpcmd):
+				#  		logging.error("xcp copy failed")
+				#  		exit(1)
+				#  	logging.info("=================================================================")
+				#  	logging.info("=====================xcp ended successfully======================")
+				#  	logging.info("=================================================================")
+				
+				#use rsync to build the directory structure of the dest filesystem 
 				depthrsync = ''
 				for x in xrange(depth):
 					depthrsync += '/*'
-				rsynccmd = 'rsync -av --exclude ".snapshot" --exclude="'+depthrsync+ '" "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
-				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
+				rsynccmd = 'rsync -av --exclude ".snapshot" --exclude="'+depthrsync+ '" -f"+ */" -f"- *"  "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
 				logging.info("rsync command to sync directory structure for the required depth will be:")
+				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
 				logging.info(rsynccmd)
 				logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
 				if query_yes_no("do you want to run rsync ?", default="no"): 
