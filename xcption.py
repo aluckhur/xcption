@@ -1969,7 +1969,18 @@ def create_status (reporttype,displaylogs=False, output='text'):
 				 					tasktype = 'verify'	
 
 				 				jobstatus = currentperiodic['Status']
+				 				
 				 				starttime = 'future'
+				 				endtime = '-'
+				 				duration = '-'
+				 				reviewed = '-'
+				 				scanned = '-'
+				 				copied = '-'
+				 				deleted = '-'
+				 				modified = '-'
+				 				errors = '-'
+				 				sent = '-'
+				 				nodename = '-'
 
 						 		for allocid in jobstructure['allocs']:
 						 			if jobstructure['allocs'][allocid]['JobID'] == periodic:
