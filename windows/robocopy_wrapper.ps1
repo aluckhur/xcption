@@ -53,13 +53,20 @@ while (!$bDone)
 {
 
     $lines = @()
-    $lines += $oProcess.StandardOutput.ReadLine().Split([Environment]::NewLine)
+    
+    $nowlines = $oProcess.StandardOutput.ReadLine()
+    if ($nowlines) {
+        $lines += $nowlines.Split([Environment]::NewLine)
+    }
 
     $processexited = $oProcess.HasExited
 
     if ($processexited) {
-         $lines += $oProcess.StandardOutput.ReadToEnd().Split([Environment]::NewLine) 
-         $bDone = $True
+         $endlines = $oProcess.StandardOutput.ReadToEnd()
+         if ($endlines) {
+            $lines += $endlines.Split([Environment]::NewLine)
+        }
+        $bDone = $True
     } 
 
     $SpanTime = New-TimeSpan -Start $StartTime -End (Get-Date)
