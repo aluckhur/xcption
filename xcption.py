@@ -1090,10 +1090,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		except:
 			logging.debug("cannot read other log file:"+otherlogfilepath)							
 			results['contentotherlog'] = ''
-
-
-
-
 	elif type == 'alloc':						
 		#try to get the log file using api
 		allocid = name
@@ -1138,9 +1134,10 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if 'time' in results:
 			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['contentotherlog'],re.M|re.I):
 				results['bwout'] = match.group(1)
-		if otherloglastline != '' and lastline == '':
+		#if otherloglastline != '' and lastline == '':
+        #xcp for windiws displays the summary in the stderr when there are errors 
+        if otherloglastline != '':
 			lastline = otherloglastline	
-		
 	
 	#for xcp logs 	
 	if lastline:
