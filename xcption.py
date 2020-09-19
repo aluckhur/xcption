@@ -907,24 +907,29 @@ def start_nomad_jobs(action, force):
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
-					dst	          = jobdetails['dst']
-					srcbase       = jobdetails['srcbase']
-					dstbase       = jobdetails['dstbase']
-					nomadjobname  = jobdetails[action+'_job_name']
-					xcpindexname  = jobdetails['xcpindexname']	
-					ostype        = jobdetails['ostype']
-					tool          = jobdetails['tool']
-				
+					dst                 = jobdetails['dst']
+					srcbase             = jobdetails['srcbase']
+					dstbase             = jobdetails['dstbase']
+					nomadjobname        = jobdetails[action+'_job_name']
+					xcpindexname        = jobdetails['xcpindexname']	
+					ostype              = jobdetails['ostype']
+					tool                = jobdetails['tool']
+                    
 					try:	
 						job = n.job.get_job(nomadjobname)
 					except:
 						job = ''
-					
 					if job:
 						logging.debug("job name:"+nomadjobname+" already exists") 
-
+                    
+					baseline_job_name   = jobdetails['baseline_job_name']				
+					baselinecachedir    = os.path.join(cachedir,'job_'+baseline_job_name)                        
+					if os.path.exists(baselinecachedir):
+						logging.debug("baseline job dir:"+baselinecachedir+" exists") 
+                        
 					forcebaseline = False 
-					if action == 'baseline' and job:
+					if action == 'baseline' and (job or os.path.exists(baselinecachedir)):
+                        
 						if not force:
 							logging.warning("baseline job already exists. use --force to force new baseline") 
 							continue

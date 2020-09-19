@@ -37,3 +37,7 @@
 
 2.9.2.1
 - linux assess fix (regration) 
+
+2.9.2.2
+- parse lastline from xcp windows stderr log which contains the last information 
+- prevent duplicate baseline if baseline already been purged from nomad 
