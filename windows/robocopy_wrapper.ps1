@@ -9,11 +9,18 @@ $RobocopyErrorCodes[-1] = "Robocopy been termintaed unexpectedly"
 
 $i = 0
 $arguments = ''
+
+#XD will be used for exclude diretories 
+$XD = $False 
 foreach ($a in $args) {
-    if ($i -eq 0 -or $i -eq 1) {
+    #args[0] is the src #args[1] is the dest and XD true  
+    if ($i -eq 0 -or $i -eq 1 -or $XD -eq $True) {
         $arguments += '"'+$a+'" '
     } else {
         $arguments += $a+' '
+    }
+    if ($a -eq "/XD") {
+        $XD = $True
     }
     $i++
     
@@ -109,7 +116,7 @@ while (!$bDone)
                 #Write-Output $line 
                 $errors += 1
             #removed as part of removal of /V robocopy option due to problematic log
-			#} elseif ($line -match '^\s*\\\\') {
+            #} elseif ($line -match '^\s*\\\\') {
             #    #skip split lines         
             #} elseif ($line -match '^\s*(\d+)%\s*$') {
             #    #skip lines 
@@ -120,24 +127,24 @@ while (!$bDone)
             #}
 
             if ($line -match "Dirs \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
-				$errors = [int]$matches[5]
-				$scanned = [int]$matches[1]
-				$new = [int]$matches[2]
+                $errors = [int]$matches[5]
+                $scanned = [int]$matches[1]
+                $new = [int]$matches[2]
             }
-			
+            
             if ($line -match "Files \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
-				$errors += [int]$matches[5]
-				$scanned += [int]$matches[1]
-				$new += [int]$matches[2]
+                $errors += [int]$matches[5]
+                $scanned += [int]$matches[1]
+                $new += [int]$matches[2]
             }
-			
-			if ($line -match "Bytes \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
-				$newbytes += [int64]$matches[2]
+            
+            if ($line -match "Bytes \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
+                $newbytes += [int64]$matches[2]
             }
-			
-			if ($line -match "Ended \:") {
-				$endstring = $True 
-			}			
+            
+            if ($line -match "Ended \:") {
+                $endstring = $True 
+            }           
         }
     }
     
@@ -169,9 +176,9 @@ while (!$bDone)
             $bwsqunatifier = "TiB" 
         }        
 
-		if (-not $processexited) {
-			$scanned = $modified + $new + $same   
-		}
+        if (-not $processexited) {
+            $scanned = $modified + $new + $same   
+        }
 
         #add new line before the final line 
         if ($processexited) {
@@ -183,7 +190,7 @@ while (!$bDone)
     }
     
     if ($bDone) {
-		
+        
         $exitcode = $oProcess.ExitCode 
         if ($exitcode -le 16 -and $exitcode -ge 0) {
             $exitmessage = $RobocopyErrorCodes[$exitcode]

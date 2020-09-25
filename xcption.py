@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.1'
+version = '2.9.2.3'
 
 import csv
 import argparse
@@ -254,14 +254,14 @@ def k_to_hr (k):
 		hr = format(int(k/1024/1024/1024),',')+'TiB'
 	return hr	
 
-parser_smartassess_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_smartassess_status.add_argument('-s','--source',help="change the scope of the command to specific source path", required=False,type=str,metavar='srcpath')
 parser_smartassess_status.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='mininodes')
 parser_smartassess_status.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
 parser_smartassess_status.add_argument('-t','--tasks',help="provide verbose task information per suggested path", required=False,action='store_true')
 parser_smartassess_status.add_argument('-l','--hardlinks',help="provide cross task hardlink information per suggested path", required=False,action='store_true')
 
-parser_smartassess_createcsv.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_smartassess_createcsv.add_argument('-d','--destination',help="change the scope of the command to specific path", required=False,type=str,metavar='dstpath')
+parser_smartassess_createcsv.add_argument('-s','--source',help="create CSV for the following src", required=True,type=str,metavar='srcpath')
+parser_smartassess_createcsv.add_argument('-d','--destination',help="set destination path", required=True,type=str,metavar='dstpath')
 parser_smartassess_createcsv.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
 parser_smartassess_createcsv.add_argument('-i','--min-inodes',help="minimum required inodes per task default is:"+format(mininodespertask_minborder,','), required=False,type=int,metavar='maxinodes')
 parser_smartassess_createcsv.add_argument('-a','--min-capacity',help="minimum required capacity per task default is:"+k_to_hr(minsizekfortask_minborder), required=False,type=checkcapacity,metavar='mincapacity')
@@ -787,9 +787,12 @@ def create_nomad_jobs():
 						if excludedirfile == '':						
 							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 						else:
-							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
+							logging.error("exclude directory is not yet supported when xcp for windows is used for src:" + src)	
+							exit(1)
+							#cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 
 					robocopyunicodelogpath = ''
+					robocopyexcludedirs = ''
 					if ostype == 'windows' and tool == 'robocopy': 
 						try:
 							f = open(robocopylogpath)
@@ -800,7 +803,24 @@ def create_nomad_jobs():
 						
 						if robocopyunicodelogpath != '':
 							robocopyunicodelogpath = " /UNILOG:"+robocopyunicodelogpath+"\\"+xcpindexname+".log"
-						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)                        
+						
+						if excludedirfile == '':						
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
+						else:
+							try:
+								f = open(excludedirfile)
+								excludepaths = f.readlines()
+								excludepaths = [x.strip() for x in excludepaths]
+								excludepaths = ['"' + path for path in excludepaths] 
+								excludepaths = [path + '"' for path in excludepaths] 
+								robocopyexcludedirs = " /XD "+ ' '.join(excludepaths)
+								f.close()                        
+								logging.debug("exclude directories for robocopy: " + robocopyexcludedirs)
+							except:
+								logging.error("exclude directories file cannot be parsed: " + robocopylogpath)	
+								exit(1)
+
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath+robocopyexcludedirs)
                     
 					
 					with open(baseline_job_file, 'w') as fh:
@@ -823,7 +843,10 @@ def create_nomad_jobs():
 					if ostype == 'windows' and tool == 'xcp': 
 						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 					if ostype == 'windows' and tool == 'robocopy': 
-						cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
+						if excludedirfile == '':
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
+						else:
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath+robocopyexcludedirs)
 
 					with open(sync_job_file, 'w') as fh:
 						fh.write(sync_template.render(
@@ -1403,6 +1426,8 @@ def create_verbose_status (jsondict, displaylogs=False):
 			if 'paused' in jobdetails:
 				nextrun = 'paused'
 			print  "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"
+
+			print "RESOURCES: " + jobdetails['cpu']+"MHz CPU "+jobdetails['memory']+'MB RAM'
 
 			if jobdetails['ostype'] =='linux': print  "XCP INDEX NAME: "+jobdetails['xcpindexname']
 			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE:"+jobdetails['excludedirfile']
