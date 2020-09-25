@@ -4,7 +4,7 @@
 - force rebaseline using ./xcption.py baseline -f 
 
 2.7.0.6
-- smartasses job cannot be nfs root path (ex. nfssrv:/) due to xcp limitation
+- smartassess job cannot be nfs root path (ex. nfssrv:/) due to xcp limitation
 
 2.8.0.2 
 - support for xcp 1.6
@@ -22,7 +22,7 @@
 - performance improvments of the status command (it will display 10s older information)
 
 2.8.0.5
-- fail jobs when xcp license is expired on not exists
+- fail jobs when xcp license is expired or not exists
 
 2.9.0.0
 - add web insteface for status. web interface can be start using the web subcommand 
@@ -41,3 +41,6 @@
 2.9.2.2
 - parse lastline from xcp windows stderr log which contains the last information 
 - prevent duplicate baseline if baseline already been purged from nomad 
+
+2.9.2.3
+- support exclude directory for robocopy jobs by creating a file under installdir/system/xcp_repo/excludefilename. the exludefilename (without the path) should be specified in the CSV file.
