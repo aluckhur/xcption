@@ -44,5 +44,6 @@
 
 2.9.2.3
 - support exclude directory for robocopy jobs by creating a file under installdir/system/xcp_repo/excludedir/jobexcludefilename. the jobexcludefilename (without the path) should be specified in the CSV file.
+- update readme file to reflect folder exlusion
 - add cpu and ram reservation to status -v 
 
