@@ -134,7 +134,7 @@ a CSV file with the jobs should be created with the following columns:
 
 `FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)
 
-`EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent line) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
+`EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
 
 CSV file example:
 ```
@@ -158,9 +158,9 @@ XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_di
 ```
 ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_dir4_exclude_dirs for the above example)
 ```
-\\192.168.0.200\src$\dir4\old_not_required_files
+\\192.168.0.200\src$\dir4\old_not_required_files_dir
 \\192.168.0.200\src$\dir4\subdir1\files_not_needed
-unused_files
+unused_files #name of specific directory to exclude
 
 ```
 
