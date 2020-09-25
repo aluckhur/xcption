@@ -130,9 +130,9 @@ a CSV file with the jobs should be created with the following columns:
 `RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
 `TOOL` (optional) - For windows jobs it is possiable to chose between `xcp` (default) to `robocopy`  
 `FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user 
-                   (see xcp.exe help copy for details)  
+(see xcp.exe help copy for details)  
 `FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group 
-                   (see xcp.exe help copy for details)
+(see xcp.exe help copy for details)
 `EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent line) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
 
 CSV file example:
