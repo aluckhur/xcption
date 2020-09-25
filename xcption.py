@@ -1430,7 +1430,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 			print "RESOURCES: " + jobdetails['cpu']+"MHz CPU "+jobdetails['memory']+'MB RAM'
 
 			if jobdetails['ostype'] =='linux': print  "XCP INDEX NAME: "+jobdetails['xcpindexname']
-			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE:"+jobdetails['excludedirfile']
+			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE: "+jobdetails['excludedirfile']
 			print  "OS: "+jobdetails['ostype'].upper()
 			if jobdetails['ostype']=='windows': print  "TOOL NAME: "+jobdetails['tool']
 			print  ""
