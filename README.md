@@ -131,7 +131,8 @@ a CSV file with the jobs should be created with the following columns:
 `TOOL` (optional) - For windows jobs it is possiable to chose between `xcp` (default) to `robocopy`  
 `FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user (see xcp.exe help copy for details)  
 `FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)
-`EXCLUDE DIRS file` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent line) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
+`EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent line) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
+
 CSV file example:
 ```
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIR FILE
@@ -145,14 +146,14 @@ jobwin1,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800
 jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,xcp,domain\user1,domain\Domain Admins
 jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy
 jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,,cifs_dir4_exclude_dirs
-
 ```
+
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
 ```
 192.168.0.200:/nfssrc/dir4/unused_files/*
 192.168.0.200:/nfssrc/dir4/subdir/old_to_delete/*
 ```
-Robocopy EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_dir4_exclude_dirs for the above example)
+ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_dir4_exclude_dirs for the above example)
 ```
 \\192.168.0.200\src$\dir4\old_not_required_files
 \\192.168.0.200\src$\dir4\subdir1\files_not_needed
