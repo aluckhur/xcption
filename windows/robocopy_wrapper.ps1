@@ -113,18 +113,18 @@ while (!$bDone)
             } elseif ($line -match '^\s+(\d+)\s+\\.+\\\s*$') {
                 $dir += 1 
             } elseif ($line -match 'ERROR \d+ \(') {
-                #Write-Output $line 
+                Write-Output $line 
                 $errors += 1
-            #removed as part of removal of /V robocopy option due to problematic log
+            #removed as part of removal of /V robocopy option due to problematic logging when robocopy works in MP mode 
             #} elseif ($line -match '^\s*\\\\') {
             #    #skip split lines         
             #} elseif ($line -match '^\s*(\d+)%\s*$') {
             #    #skip lines 
             #} elseif ($line -match '^\s*$') {
             #    #skip empty lines         
-            }# else {
+            } else {
                 Write-Host "$($line)"
-            #}
+            }
 
             if ($line -match "Dirs \:\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)\s+(\d+)") {
                 $errors = [int]$matches[5]
@@ -214,6 +214,6 @@ if (-not $endstring) {
 Write-Output ""
 Write-Output "Exit Code: $exitcode Exit Message: $exitmessage"
 #this sleep is required to let nomad pull the log. in some case it been observered that nomad delete the log before the it pulled completly intp the nomad cache on the server 
-Sleep 15
+Sleep 20
 
 exit $exitcode
