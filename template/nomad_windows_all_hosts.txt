@@ -1,0 +1,36 @@
+job "testwin" {
+  datacenters = ["DC1"]
+
+  constraint {
+    attribute = "${attr.kernel.name}"
+    value     = "windows"
+  }
+
+  constraint {
+      operator = "distinct_hosts"
+      value = "true"
+  }
+  
+  group "testwin" {
+    restart {
+      delay    = "30s"
+    }
+
+    task "testwin" {
+      driver = "raw_exec"
+
+  	  resources {
+  	    cpu    = 100
+  	    memory = 20
+  	  }
+      logs {
+        max_files     = 10
+        max_file_size = 10
+      }	  
+      config {
+          command = "powershell"
+	  args = ["c:\\netapp\\xcp\\xcption_get_file.ps1","http://192.168.0.61:1234/nomadcache/license","c:\\temp\\license"]
+      }
+    }
+  }
+}

@@ -95,6 +95,7 @@ ginga2templatedir = os.path.join(root,'template')
 
 #webtemplates 
 webtemplatedir = os.path.join(root,'webtemplates') 
+uploaddir = os.path.join(webtemplatedir,'upload') 
 
 #log file location
 logdirpath = os.path.join(root,'log') 
@@ -154,6 +155,7 @@ parser_modify       = subparser.add_parser('modify',    help='modify task job',p
 parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',    help='export existing jobs to csv',parents=[parent_parser])
 parser_web          = subparser.add_parser('web',       help='start web interface to display status',parents=[parent_parser])
+parser_fileupload   = subparser.add_parser('fileupload',help='transfer files to all nodes, usefull for xcp license update on all nodes',parents=[parent_parser])
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -222,6 +224,11 @@ parser_export.add_argument('-j','--job',help="change the scope of the command to
 parser_export.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 
 parser_web.add_argument('-p','--port',help="tcp port to start the web server on (default:"+str(defaulthttpport)+')', required=False,default=defaulthttpport,type=int,metavar='port')
+
+parser_fileupload.add_argument('-f','--file',help="path to upload", required=True,type=str,metavar='file')
+parser_fileupload.add_argument('-l','--linuxpath',help="destination path for linux hosts. license file default: /opt/NetApp/xFiles/xcp/license", required=False,type=str,metavar='linuxpath')
+parser_fileupload.add_argument('-w','--windowspath',help="destination path for linux hosts. license file default: C:\\NetApp\\XCP\\license", required=False,type=str,metavar='windowspath')
+parser_fileupload.add_argument('-p','--port',help="tcp port to start the web server on (default:"+str(defaulthttpport)+')', required=False,default=defaulthttpport,type=int,metavar='port')
 
 parser_smartassess   = subparser.add_parser('smartassess',help='create tasks based on capacity and file count (nfs only)',parents=[parent_parser])
 
@@ -594,6 +601,8 @@ def check_job_status (jobname,log=False):
 	results['stdout'] = ''
 	results['stderr'] = ''
 	results['status'] = 'unknown'
+	#will be used for fileupload 
+	results['allocations'] = {}
 	allocid = ''
 
 	if jobdetails:
@@ -605,9 +614,11 @@ def check_job_status (jobname,log=False):
 			try:
 				results['status'] = jobdetails[0]['ClientStatus']
 				allocid = jobdetails[0]['ID']
+				results['allocations'] = jobdetails
 
 			except:
 				results['status'] = 'unknown'	
+
 
 	if log == True and (results['status'] == 'complete' or results['status'] == 'failed') and allocid != '':
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stdout&plain=true')
@@ -4435,6 +4446,141 @@ def start_flask(tcpport):
 	app.run(host='0.0.0.0',port=tcpport)
 
 
+def upload_file (path, linuxpath, windowspath):
+	if not os.path.isfile(path):
+		logging.error("cannot find source file to upload:"+path)
+		exit(1)
+	if path.endswith('/license') and not linuxpath:
+		linuxpath = '/opt/NetApp/xFiles/xcp/license'
+	if path.endswith('/license') and not windowspath:
+		windowspath = 'C:\\NetApp\\XCP\\license'
+
+	if not linuxpath and not windowspath:
+		logging.error("linux and/or windows destination path should be provided.")
+		exit(1)	
+
+	#get list of nodes in the cluster
+	try:
+		nodes = n.nodes.get_nodes()
+	except:
+		logging.error('cannot get node list')
+		exit(1)
+
+	
+	response = requests.get(nomadapiurl+'agent/members')
+	try:
+		if response.ok:
+			agentinfo = json.loads(response.content)
+			nomadserver = agentinfo['Members'][0]['Addr']
+	except:
+		nomadserver = ''
+	if nomadserver == '':
+		logging.error("cannot find nomad server ip")
+		exit(1)
+
+	#prepare file for upload 
+	if not os.path.isdir(uploaddir):
+		os.mkdir(uploaddir)
+
+	logging.debug("copy file:"+path+" to path:"+os.path.join(uploaddir,os.path.basename(path)))
+	shutil.copyfile(path,os.path.join(uploaddir,os.path.basename(path)))
+
+	url = 'http://'+nomadserver+':'+str(defaulthttpport)+'/upload/'+os.path.basename(path)
+	logging.debug("upload url is:"+url)
+
+	#check if web server already started and start if it is not 
+	sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+	socketresult = sock.connect_ex((nomadserver,defaulthttpport))
+	if socketresult != 0:
+		os.system(os.path.join(root,'xcption.py')+" web &")
+
+	#will keep task status on nodes
+	nodestaskstatus = {}
+	for node in nodes:
+		nodestaskstatus[node['Name']] = 'not started'
+
+	#loading job ginga2 templates 
+	templates_dir = ginga2templatedir
+	env = Environment(loader=FileSystemLoader(templates_dir) )
+
+	if linuxpath:	
+		try:
+			linux_template = env.get_template('nomad_linux_all_hosts.txt')
+		except:
+			logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_linux_all_hosts.txt'))
+			exit(1)	
+		
+		#command to run on all linux hosts
+		cmd = os.path.join(root,'system','xcption_get_file.sh')
+		args = '"'+url+'","'+linuxpath+'"'
+
+		#upload job name
+		jobname = 'linuxupload'+str(os.getpid())
+
+		#creating job hcl file 
+		linux_upload_jobfile = os.path.join('/tmp',jobname+'.hcl')	
+		logging.debug("creating job file: " + linux_upload_jobfile)				
+		with open(linux_upload_jobfile, 'w') as fh:
+			fh.write(linux_template.render(
+				jobname=jobname,
+				cmd=cmd,
+				args=args
+			))
+
+		#start job and monitor status
+		uploadstatus = 'not started'
+		if start_nomad_job_from_hcl(linux_upload_jobfile, jobname):
+			retrycount = 50
+			while retrycount > 0:
+				results = check_job_status(jobname,True)
+				retrycount -=  1
+
+				#validate all allocation are completed (failed)
+				allcomp = True
+				for alloc in results['allocations']:
+					nodename = ''
+					for node in nodes:
+						if alloc['NodeID'] == node['ID']: nodename = node['Name']
+					if alloc['ClientStatus'] != 'failed' and alloc['ClientStatus'] != 'complete':
+						allcomp = False
+						logging.info("upload job to node:"+nodename+" still running")
+						nodestaskstatus[nodename] = alloc['ClientStatus']
+					else:
+						#if the job completed validate the exist code, 9998 will be used a a default value if the task not yet completed
+						try:
+							exitcode = int(alloc['TaskStates']['linuxupload']['Events'][3]['Details']['exit_code'])
+						except:
+							exitcode = 9998
+						#upload job completed 
+						if exitcode == 0 and nodestaskstatus[nodename] != 'succesfull':
+							logging.info(path+" successfully uploaded to:"+nodename+":"+linuxpath)
+							nodestaskstatus[nodename] = 'succesfull'
+						if exitcode == 1 and nodestaskstatus[nodename] != 'failed':
+							logging.info("upload of file:"+linuxpath+" to node:"+nodename+" failed, validate destination path on the node exists and no communication issues to the node")
+							nodestaskstatus[nodename] = 'failed'
+
+				if allcomp: 
+					retrycount = 0
+				else:
+					time.sleep(5)
+
+			if not allcomp:
+				logging.info("some of the linux upload job did not complete")
+		
+		#delete job hcl file 
+		if os.path.isfile(linux_upload_jobfile):
+			logging.debug("delete job hcl file:"+linux_upload_jobfile)
+			os.remove(linux_upload_jobfile)
+		if os.path.isfile(os.path.join(uploaddir,os.path.basename(path))):
+			logging.debug("delete temp upload file:"+os.path.join(uploaddir,os.path.basename(path)))
+			os.remove(os.path.join(uploaddir,os.path.basename(path)))			
+		#delete job if exists 
+		logging.debug("delete job:"+jobname)
+		response = requests.delete(nomadapiurl+'job/'+jobname+'?purge=true')				
+		if not response.ok:
+			logging.debug("can't delete job:"+psjobname) 
+
+
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
@@ -4541,6 +4687,9 @@ if args.subparser_name == 'export':
 
 if args.subparser_name == 'web':	
 	start_flask(args.port)
+
+if args.subparser_name == 'fileupload':
+	upload_file(args.file,args.linuxpath,args.windowspath)
 
 if args.subparser_name == 'smartassess':
 	load_smartassess_jobs_from_json(smartassessjobdictjson)
