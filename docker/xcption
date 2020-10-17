@@ -2,4 +2,4 @@
 
 export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 
-docker run -v $SCRIPT_DIR/..:/root/xcption --privileged=true -it --rm --network=host hmarko75/xcption /root/xcption/xcption.py "$@"
+docker run -v $SCRIPT_DIR/..:/root/xcption -v /opt/NetApp/xfiles/xcp --privileged=true -it --rm --network=host hmarko75/xcption /root/xcption/xcption.py "$@"
