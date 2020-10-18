@@ -1,4 +1,4 @@
-job "testwin" {
+job "{{ jobname }}" {
   datacenters = ["DC1"]
 
   constraint {
@@ -11,25 +11,26 @@ job "testwin" {
       value = "true"
   }
   
-  group "testwin" {
+  group "windowsupload" {
     restart {
-      delay    = "30s"
+      attempts = 0
+      mode     = "fail"
     }
 
-    task "testwin" {
+    task "windowsupload" {
       driver = "raw_exec"
 
-  	  resources {
+      resources {
   	    cpu    = 100
   	    memory = 20
-  	  }
+      }
       logs {
         max_files     = 10
         max_file_size = 10
       }	  
       config {
           command = "powershell"
-	  args = ["c:\\netapp\\xcp\\xcption_get_file.ps1","http://192.168.0.61:1234/nomadcache/license","c:\\temp\\license"]
+	  args = ["{{ cmd }}",{{ args }}]
       }
     }
   }

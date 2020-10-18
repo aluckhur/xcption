@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.3'
+version = '2.9.2.4'
 
 import csv
 import argparse
@@ -42,6 +42,7 @@ dcname = 'DC1'
 defaultwintool = 'xcp'
 
 #xcp windows location
+winpath = 'C:\\NetApp\\XCP'
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 xcpwincopyparam = "-preserve-atime -acl -root"
 xcpwinsyncparam = "-preserve-atime -acl -root"
@@ -4503,82 +4504,103 @@ def upload_file (path, linuxpath, windowspath):
 	templates_dir = ginga2templatedir
 	env = Environment(loader=FileSystemLoader(templates_dir) )
 
-	if linuxpath:	
-		try:
-			linux_template = env.get_template('nomad_linux_all_hosts.txt')
-		except:
-			logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_linux_all_hosts.txt'))
-			exit(1)	
-		
-		#command to run on all linux hosts
-		cmd = os.path.join(root,'system','xcption_get_file.sh')
-		args = '"'+url+'","'+linuxpath+'"'
+	for ostype in ['linux','windows']:
+		allcomp = False
+		if linuxpath and ostype == 'linux':	
+			try:
+				job_template = env.get_template('nomad_linux_all_hosts.txt')
+			except:
+				logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_linux_all_hosts.txt'))
+				exit(1)	
+			
+			#command to run on all linux hosts
+			cmd = os.path.join(root,'system','xcption_get_file.sh')
+			args = '"'+url+'","'+linuxpath+'"'
 
-		#upload job name
-		jobname = 'linuxupload'+str(os.getpid())
+			#upload job name
+			jobname = 'linuxupload'+str(os.getpid())
 
-		#creating job hcl file 
-		linux_upload_jobfile = os.path.join('/tmp',jobname+'.hcl')	
-		logging.debug("creating job file: " + linux_upload_jobfile)				
-		with open(linux_upload_jobfile, 'w') as fh:
-			fh.write(linux_template.render(
-				jobname=jobname,
-				cmd=cmd,
-				args=args
-			))
+			ospath = linuxpath
 
-		#start job and monitor status
-		uploadstatus = 'not started'
-		if start_nomad_job_from_hcl(linux_upload_jobfile, jobname):
-			retrycount = 50
-			while retrycount > 0:
-				results = check_job_status(jobname,True)
-				retrycount -=  1
+		if windowspath and ostype == 'windows':	
+			try:
+				job_template = env.get_template('nomad_windows_all_hosts.txt')
+			except:
+				logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_windows_all_hosts.txt'))
+				exit(1)	
+			
+			#command to run on all windows hosts
+			cmd = escapestr(winpath+'\\xcption_get_file.ps1')
+			args = '"'+url+'","'+escapestr(windowspath)+'"'
 
-				#validate all allocation are completed (failed)
-				allcomp = True
-				for alloc in results['allocations']:
-					nodename = ''
-					for node in nodes:
-						if alloc['NodeID'] == node['ID']: nodename = node['Name']
-					if alloc['ClientStatus'] != 'failed' and alloc['ClientStatus'] != 'complete':
-						allcomp = False
-						logging.info("upload job to node:"+nodename+" still running")
-						nodestaskstatus[nodename] = alloc['ClientStatus']
+			#upload job name
+			jobname = 'windowsupload'+str(os.getpid())
+
+			ospath = windowspath
+
+		if (linuxpath and ostype == 'linux') or (windowspath and ostype == 'windows'):
+			#creating job hcl file 
+			upload_jobfile = os.path.join('/tmp',jobname+'.hcl')	
+			logging.debug("creating job file: " + upload_jobfile)				
+			with open(upload_jobfile, 'w') as fh:
+				fh.write(job_template.render(
+					jobname=jobname,
+					cmd=cmd,
+					args=args
+				))			
+			#start job and monitor status
+			uploadstatus = 'not started'
+			if start_nomad_job_from_hcl(upload_jobfile, jobname):
+				retrycount = 50
+				while retrycount > 0:
+					results = check_job_status(jobname,True)
+					retrycount -=  1
+
+					#validate all allocation are completed (failed)
+					allcomp = True
+					for alloc in results['allocations']:
+						nodename = ''
+						for node in nodes:
+							if alloc['NodeID'] == node['ID']: nodename = node['Name']
+						if alloc['ClientStatus'] != 'failed' and alloc['ClientStatus'] != 'complete':
+							allcomp = False
+							logging.info("upload job to node:"+nodename+" still running")
+							nodestaskstatus[nodename] = alloc['ClientStatus']
+						else:
+							#if the job completed validate the exist code, 9998 will be used a a default value if the task not yet completed
+							try:
+								exitcode = int(alloc['TaskStates'][ostype+'upload']['Events'][3]['Details']['exit_code'])
+							except:
+								exitcode = 9998
+							#upload job completed 
+							if exitcode == 0 and nodestaskstatus[nodename] != 'succesfull':
+								logging.info(path+" successfully uploaded to:"+nodename+":"+ospath)
+								nodestaskstatus[nodename] = 'succesfull'
+							if exitcode == 1 and nodestaskstatus[nodename] != 'failed':
+								logging.info("upload of file:"+ospath+" to node:"+nodename+" failed, validate destination path on the node exists and no communication issues to the node")
+								nodestaskstatus[nodename] = 'failed'
+
+					if allcomp: 
+						retrycount = 0
 					else:
-						#if the job completed validate the exist code, 9998 will be used a a default value if the task not yet completed
-						try:
-							exitcode = int(alloc['TaskStates']['linuxupload']['Events'][3]['Details']['exit_code'])
-						except:
-							exitcode = 9998
-						#upload job completed 
-						if exitcode == 0 and nodestaskstatus[nodename] != 'succesfull':
-							logging.info(path+" successfully uploaded to:"+nodename+":"+linuxpath)
-							nodestaskstatus[nodename] = 'succesfull'
-						if exitcode == 1 and nodestaskstatus[nodename] != 'failed':
-							logging.info("upload of file:"+linuxpath+" to node:"+nodename+" failed, validate destination path on the node exists and no communication issues to the node")
-							nodestaskstatus[nodename] = 'failed'
+						time.sleep(2)
 
-				if allcomp: 
-					retrycount = 0
-				else:
-					time.sleep(5)
-
-			if not allcomp:
-				logging.info("some of the linux upload job did not complete")
-		
-		#delete job hcl file 
-		if os.path.isfile(linux_upload_jobfile):
-			logging.debug("delete job hcl file:"+linux_upload_jobfile)
-			os.remove(linux_upload_jobfile)
-		if os.path.isfile(os.path.join(uploaddir,os.path.basename(path))):
-			logging.debug("delete temp upload file:"+os.path.join(uploaddir,os.path.basename(path)))
-			os.remove(os.path.join(uploaddir,os.path.basename(path)))			
-		#delete job if exists 
-		logging.debug("delete job:"+jobname)
-		response = requests.delete(nomadapiurl+'job/'+jobname+'?purge=true')				
-		if not response.ok:
-			logging.debug("can't delete job:"+psjobname) 
+				if not allcomp:
+					logging.info("some of the "+ostype+" upload job did not complete")
+			
+			#delete job hcl file 
+			if os.path.isfile(upload_jobfile):
+				logging.debug("delete job hcl file:"+upload_jobfile)
+				os.remove(upload_jobfile)
+			#delete job if exists 
+			logging.debug("delete job:"+jobname)
+			response = requests.delete(nomadapiurl+'job/'+jobname+'?purge=true')				
+			if not response.ok:
+				logging.debug("can't delete job:"+psjobname) 
+				
+	if os.path.isfile(os.path.join(uploaddir,os.path.basename(path))):
+		logging.debug("delete temp upload file:"+os.path.join(uploaddir,os.path.basename(path)))
+		os.remove(os.path.join(uploaddir,os.path.basename(path)))	 
 
 
 #####################################################################################################

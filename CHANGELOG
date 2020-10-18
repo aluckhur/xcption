@@ -48,3 +48,5 @@
 - add cpu and ram reservation to status -v 
 - decrease robocopy log verbosability in nomad (if log path provided in the windows/robocopy_log_file_dir directory full log will be saved there)
 
+2.9.2.4 
+- add the fileupload sub command that enable file update (like licenses, xcp binary and code file on all nodes windows/linux)
