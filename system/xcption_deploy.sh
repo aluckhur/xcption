@@ -68,7 +68,8 @@ echo "Repo path: $XCPREPO Mount Point will be:${REPO_MOUNT_POINT}"
 
 #Bringing the Information
 echo "Determining local IP address"
-LOCAL_IPV4=$(hostname --ip-address)
+#LOCAL_IPV4=$(hostname --ip-address)
+LOCAL_IPV4=$(ip route get 1.2.3.4 | awk '{print $7}')
 
 if [[ $LOCAL_IPV4 == *127.0.0* ]]; then  
   echo "Error: host local IP address points to localhost ($LOCAL_IPV4)." >&2;
@@ -77,7 +78,7 @@ if [[ $LOCAL_IPV4 == *127.0.0* ]]; then
   exit 1;
 fi
 
-echo "Using ${LOCAL_IPV4} as IP address for configuration and anouncement."
+echo "Using ${LOCAL_IPV4} as IP address for nomad configuration"
 
 #validate which installation utility exists in the system
 export APT=`command -v apt`
