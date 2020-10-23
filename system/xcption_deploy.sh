@@ -95,8 +95,9 @@ else
     exit 1;
 fi
 
-if ["$INST_APP" == "yum" ]; then
+if [ $INST_APP == "yum" ]; then
   yum install -y epel-release
+  yum install -y ${SCRIPT_DIR}/epel-release-latest-7.noarch.rpm
   yum install -y python-devel.x86_64
   yum install -y libpqxx-devel.x86_64
 fi
