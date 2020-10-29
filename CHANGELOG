@@ -50,3 +50,6 @@
 
 2.9.2.4 
 - add the fileupload sub command that enable file update (like licenses, xcp binary and code file on all nodes windows/linux)
+
+2.9.2.5
+- support for quick verify using the -match rand(1000). can be used using the verify -q flag 

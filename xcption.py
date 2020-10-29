@@ -207,6 +207,7 @@ parser_abort.add_argument('-f','--force',help="force abort", required=False,acti
 
 parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
+parser_verify.add_argument('-q','--quick',help="perform quicker verify by using xcp random file verify (1 out of 1000)", required=False,action='store_true')
 
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -927,6 +928,8 @@ def check_baseline_job_status (baselinejobname):
 		return('baseline is complete')
 	
 
+
+
 #start nomand job
 def start_nomad_jobs(action, force):
 	for jobname in jobsdict:
@@ -1010,6 +1013,62 @@ def start_nomad_jobs(action, force):
 							logging.warning("job:"+nomadjobname+" could not be found, please load first") 
 						else:
 							logging.info("starting/updating "+action+" job for src:" + src+ " dst:"+dst) 
+
+
+							#if action is verify recreate job file based on the quick option
+							if action == 'verify':
+								logging.debug("recreting job:"+nomadjobname+" to support quick verify") 
+								#recreating verify job to support the quick option 
+								verify_job_name = jobdetails['verify_job_name']
+								excludedirfile  = jobdetails['excludedirfile']
+								memory          = jobdetails['memory']
+								cpu             = jobdetails['cpu'] 
+
+								verify_job_file = os.path.join(jobdir,verify_job_name+'.hcl')	
+								logging.debug("recreating verify job file: " + verify_job_file)	
+								
+								if ostype == 'linux' and not args.quick:  
+									xcpbinpath = xcppath
+									if excludedirfile == '':
+										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
+									else:
+										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+								
+								if ostype == 'linux' and args.quick:  
+									xcpbinpath = xcppath
+									if excludedirfile == '':
+										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"type==f and rand(1000)\",\""+src+"\",\""+dst
+									else:
+										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+src+"\",\""+dst
+									
+								if ostype == 'windows': 
+									xcpbinpath = 'powershell'									
+									if not args.quick:
+										cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
+									else:
+										cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' -match "rand(1000)" "'+src+'" "'+dst+'"')
+
+
+								templates_dir = ginga2templatedir
+								env = Environment(loader=FileSystemLoader(templates_dir) )
+
+								try:
+									verify_template = env.get_template('nomad_verify.txt')
+								except:
+									logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_scan.txt'))
+									exit(1)
+								with open(verify_job_file, 'w') as fh:
+									fh.write(verify_template.render(
+										dcname=dcname,
+										os=ostype,
+										verify_job_name=verify_job_name,
+										xcppath=xcpbinpath,
+										args=cmdargs,
+										memory=memory,
+										cpu=cpu
+									))					
+							
+
 							nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
 							nomadjobdict = json.loads(nomadjobjson)
 
@@ -1030,8 +1089,9 @@ def start_nomad_jobs(action, force):
 								else:
 									logging.debug("baseline is completed, can start "+action)
 
-							#if sync job and baseline was not started disable schedule for sync 
-							if action == 'verify' or action == 'verify':
+							#if action is verify 
+							if action == 'verify':
+
 								if baselinestatus != 'baseline is complete':
 									logging.warning(action+" is not possiable:"+baselinestatus.lower())									
 									continue
@@ -4441,11 +4501,9 @@ def start_flask(tcpport):
 	def table2(path,path1,path2):
 		return send_from_directory(webtemplatedir,os.path.join(path,path1,path2))
 
-
 	hostname = socket.gethostname()    
 	ip = socket.gethostbyname(hostname)  
 	app.run(host='0.0.0.0',port=tcpport)
-
 
 def upload_file (path, linuxpath, windowspath):
 	if not os.path.isfile(path):
@@ -4453,6 +4511,7 @@ def upload_file (path, linuxpath, windowspath):
 		exit(1)
 	if path.endswith('/license') and not linuxpath:
 		linuxpath = '/opt/NetApp/xFiles/xcp/license'
+
 	if path.endswith('/license') and not windowspath:
 		windowspath = 'C:\\NetApp\\XCP\\license'
 
