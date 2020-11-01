@@ -88,8 +88,11 @@ positional arguments:
     modify              modify task job
     export              export existing jobs to csv
     web                 start web interface to display status
+    fileupload          transfer files to all nodes, usefull for xcp license
+                        update on all nodes
     smartassess         create tasks based on capacity and file count (nfs
                         only)
+
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -263,7 +266,7 @@ jobnfs1,192.168.0.200:/nfssrc/dir4,192.168.0.200:/nfsdst/dir4,0 0 * * * *,1000,8
 Example of running asses on CIFS job **(make sure to escape \ when using cifs paths \\\\SRV\\share will be typed as \\\\\\\\SRV\\\\share)**:
 
 ```
-user@master:~/xcption$ sudo  ./xcption.py asses -c example/cifsjob.csv -s \\\\192.168.0.200\\src$ -d \\\\192.168.0.200\\dst$ -j cifsjob -l 1 --cpu 2000 --ram 100 --robocopy
+user@master:~/xcption$ sudo  ./xcption.py assess -c example/cifsjob.csv -s \\\\192.168.0.200\\src$ -d \\\\192.168.0.200\\dst$ -j cifsjob -l 1 --cpu 2000 --ram 100 --robocopy
 2019-09-06 15:38:44,948 - INFO - validating src:\\192.168.0.200\src$ and dst:\\192.168.0.200\dst$ cifs paths are avaialble from one of the windows server
 2019-09-06 15:39:03,180 - WARNING - source path: \\192.168.0.200\src$ contains 2 files. those files will not be included in the xcption jobs and need to be copied externaly
 please review the warnings above, do you want to continue? [y/N] y
@@ -450,7 +453,7 @@ user@master:~/xcption# sudo ./xcption.py sync -j cifsjob
 
 ```
 
-**to start verification using xcp (linux and windows) the `verify` subcommand should be used (verify is possiable only when baseline is complete)** 
+**to start verification using xcp (linux and windows) the `verify` subcommand should be used (verify is possiable only when baseline is complete). verify -q can be used to verify 1 out 1000 files (using xcp -match rand(1000) option)** 
 
 ```
 user@master:~/xcption$ sudo ./xcption.py verify
@@ -464,6 +467,7 @@ user@master:~/xcption$ sudo ./xcption.py verify
 2019-09-06 16:50:05,894 - INFO - starting/updating verify job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
 
 ```
+
 
 **To report the status use the `status` command**
 

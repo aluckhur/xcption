@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.4'
+version = '2.9.2.6'
 
 import csv
 import argparse
@@ -794,7 +794,7 @@ def create_nomad_jobs():
 						if excludedirfile == '':
 							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
 						else:
-							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 
 					if ostype == 'windows' and tool == 'xcp': 
 						if excludedirfile == '':						
@@ -3298,7 +3298,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 					exludedirlist = ''
 					for task in dirtree.filter_nodes(lambda x: x.data.createjob):
 						if not task.is_root():
-							exludedirlist += task.identifier+'/*\n'
+							exludedirlist += task.identifier+'\n'
 
 					for task in dirtree.filter_nodes(lambda x: x.data.createjob):
 						nfssrcpath = task.identifier

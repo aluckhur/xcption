@@ -53,3 +53,8 @@
 
 2.9.2.5
 - support for quick verify using the -match rand(1000). can be used using the verify -q flag 
+
+2.9.2.6
+- include support for xcp 1.6.2 
+- use the new -exclude functionality for xcp 1.6.2 for nfs (exclude directories without the need to scan the exluded content). existing exlude files should be mdified not to include the /* suffix of each directory for it work.
+- autocreate smartassess exclude files with the new format (without the /*)
