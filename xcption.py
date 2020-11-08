@@ -1278,10 +1278,12 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) file.gone", lastline, re.M|re.I)
 		if matchObj: 
-			results['filegone'] = matchObj.group(1)
+			if not 'gone' in results: results['gone'] = 0
+			results['gone'] += int(matchObj.group(1))
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
 		if matchObj: 
-			results['dirgone'] = matchObj.group(1)		
+			if not 'gone' in results: results['gone'] = 0
+			results['gone'] += int(matchObj.group(1))
 
 		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
