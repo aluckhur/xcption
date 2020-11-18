@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.6'
+version = '2.9.2.7'
 
 import csv
 import argparse
@@ -35,7 +35,7 @@ from treelib import Node, Tree
 
 pp = pprint.PrettyPrinter(indent=1)
 
-#general settings
+#general settings DO NOT CHANGE 
 dcname = 'DC1'
 
 #default windows tool
@@ -117,6 +117,9 @@ defaultmemory = 800
 
 #max logs for status -l 
 maxloglinestodisplay = 50
+
+#max syncs to keep per job (when sync count is bigger than this number older syncs will be deleted)
+maxsyncsperjob = 10
 
 #smartassess globals 
 
@@ -1278,12 +1281,15 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) file.gone", lastline, re.M|re.I)
 		if matchObj: 
-			if not 'gone' in results: results['gone'] = 0
-			results['gone'] += int(matchObj.group(1))
+			if not re.search(" gone\,.+ file\.gone",lastline, re.M|re.I):
+				if not 'gone' in results: results['gone'] = 0
+				results['gone'] += int(matchObj.group(1).replace(',',''))
+
 		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
 		if matchObj: 
-			if not 'gone' in results: results['gone'] = 0
-			results['gone'] += int(matchObj.group(1))
+			if not re.search (" gone\,.+ dir\.gone",lastline, re.M|re.I):
+				if not 'gone' in results: results['gone'] = 0
+				results['gone'] += int(matchObj.group(1).replace(',',''))
 
 		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
@@ -4664,6 +4670,14 @@ def upload_file (path, linuxpath, windowspath):
 		os.remove(os.path.join(uploaddir,os.path.basename(path)))	 
 
 
+#delete syncs from cache exceding the number provided 
+def rotate_sync_count_in_cache(maxsyncsperjob):
+	if maxsyncsperjob<1: return
+	for fileprefix in ['periodic','alloc']:
+		cmd = "find "+cachedir+"/job_sync_* -type d | awk '{system(\"find \"$1\"/"+fileprefix+"* -printf "+'\\"%T@ %p\\n\\" | sort -r | tail -n +'+str(maxsyncsperjob+1)+'")}'+"' | awk '{system(\"rm -rf \"$2)}'"
+		logging.debug("removing old syncs exceeding "+str(maxsyncsperjob)+" from cache using the cmd:"+cmd)
+		filelist = os.system(cmd)
+
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
@@ -4707,6 +4721,7 @@ if args.subparser_name == 'nodestatus':
 
 if args.subparser_name == 'nomad':
 	parse_nomad_jobs_to_files()
+	rotate_sync_count_in_cache(maxsyncsperjob)
 	exit (0)
 
 if args.subparser_name == 'assess':

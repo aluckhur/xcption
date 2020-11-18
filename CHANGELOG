@@ -58,3 +58,7 @@
 - include support for xcp 1.6.2 
 - use the new -exclude functionality for xcp 1.6.2 for nfs (exclude directories without the need to scan the exluded content). existing exlude files should be mdified not to include the /* suffix of each directory for it work.
 - autocreate smartassess exclude files with the new format (without the /*)
+
+2.9.2.7
+- fix log parsing issue related to delete files count 
+- delete older that 10 syncs from the cache (this can be modified using the maxsyncsperjob parameter in the code). this is usefull for environemnt with rapid syncs which can delay responses from the status command. 
