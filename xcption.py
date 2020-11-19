@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.7'
+version = '2.9.2.8'
 
 import csv
 import argparse
@@ -211,6 +211,8 @@ parser_abort.add_argument('-f','--force',help="force abort", required=False,acti
 parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_verify.add_argument('-q','--quick',help="perform quicker verify by using xcp random file verify (1 out of 1000)", required=False,action='store_true')
+parser_verify.add_argument('-w','--withdata',help="perform deep data verification (xcp verify without the -nodata flag)", required=False,action='store_true')
+
 
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -1029,27 +1031,32 @@ def start_nomad_jobs(action, force):
 
 								verify_job_file = os.path.join(jobdir,verify_job_name+'.hcl')	
 								logging.debug("recreating verify job file: " + verify_job_file)	
+
+								nodata = ",\"-nodata\""
+								if args.withdata: nodata=''
 								
 								if ostype == 'linux' and not args.quick:  
 									xcpbinpath = xcppath
 									if excludedirfile == '':
-										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\""+src+"\",\""+dst
 									else:
-										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 								
 								if ostype == 'linux' and args.quick:  
 									xcpbinpath = xcppath
 									if excludedirfile == '':
-										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"type==f and rand(1000)\",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"type==f and rand(1000)\",\""+src+"\",\""+dst
 									else:
-										cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+src+"\",\""+dst
 									
 								if ostype == 'windows': 
-									xcpbinpath = 'powershell'									
+									xcpbinpath = 'powershell'
+									verifyparam = xcpwinverifyparam
+									if args.withdata: verifyparam = xcpwinverifyparam.replace("-nodata ","")
 									if not args.quick:
-										cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' "'+src+'" "'+dst+'"')
 									else:
-										cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' -match "rand(1000)" "'+src+'" "'+dst+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' -match "rand(1000)" "'+src+'" "'+dst+'"')
 
 
 								templates_dir = ginga2templatedir
@@ -2004,7 +2011,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 							try:
 								#filter out results based on scope 
-								if phasefilter and not task.startswith(phasefilter):
+								#if phasefilter and not task.startswith(phasefilter):
+								if phasefilter and not task==phasefilter:
 									addrow = False  
 								if args.node and not nodename.startswith(args.node):
 									addrow = False
@@ -2200,7 +2208,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								#filter results
 								addrow = True 
 								try:
-									if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
+									#if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
+									if phasefilter and not task == phasefilter and phasefilter != 'lastsync':
 										addrow = False
 									if phasefilter == 'lastsync' and task != 'sync'+str(lastsync):
 										addrow = False 											

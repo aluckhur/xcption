@@ -62,3 +62,7 @@
 2.9.2.7
 - fix log parsing issue related to delete files count 
 - delete older that 10 syncs from the cache (this can be modified using the maxsyncsperjob parameter in the code). this is usefull for environemnt with rapid syncs which can delay responses from the status command. 
+
+2.9.2.8
+- support verify with data validation (run xcp verify without the -nodata). can be used using the verify -w flag 
+- fixed phase filter to work correctly with high number of phases per job
