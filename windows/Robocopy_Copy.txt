@@ -1,0 +1,13 @@
+ERROR 0    (0x00000000) The operation completed successfully 
+ERROR 2    (0x00000002) The system cannot find the file specified.
+ERROR 3    (0x00000003) The system cannot find the path specified.
+ERROR 5    (0x00000005) Access is denied.
+ERROR 6    (0x00000006) The handle is invalid.
+ERROR 32   (0x00000020) The process cannot access the file because it is being used by another process.
+ERROR 51   (0x00000033) Scanning Destination Directory: Windows cannot find the network path. Verify that the network path is correct and the destination computer is not busy or turned off. If Windows still cannot find the network path, contact your network administrator.
+ERROR 53   (0x00000035) The network path was not found.
+ERROR 58   (0x0000003A) Copying NTFS Security to Destination File:  The specified server cannot perform the requested operation
+ERROR 64   (0x00000040) The specified network name is no longer available.
+ERROR 112  (0x00000070) There is not enough space on the disk.
+ERROR 121  (0x00000079) The semaphore timeout period has expired.
+ERROR 1359 (0x0000054F) Scanning Source Directory:  An internal error occurred.

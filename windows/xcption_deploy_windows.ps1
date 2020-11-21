@@ -161,6 +161,9 @@ Write-Host "Featching required files from XCPtion server"
 SCPfile -File license 
 SCPfile -File nomad_service.cmd
 SCPfile -File robocopy_wrapper.cmd
+SCPfile -File Robocopy_Errors.txt
+SCPfile -File Robocopy-Get-FailedFiles.ps1
+SCPfile -File robocopy_log_file_dir.txt
 
 
 
