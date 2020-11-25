@@ -96,6 +96,8 @@ ginga2templatedir = os.path.join(root,'template')
 
 #webtemplates 
 webtemplatedir = os.path.join(root,'webtemplates') 
+
+#file pload location within the webtempate dir
 uploaddir = os.path.join(webtemplatedir,'upload') 
 
 #log file location
@@ -122,10 +124,8 @@ maxloglinestodisplay = 50
 maxsyncsperjob = 10
 
 #smartassess globals 
-
 minsizekfortask_minborder = 0.5*1024*1024*1024 #512GB
 mininodespertask_minborder = 100000 
-
 maxjobs = 100
 
 totaljobssizek = 0
@@ -212,7 +212,6 @@ parser_verify.add_argument('-j','--job',help="change the scope of the command to
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_verify.add_argument('-q','--quick',help="perform quicker verify by using xcp random file verify (1 out of 1000)", required=False,action='store_true')
 parser_verify.add_argument('-w','--withdata',help="perform deep data verification (xcp verify without the -nodata flag)", required=False,action='store_true')
-
 
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -2181,13 +2180,15 @@ def create_status (reporttype,displaylogs=False, output='text'):
 							 			try:
 								 			jobstatus =  currentalloc['ClientStatus']
 											if currentperiodic['Status'] in ['pending','running']: jobstatus =  currentperiodic['Status']
-											if tasktype == 'verify':
+
+											if tasktype == 'verify' and jobstatus != 'running':
 												if jobstatus == 'failed' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 												if jobstatus == 'failed' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
 												if jobstatus == 'complete': jobstatus = 'idle'
 												#windows
 												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
-												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'																				
+												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
+
 										except:
 											jobstatus = '-'
 
@@ -2196,7 +2197,6 @@ def create_status (reporttype,displaylogs=False, output='text'):
 											if 'failure' in currentlog.keys(): jobstatus = 'failed'
 										except:
 											pp.pprint(currentlog)											
-
 										
 
 								#handle aborted jobs 
@@ -3460,6 +3460,8 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 
 					else:
 						print '     vebose information not yet avaialable. it will be available when scan will be completed'
+						table = PrettyTable()
+						table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']							
 		
 		if not displaytasks and infofound and not createcsv:
 			table.border = False
