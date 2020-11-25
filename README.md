@@ -156,8 +156,8 @@ jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
 ```
-192.168.0.200:/nfssrc/dir4/unused_files/*
-192.168.0.200:/nfssrc/dir4/subdir/old_to_delete/*
+192.168.0.200:/nfssrc/dir4/unused_files
+192.168.0.200:/nfssrc/dir4/subdir/old_to_delete
 ```
 ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_dir4_exclude_dirs for the above example)
 ```
