@@ -66,3 +66,5 @@
 2.9.2.8
 - support verify with data validation (run xcp verify without the -nodata). can be used using the verify -w flag 
 - fixed phase filter to work correctly with high number of phases per job
+- fixed windowd verify not showing task status when starting 
+- fixed fileupload fail when running in the 1st time 

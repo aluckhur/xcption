@@ -4572,6 +4572,7 @@ def upload_file (path, linuxpath, windowspath):
 	socketresult = sock.connect_ex((nomadserver,defaulthttpport))
 	if socketresult != 0:
 		os.system(os.path.join(root,'xcption.py')+" web &")
+		time.sleep(5)
 
 	#will keep task status on nodes
 	nodestaskstatus = {}
