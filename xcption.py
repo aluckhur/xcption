@@ -291,6 +291,7 @@ args = parser.parse_args()
 log = logging.getLogger()
 log.setLevel(logging.DEBUG)
 logging.getLogger('requests').setLevel(logging.ERROR)
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # create formatter and add it to the handlers
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
