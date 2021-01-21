@@ -1514,7 +1514,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 				nextrun = 'paused'
 			print  "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"
 
-			print "RESOURCES: " + jobdetails['cpu']+"MHz CPU "+jobdetails['memory']+'MB RAM'
+			print "RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'
 
 			if jobdetails['ostype'] =='linux': print  "XCP INDEX NAME: "+jobdetails['xcpindexname']
 			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE: "+jobdetails['excludedirfile']
