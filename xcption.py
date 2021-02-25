@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.8'
+version = '2.9.2.9'
 
 import csv
 import argparse
@@ -567,8 +567,9 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 	logging.debug("reading hcl file:"+hclpath)
 	with open(hclpath, 'r') as f:
 		hclcontent = f.read()
-
-		hclcontent = hclcontent.replace('\n', '').replace('\r', '').replace('\t','')
+		
+		#hclcontent = hclcontent.replace('\n', '').replace('\r', '').replace('\t','')
+		
 		hcljson = {}
 		hcljson['JobHCL'] = hclcontent
 		hcljson['Canonicalize'] = True
@@ -588,6 +589,9 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 			except:
 				logging.error("job:"+nomadjobname+" creation failed") 
 				exit(1)
+		else:
+			logging.error("could not start "+nomadjobname)
+			return False
 
 	return True
 

@@ -1,36 +1,34 @@
 job "{{ powershelljob }}" {
-  datacenters = ["{{ dcname }}"]
-
-  type = "batch"
-  
-  constraint {
-    attribute = "${attr.kernel.name}"
-    value     = "windows"
-  }
-  
-  group "{{ powershelljob }}" {
-    count = 1
-    reschedule {
-      attempts = 0
-    }
-    restart {
-      attempts = 0
-      mode     = "fail"
-    }
-    task "{{ powershelljob }}" {
-      driver = "raw_exec"
-      resources {
-	    cpu    = 20
-	    memory = 20
-      }
-      logs {
-        max_files     = 10
-        max_file_size = 10
-      }	  
-      config {
-        command = "powershell"
-        args    = ["{{ cmd }}"]
-      }
-    }
-  }
+	datacenters = ["{{ dcname }}"]
+	type = "batch"
+	constraint {
+		attribute = "${attr.kernel.name}"
+		value     = "windows"
+	}
+	group "{{ powershelljob }}" {
+		count = 1
+		reschedule {
+			attempts = 0
+		}
+		restart {
+			attempts = 0
+			mode     = "fail"
+		}
+		task "{{ powershelljob }}" {
+			driver = "raw_exec"
+			resources {
+				cpu    = 20
+				memory = 20
+			}
+			logs {
+				max_files     = 10
+				max_file_size = 10
+			}
+			config {
+				command = "powershell"
+				args    = ["{{ cmd }}"]
+			}
+		}
+	}
 }
+

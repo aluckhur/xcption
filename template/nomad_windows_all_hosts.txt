@@ -1,37 +1,33 @@
 job "{{ jobname }}" {
-  datacenters = ["DC1"]
-
-  constraint {
-    attribute = "${attr.kernel.name}"
-    value     = "windows"
-  }
-
-  constraint {
-      operator = "distinct_hosts"
-      value = "true"
-  }
-  
-  group "windowsupload" {
-    restart {
-      attempts = 0
-      mode     = "fail"
-    }
-
-    task "windowsupload" {
-      driver = "raw_exec"
-
-      resources {
-  	    cpu    = 100
-  	    memory = 20
-      }
-      logs {
-        max_files     = 10
-        max_file_size = 10
-      }	  
-      config {
-          command = "powershell"
-	  args = ["{{ cmd }}",{{ args }}]
-      }
-    }
-  }
+	datacenters = ["DC1"]
+	constraint {
+		attribute = "${attr.kernel.name}"
+		value     = "windows"
+	}
+	constraint {
+		operator = "distinct_hosts"
+		value = "true"
+	}
+	group "windowsupload" {
+		restart {
+			attempts = 0
+			mode     = "fail"
+		}
+		task "windowsupload" {
+			driver = "raw_exec"
+			resources {
+				cpu    = 100
+				memory = 20
+			}
+			logs {
+				max_files     = 10
+				max_file_size = 10
+			}
+			config {
+				command = "powershell"
+				args = ["{{ cmd }}",{{ args }}]
+			}
+		}
+	}
 }
+
