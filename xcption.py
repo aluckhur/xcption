@@ -1733,31 +1733,37 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 							if file.startswith("periodic-"):
 								synccachefile = os.path.join(synccachedir,file)
-								with open(synccachefile) as f:
-									logging.debug('loading cached info periodic file:'+synccachefile)
-									jobdata = json.load(f)
-									if file.split('-')[1] > syncperiodiccounter:										
-										syncstatus = jobdata['Status']
-										joblastdetails = jobdata
-										syncperiodiccounter = file.split('-')[1]
-									if not syncjobsstructure.has_key('periodics'):
-										syncjobsstructure['periodics'] = {}
-									syncjobsstructure['periodics'][jobdata['ID']] = {}											
-									syncjobsstructure['periodics'][jobdata['ID']] = jobdata
-									synccounter+=1
+								try:
+									with open(synccachefile) as f:
+										logging.debug('loading cached info periodic file:'+synccachefile)
+										jobdata = json.load(f)
+										if file.split('-')[1] > syncperiodiccounter:										
+											syncstatus = jobdata['Status']
+											joblastdetails = jobdata
+											syncperiodiccounter = file.split('-')[1]
+										if not syncjobsstructure.has_key('periodics'):
+											syncjobsstructure['periodics'] = {}
+										syncjobsstructure['periodics'][jobdata['ID']] = {}											
+										syncjobsstructure['periodics'][jobdata['ID']] = jobdata
+										synccounter+=1
+								except:
+									logging.debug("file:"+synccachefile+" no longer exists")
 
 							if file.startswith("alloc_"):
 								syncalloccachefile = os.path.join(synccachedir,file)
-								with open(syncalloccachefile) as f:
-									logging.debug('loading cached info alloc file:'+syncalloccachefile)
-									allocdata = json.load(f)
-									if allocdata['CreateTime'] > allocperiodiccounter:
-										allocperiodiccounter = allocdata['CreateTime'] 
-										alloclastdetails = allocdata
-									if not syncjobsstructure.has_key('allocs'):
-										syncjobsstructure['allocs'] = {}										
-									syncjobsstructure['allocs'][allocdata['ID']] = {}
-									syncjobsstructure['allocs'][allocdata['ID']] = allocdata
+								try:
+									with open(syncalloccachefile) as f:
+										logging.debug('loading cached info alloc file:'+syncalloccachefile)
+										allocdata = json.load(f)
+										if allocdata['CreateTime'] > allocperiodiccounter:
+											allocperiodiccounter = allocdata['CreateTime'] 
+											alloclastdetails = allocdata
+										if not syncjobsstructure.has_key('allocs'):
+											syncjobsstructure['allocs'] = {}										
+										syncjobsstructure['allocs'][allocdata['ID']] = {}
+										syncjobsstructure['allocs'][allocdata['ID']] = allocdata
+								except:
+									logging.debug("file:"+syncalloccachefile+" no longer exists")
 
 							if file.startswith(logtype+"log_"):
 								synclogcachefile = os.path.join(synccachedir,file)

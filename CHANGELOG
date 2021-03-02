@@ -72,3 +72,4 @@
 2.9.2.9
 - change templates files to comply with hcl2 standard
 - update xcp binaries to 1.6.3
+- fix bug related to dispalying status while purging older updates 
