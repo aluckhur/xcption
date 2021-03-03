@@ -1765,14 +1765,18 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								except:
 									logging.debug("file:"+syncalloccachefile+" no longer exists")
 
+						for file in os.listdir(synccachedir):
 							if file.startswith(logtype+"log_"):
 								synclogcachefile = os.path.join(synccachedir,file)
 								logallocid = file.replace(logtype+'log_','').replace('.log','')
-								logging.debug('loading cached info log file:'+synclogcachefile)
-								statsresults = parse_stats_from_log('file',synclogcachefile,logtype)							
-								if not syncjobsstructure.has_key('logs'): syncjobsstructure['logs'] = {}
-								syncjobsstructure['logs'][logallocid] = {}										
-								syncjobsstructure['logs'][logallocid] = statsresults
+								if not syncjobsstructure.has_key('allocs'):
+									syncjobsstructure['allocs'] = {}
+								if syncjobsstructure['allocs'].has_key(logallocid):
+									logging.debug('loading cached info log file:'+synclogcachefile)
+									statsresults = parse_stats_from_log('file',synclogcachefile,logtype)							
+									if not syncjobsstructure.has_key('logs'): syncjobsstructure['logs'] = {}
+									syncjobsstructure['logs'][logallocid] = {}										
+									syncjobsstructure['logs'][logallocid] = statsresults
 
 					if not syncjobfound: syncsched = '-'
 			
