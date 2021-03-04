@@ -73,3 +73,6 @@
 - change templates files to comply with hcl2 standard
 - update xcp binaries to 1.6.3
 - fix bug related to dispalying status while purging older updates 
+
+2.9.2.10
+- add option to do reverse verify (dst to src) using the verify -r 

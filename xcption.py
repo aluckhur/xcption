@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.9'
+version = '2.9.2.10'
 
 import csv
 import argparse
@@ -205,13 +205,14 @@ parser_resume.add_argument('-s','--source',help="change the scope of the command
 
 parser_abort.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_abort.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_abort.add_argument('-t','--type',help="spefify the type of job to abort, can be baseline,sync or verify", choices=['baseline','sync','verify'],required=True,type=str,metavar='type')
+parser_abort.add_argument('-t','--type',help="specify the type of job to abort, can be baseline,sync or verify", choices=['baseline','sync','verify'],required=True,type=str,metavar='type')
 parser_abort.add_argument('-f','--force',help="force abort", required=False,action='store_true')
 
 parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_verify.add_argument('-q','--quick',help="perform quicker verify by using xcp random file verify (1 out of 1000)", required=False,action='store_true')
 parser_verify.add_argument('-w','--withdata',help="perform deep data verification (xcp verify without the -nodata flag)", required=False,action='store_true')
+parser_verify.add_argument('-r','--reverse',help="perform reverse verify (dst will be compared to the src)", required=False,action='store_true')
 
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -1038,18 +1039,25 @@ def start_nomad_jobs(action, force):
 
 								nodata = ",\"-nodata\""
 								if args.withdata: nodata=''
+
+								if not args.reverse:
+									srcverify = src 
+									dstverify = dst 
+								else:
+									srcverify = dst
+									dstverify = src
 								
 								if ostype == 'linux' and not args.quick:  
 									xcpbinpath = xcppath
 									if excludedirfile == '':
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\""+srcverify+"\",\""+dstverify
 									else:
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"')\",\""+srcverify+"\",\""+dstverify
 								
 								if ostype == 'linux' and args.quick:  
 									xcpbinpath = xcppath
 									if excludedirfile == '':
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"type==f and rand(1000)\",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
 									else:
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+src+"\",\""+dst
 									
@@ -1058,9 +1066,9 @@ def start_nomad_jobs(action, force):
 									verifyparam = xcpwinverifyparam
 									if args.withdata: verifyparam = xcpwinverifyparam.replace("-nodata ","")
 									if not args.quick:
-										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' "'+src+'" "'+dst+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' "'+srcverify+'" "'+dstverify+'"')
 									else:
-										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' -match "rand(1000)" "'+src+'" "'+dst+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' -match "rand(1000)" "'+srcverify+'" "'+dstverify+'"')
 
 
 								templates_dir = ginga2templatedir
