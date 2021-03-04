@@ -1637,7 +1637,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					sync_job_name     = jobdetails['sync_job_name']
 					verify_job_name   = jobdetails['verify_job_name']
 					jobcron           = jobdetails['cron']
-					ostype			  = jobdetails['ostype']
+					ostype		  = jobdetails['ostype']
 					tool              = jobdetails['tool']
 					excludedirfile    = jobdetails['excludedirfile']
 					
@@ -2126,6 +2126,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						 				
 						 				if allocid in jobstructure['logs'].keys():
 						 					currentlog = jobstructure['logs'][allocid]
+
+										if tasktype == 'verify':
+                                                                                	if re.search(dst+" "+src,currentlog['content']):
+												task = 'verify'+str(verifycounter-1)+'(reverse)'
 
 							 			try:
 							 				starttime = currentalloc['TaskStates'][tasktype]['StartedAt']
