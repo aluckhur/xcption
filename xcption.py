@@ -2118,6 +2118,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 				 				errors = '-'
 				 				sent = '-'
 				 				nodename = '-'
+								
+								currentlog = {}
 
 						 		for allocid in jobstructure['allocs']:
 						 			if jobstructure['allocs'][allocid]['JobID'] == periodic:
