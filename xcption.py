@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.10'
+version = '2.9.2.11'
 
 import csv
 import argparse
@@ -1470,8 +1470,8 @@ def addtostatusjson(jobname,src,details,jsondict):
 #create vcsv status 
 def create_csv_status (jsondict):
 	try: 
-		writer = csv.writer(sys.stdout)
-		writer.writerow(["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","EXCLUDE DIRS","PHASE",'Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status'])
+		writer = csv.writer(sys.stdout,delimiter="\t")
+		writer.writerow(["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","EXCLUDE DIRS","PHASE",'Start Time','End Time','Duration','Scanned','Reviewed','Copied','Modified','Deleted','Errors','Data Sent','Node','Status',"Std Err Path","Std Out Path"])
 
 		for job in jsondict:
 			for src in jsondict[job]:		
@@ -1479,7 +1479,7 @@ def create_csv_status (jsondict):
 				for phase in jobdetails['phases']:
 					writer.writerow([job,src,jobdetails['dst'],jobdetails['cron'],jobdetails['cpu'],jobdetails['memory'],jobdetails['tool'],jobdetails['excludedirfile'],
 						phase['phase'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],
-						phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status']])
+						phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status'],phase['stderrlogpath'],phase['stdoutlogpath']])
 	except:
 		logging.error("error creating csv file:"+csvfile)
 		exit(1)
@@ -2764,7 +2764,6 @@ def parse_nomad_jobs_to_files (parselog=True):
 		logging.debug("cannot create lock file:"+lockfile)
 
 	for job in jobs:
-
 		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify') or job['ID'].startswith('smartassess')):
 			continue
 
