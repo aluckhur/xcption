@@ -1948,8 +1948,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						if os.path.isfile(os.path.join(verifycachedir,'warning.'+verifyalloclastdetails['JobID'].split('/')[1])):
 							verifystatus = verifystatus+ '(warning)'							 
 						#check to see if the log file includes nfs error
-						if os.path.isfile(os.path.join(verifycachedir,'error.'+verifyalloclastdetails['JobID'].split('/')[1])):
-							verifystatus = 'failed'	
+						#if os.path.isfile(os.path.join(verifycachedir,'error.'+verifyalloclastdetails['JobID'].split('/')[1])):
+						#	verifystatus = 'failed'	
 
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
 					syncsentshort = re.sub("\(.+\)","",syncsent)
@@ -2049,8 +2049,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									baselinestatus = baselinestatus+ '(warning)'								
 								
 								#check to see if the log file includes nfs3 error
-								if os.path.isfile(os.path.join(baselinecachedir,'error.'+baselinealloc['JobID'].split('/')[1])):
-									baselinestatus = 'failed'
+								#if os.path.isfile(os.path.join(baselinecachedir,'error.'+baselinealloc['JobID'].split('/')[1])):
+								#	baselinestatus = 'failed'
 
 							except:
 								baselinestatus = '-'
@@ -2244,14 +2244,15 @@ def create_status (reporttype,displaylogs=False, output='text'):
 												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
 											
-											#check to see if the log file includes warnings
-											currentjobcachedir = os.path.dirname(currentlog['logfilepath'])
-											if os.path.isfile(os.path.join(currentjobcachedir,'warning.'+currentalloc['JobID'].split('/')[1])):
-												jobstatus = jobstatus+ '(warning)'													
-											
-											#check to see if the log file includes nfsv3 error
-											if os.path.isfile(os.path.join(currentjobcachedir,'error.'+currentalloc['JobID'].split('/')[1])):
-												jobstatus = 'failed'	
+											if tasktype == 'sync':
+												#check to see if the log file includes warnings
+												currentjobcachedir = os.path.dirname(currentlog['logfilepath'])
+												if os.path.isfile(os.path.join(currentjobcachedir,'warning.'+currentalloc['JobID'].split('/')[1])):
+													jobstatus = jobstatus+ '(warning)'													
+												
+												#check to see if the log file includes nfsv3 error
+												if os.path.isfile(os.path.join(currentjobcachedir,'error.'+currentalloc['JobID'].split('/')[1])):
+													jobstatus = 'failed'	
 
 										except:
 											jobstatus = '-'
@@ -2922,7 +2923,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 					logging.debug("skpping log cache update for:"+job['ID'])
 				
 				#validating no error in the log that did not resulted with exit code 1
-				if jobcomplete and not cachecomplete and parselog:
+				if jobcomplete and not cachecomplete and parselog and not os.path.isfile(cachecompletefile):
 					for logtype in ['stderr']:    #,'stdout']:
 						logfile =  os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
 						if os.path.isfile(logfile):

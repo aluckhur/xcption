@@ -83,4 +83,4 @@
 
 2.9.2.12
 - dispaly status with warning in the log file (the status will show warning)
-- fail a job if it contains the nfs3 error in the log (xcp bug)
+- fail sync job if it contains the nfs3 error in the log (xcp bug)
