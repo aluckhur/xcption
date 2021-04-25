@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.11'
+version = '2.9.2.12'
 
 import csv
 import argparse
@@ -1698,7 +1698,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									baselinestatus = 'failed'
 
 							if file.startswith("warning."):
-								baselinestatus = baselinestatus + ' (warning)'
+								baselinestatus = baselinestatus + '(warning)'
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
@@ -1807,7 +1807,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 						#check to see if the log file includes warnings
 						if os.path.isfile(os.path.join(synccachedir,'warning.'+alloclastdetails['JobID'].split('/')[1])):
-							syncstatus = syncstatus+ ' (warning)'
+							syncstatus = syncstatus+ '(warning)'
 
 						nodeid = ''
 						if 'NodeID' in alloclastdetails: nodeid = alloclastdetails['NodeID']
@@ -1941,7 +1941,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						
 						#check to see if the log file includes warnings
 						if os.path.isfile(os.path.join(verifycachedir,'warning.'+verifyalloclastdetails['JobID'].split('/')[1])):
-							verifystatus = verifystatus+ ' (warning)'							 
+							verifystatus = verifystatus+ '(warning)'							 
 
 
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
@@ -2039,7 +2039,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 								#check to see if the log file includes warnings
 								if os.path.isfile(os.path.join(baselinecachedir,'warning.'+baselinealloc['JobID'].split('/')[1])):
-									baselinestatus = baselinestatus+ ' (warning)'								
+									baselinestatus = baselinestatus+ '(warning)'								
 
 							except:
 								baselinestatus = '-'
@@ -2236,7 +2236,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 											#check to see if the log file includes warnings
 											currentjobcachedir = os.path.dirname(currentlog['logfilepath'])
 											if os.path.isfile(os.path.join(currentjobcachedir,'warning.'+currentalloc['JobID'].split('/')[1])):
-												jobstatus = jobstatus+ ' (warning)'													
+												jobstatus = jobstatus+ '(warning)'													
 
 										except:
 											jobstatus = '-'
