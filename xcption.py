@@ -1699,6 +1699,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 							if file.startswith("warning."):
 								baselinestatus = baselinestatus + '(warning)'
+							if file.startswith("error."):
+								baselinestatus = 'failed'
 
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
@@ -1808,6 +1810,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						#check to see if the log file includes warnings
 						if os.path.isfile(os.path.join(synccachedir,'warning.'+alloclastdetails['JobID'].split('/')[1])):
 							syncstatus = syncstatus+ '(warning)'
+						#check to see if the log file includes nfs error
+						if os.path.isfile(os.path.join(synccachedir,'error.'+alloclastdetails['JobID'].split('/')[1])):
+							syncstatus = 'failed'						
 
 						nodeid = ''
 						if 'NodeID' in alloclastdetails: nodeid = alloclastdetails['NodeID']
@@ -1942,7 +1947,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						#check to see if the log file includes warnings
 						if os.path.isfile(os.path.join(verifycachedir,'warning.'+verifyalloclastdetails['JobID'].split('/')[1])):
 							verifystatus = verifystatus+ '(warning)'							 
-
+						#check to see if the log file includes nfs error
+						if os.path.isfile(os.path.join(verifycachedir,'error.'+verifyalloclastdetails['JobID'].split('/')[1])):
+							verifystatus = 'failed'	
 
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
 					syncsentshort = re.sub("\(.+\)","",syncsent)
@@ -2040,6 +2047,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								#check to see if the log file includes warnings
 								if os.path.isfile(os.path.join(baselinecachedir,'warning.'+baselinealloc['JobID'].split('/')[1])):
 									baselinestatus = baselinestatus+ '(warning)'								
+								
+								#check to see if the log file includes nfs3 error
+								if os.path.isfile(os.path.join(baselinecachedir,'error.'+baselinealloc['JobID'].split('/')[1])):
+									baselinestatus = 'failed'
 
 							except:
 								baselinestatus = '-'
@@ -2237,6 +2248,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 											currentjobcachedir = os.path.dirname(currentlog['logfilepath'])
 											if os.path.isfile(os.path.join(currentjobcachedir,'warning.'+currentalloc['JobID'].split('/')[1])):
 												jobstatus = jobstatus+ '(warning)'													
+											
+											#check to see if the log file includes nfsv3 error
+											if os.path.isfile(os.path.join(currentjobcachedir,'error.'+currentalloc['JobID'].split('/')[1])):
+												jobstatus = 'failed'	
 
 										except:
 											jobstatus = '-'
@@ -2805,10 +2820,12 @@ def parse_nomad_jobs_to_files (parselog=True):
 		jobjsonfile = os.path.join(jobdir,'job_'+job['ID']+'.json')		
 		cachecompletefile = os.path.join(jobdir,'complete.job_'+job['ID']+'.json')
 		cachewarningfile = os.path.join(jobdir,'warning.job_'+job['ID']+'.json')
+		cacheerrorfile = os.path.join(jobdir,'error.job_'+job['ID']+'.json')
 		if len(job['ID'].split('/')) > 1:
 			jobjsonfile = os.path.join(jobdir,job['ID'].split('/')[1])
 			cachecompletefile = os.path.join(jobdir,'complete.'+job['ID'].split('/')[1])
 			cachewarningfile = os.path.join(jobdir,'warning.'+job['ID'].split('/')[1])
+			cacheerrorfile = os.path.join(jobdir,'error.'+job['ID'].split('/')[1])
 	
 		#validating if final update from job already exists in cache 
 		jobcomplete = False 
@@ -2917,6 +2934,9 @@ def parse_nomad_jobs_to_files (parselog=True):
 								if re.search(" WARNING: ", line):
 									logging.debug("warning found in the log, creating file:"+cachewarningfile)
 									subprocess.call(['touch', cachewarningfile])
+								if re.search(" nfs3 error", line):
+									logging.debug("nfs3 error found in the log, creating file:"+cacheerrorfile)
+									subprocess.call(['touch', cacheerrorfile])
 									break
 
 				logging.debug("caching alloc:"+alloc['ID'])
