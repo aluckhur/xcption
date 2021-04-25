@@ -1697,6 +1697,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								if 'failure' in baselinestatsresults.keys():
 									baselinestatus = 'failed'
 
+							if file.startswith("warning."):
+								baselinestatus = baselinestatus + ' (warning)'
+
 					#set baseline job status based on the analysis 
 					if baselinejobstatus == 'pending': baselinestatus='pending'
 					if baselinejobstatus == 'aborted': baselinestatus='aborted'
@@ -1797,10 +1800,14 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						if 'bwout' in statsresults.keys(): syncsent = statsresults['bwout']
 						if 'lastline' in statsresults.keys(): synclastline = statsresults['lastline']
 						if 'failure' in statsresults.keys(): syncstatus = 'failed'
-						
+
 						syncstatus =  alloclastdetails['ClientStatus']
 						if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
 						if syncstatus == 'complete': syncstatus = 'idle'
+
+						#check to see if the log file includes warnings
+						if os.path.isfile(os.path.join(synccachedir,'warning.'+alloclastdetails['JobID'].split('/')[1])):
+							syncstatus = syncstatus+ ' (warning)'
 
 						nodeid = ''
 						if 'NodeID' in alloclastdetails: nodeid = alloclastdetails['NodeID']
@@ -1931,6 +1938,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 			 				verifystarttime = verifystarttime.split('T')[0]+' '+verifystarttime.split('T')[1].split('.')[0]
 			 			except:
 			 				verifystarttime = '-'
+						
+						#check to see if the log file includes warnings
+						if os.path.isfile(os.path.join(verifycachedir,'warning.'+verifyalloclastdetails['JobID'].split('/')[1])):
+							verifystatus = verifystatus+ ' (warning)'							 
 
 
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
@@ -2025,6 +2036,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								if baselinejob['Status'] == 'dead' and baselinejob['Stop']: baselinestatus = 'aborted'
 
 								if 'failure' in baselinestatsresults: baselinestatus = 'failed'
+
+								#check to see if the log file includes warnings
+								if os.path.isfile(os.path.join(baselinecachedir,'warning.'+baselinealloc['JobID'].split('/')[1])):
+									baselinestatus = baselinestatus+ ' (warning)'								
 
 							except:
 								baselinestatus = '-'
@@ -2130,7 +2145,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						 					currentlog = jobstructure['logs'][allocid]
 
 										if tasktype == 'verify':
-                                                                                	if re.search(dst+" "+src,currentlog['content']):
+											if re.search(dst+" "+src,currentlog['content']):
 												task = 'verify'+str(verifycounter-1)+'(reverse)'
 
 							 			try:
@@ -2217,6 +2232,11 @@ def create_status (reporttype,displaylogs=False, output='text'):
 												#windows
 												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
+											
+											#check to see if the log file includes warnings
+											currentjobcachedir = os.path.dirname(currentlog['logfilepath'])
+											if os.path.isfile(os.path.join(currentjobcachedir,'warning.'+currentalloc['JobID'].split('/')[1])):
+												jobstatus = jobstatus+ ' (warning)'													
 
 										except:
 											jobstatus = '-'
@@ -2784,10 +2804,12 @@ def parse_nomad_jobs_to_files (parselog=True):
 
 		jobjsonfile = os.path.join(jobdir,'job_'+job['ID']+'.json')		
 		cachecompletefile = os.path.join(jobdir,'complete.job_'+job['ID']+'.json')
+		cachewarningfile = os.path.join(jobdir,'warning.job_'+job['ID']+'.json')
 		if len(job['ID'].split('/')) > 1:
 			jobjsonfile = os.path.join(jobdir,job['ID'].split('/')[1])
 			cachecompletefile = os.path.join(jobdir,'complete.'+job['ID'].split('/')[1])
-
+			cachewarningfile = os.path.join(jobdir,'warning.'+job['ID'].split('/')[1])
+	
 		#validating if final update from job already exists in cache 
 		jobcomplete = False 
 		try:
@@ -2827,13 +2849,12 @@ def parse_nomad_jobs_to_files (parselog=True):
 					logging.error("cannot create file:"+allocjsonfile)
 					exit(1)
 
-
 				task = 'sync'	
 				if alloc['TaskGroup'].startswith('baseline'): task='baseline'
 				if alloc['TaskGroup'].startswith('verify'): task='verify'
 				if alloc['TaskGroup'].startswith('smartassess'): task='smartassess'
 
-				# don't cache logs to make xcption status run faster (updated info will be abit delayed (max 10s) until next gc will run
+				# don't cache logs to make xcption status run faster (updated info will be delayed (max 10s) until next gc will run)
 				if parselog:
 					#get stderr and stdout logs
 					for logtype in ['stderr','stdout']:
@@ -2882,13 +2903,30 @@ def parse_nomad_jobs_to_files (parselog=True):
 								exit(1)
 				else:
 					logging.debug("skpping log cache update for:"+job['ID'])
+				
+				#validating no error in the log that did not resulted with exit code 1
+				if jobcomplete and not cachecomplete and parselog:
+					for logtype in ['stderr']:    #,'stdout']:
+						logfile =  os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
+						if os.path.isfile(logfile):
+							logging.debug("looking for warnings in the log")
+							with open(logfile) as f:
+								content = f.readlines()
+							content = [x.strip() for x in content] 
+							for line in content:
+								if re.search(" WARNING: ", line):
+									logging.debug("warning found in the log, creating file:"+cachewarningfile)
+									subprocess.call(['touch', cachewarningfile])
+									break
 
 				logging.debug("caching alloc:"+alloc['ID'])
 
 		# mark jobs as completed only as part of nomad subcommand and not status
 		if jobcomplete and not cachecomplete and parselog:
-			logging.debug("creating file:"+cachecompletefile+" to preven further caching of the job")
+			logging.debug("creating file:"+cachecompletefile+" to prevent further caching for the job")
 			subprocess.call(['touch', cachecompletefile])
+
+
 			
 	#removing the lock file 
 	try:
