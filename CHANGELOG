@@ -80,3 +80,6 @@
 2.9.2.11
 - add stderr and stdout path to status as csv output 
 - changed csv output comma to tab seperated 
+
+2.9.2.12
+- dispaly status with warning in the log file (the status will show warning)
