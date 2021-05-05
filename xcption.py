@@ -2155,7 +2155,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						 				if allocid in jobstructure['logs'].keys():
 						 					currentlog = jobstructure['logs'][allocid]
 
-										if tasktype == 'verify':
+										if tasktype == 'verify' and 'content' in currentlog:
 											if re.search(dst+" "+src,currentlog['content']):
 												task = 'verify'+str(verifycounter-1)+'(reverse)'
 
