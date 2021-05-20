@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '2.9.2.12'
+version = '2.9.2.13'
 
 import csv
 import argparse
@@ -156,6 +156,7 @@ parser_abort        = subparser.add_parser('abort',     help='abort running task
 parser_verify       = subparser.add_parser('verify',    help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete       = subparser.add_parser('delete',    help='delete existing config',parents=[parent_parser])
 parser_modify       = subparser.add_parser('modify',    help='modify task job',parents=[parent_parser])
+parser_copy         = subparser.add_parser('copy',      help='perfored monitored copy of source to destination',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',    help='export existing jobs to csv',parents=[parent_parser])
 parser_web          = subparser.add_parser('web',       help='start web interface to display status',parents=[parent_parser])
@@ -171,8 +172,8 @@ parser_status.add_argument('-e','--error',help="change the scope of the command 
 parser_status.add_argument('-o','--output',help="output type: [csv|json]",choices=['csv','json'],required=False,type=str,metavar='output')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
-parser_assess.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
-parser_assess.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
+parser_assess.add_argument('-s','--source',help="source nfs/cifs path",required=True,type=str)
+parser_assess.add_argument('-d','--destination',help="destination nfs/cifs path",required=True,type=str)
 parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_assess.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
 parser_assess.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
@@ -181,6 +182,10 @@ parser_assess.add_argument('-r','--robocopy',help="use robocopy instead of xcp f
 parser_assess.add_argument('-u','--failbackuser',help="failback user required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
 parser_assess.add_argument('-g','--failbackgroup',help="failback group required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
 parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
+parser_assess.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
+
+parser_copy.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_copy.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -1244,7 +1249,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['failure'] = True
 			for match in re.finditer(r"xcp: ERROR: License file",results['content'],re.M|re.I):
 				results['failure'] = True
-
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
@@ -1971,9 +1975,11 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 					#printing verbose information
 					if reporttype == 'verbose':
-
+						#keep pending status since pending don't have alloc and we need to reflect in status 
+						baselinestatus1=''
+						if baselinestatus == 'pending': baselinestatus1 = 'pending'
 					 	#for baseline 
-					 	if baselinejob and baselinealloc:
+					 	if (baselinejob and baselinealloc) or baselinestatus == 'pending':
 			 				task = 'baseline'
 				 			try:
 				 				starttime = baselinealloc['TaskStates']['baseline']['StartedAt']
@@ -2054,6 +2060,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 							except:
 								baselinestatus = '-'
+							
+							#restore pending status when alloc not yet created 
+							if baselinestatus1 == 'pending': baselinestatus = 'pending'
 
 							if baselinestatus == 'running': endtime = '-' 
 
@@ -3431,7 +3440,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 									unmountdir(tempmountpointdst)
 									exit(1) 
 							else:
-								logging.info("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists but empty")
+								logging.info("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" exists and empty")
 						else:
 							logging.info("destination path:"+nfsdstpath+" does not exist. creating using rsync")
 							includedirs = ''
@@ -3447,7 +3456,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 							rsynccmd = 'rsync -av'+includedirs+" --exclude '*' \""+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
 							logging.debug("running the following rsync command to create dst directory:"+rsynccmd+" ("+nfsdstpath+")")
 							if os.system(rsynccmd):
-								logging.error("creation of dst dir:"+nfsdstpath+" useing rsync failed")
+								logging.error("creation of dst dir:"+nfsdstpath+" using rsync failed")
 								unmountdir(tempmountpointsrc)
 								unmountdir(tempmountpointdst)							
 								exit(1)
@@ -4777,6 +4786,145 @@ def rotate_sync_count_in_cache(maxsyncsperjob):
 		logging.debug("removing old syncs exceeding "+str(maxsyncsperjob)+" from cache using the cmd:"+cmd)
 		filelist = os.system(cmd)
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+def monitored_copy(src,dst):
+	xcption_script = os.path.abspath(__file__)
+
+	#validate provided paths are unix based 
+	if not re.search("^\S+\:\/\S+", src):
+		logging.error("source format is incorrect: " + src) 
+		exit(1)	
+	if not re.search("^\S+\:\/\S+", dst):
+		logging.error("destination format is incorrect: " + src) 
+		exit(1)	
+
+
+
+	xcption_job = 'monitored_copy_'+str(os.getpid())
+	xcption_csv = '/tmp/'+xcption_job+".csv"
+	if os.path.isfile(xcption_csv):
+		logging.debug("monitored copy csv file already exists, removing:"+xcption_csv)
+		os.remove(xcption_csv)
+
+	#running assess to create xcption job csv file
+	xcption_cmd = [xcption_script,'assess','-s',src, '-d',dst,'-l','1','-c',xcption_csv,'-j',xcption_job]
+	if subprocess.call(xcption_cmd,stderr=subprocess.STDOUT):
+		logging.error("cannot validate source/destination paths")
+		exit(1)		
+
+	xcption_cmd = [xcption_script,'status','-s','*'+src,'-o','json']
+	json_status=subprocess.check_output(xcption_cmd)
+	statusdict = json.loads(json_status)
+	for job in statusdict:
+		jobdst = statusdict[job][src]['dst']
+		if dst != jobdst:
+			logging.error('job for src already exists for diffrent destination, job:'+job+" src:"+src+' dst:'+jobdst)
+		else:
+			logging.error('job for src already exists, job:'+job+" src:"+src+' dst:'+jobdst)
+		logging.error("please use the following command to delete it if not required:"+xcption_script+' delete -f -j '+job+' -s "*'+src+'"')
+		exit(1)
+			
+				
+	try:
+		#running load to load the created xcption job csv file
+		xcption_cmd = [xcption_script,'load','-s',src, '-c',xcption_csv]
+		if subprocess.call(xcption_cmd,stderr=subprocess.STDOUT):
+			logging.error("cannot create xcption job")
+			assert False 
+		#remove csv file 
+		os.remove(xcption_csv)
+
+		#running baseline to copy dqtq
+		xcption_cmd = [xcption_script,'baseline','-s',src, '-j',xcption_job]
+		if subprocess.call(xcption_cmd,stderr=subprocess.STDOUT):
+			logging.error("cannot start copy for xcption job")
+			assert False
+		
+		#running status
+		cont = True
+		counter = 0 
+		failed = False
+		while cont:
+			xcption_cmd = [xcption_script,'nomad']
+			out=subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT)
+			xcption_cmd = [xcption_script,'status','-s',src,'-p','baseline','-j',xcption_job,'-o','json']
+			json_status=subprocess.check_output(xcption_cmd)
+			statusdict = json.loads(json_status)
+			
+			status = statusdict[xcption_job][src]['phases'][0]['status']
+			status = re.sub('\(.+\)','', status.rstrip())
+			scanned = statusdict[xcption_job][src]['phases'][0]['scanned']
+			copied = statusdict[xcption_job][src]['phases'][0]['copied']
+			sent = statusdict[xcption_job][src]['phases'][0]['sent']
+			duration = statusdict[xcption_job][src]['phases'][0]['duration']
+			errors = statusdict[xcption_job][src]['phases'][0]['errors']
+			nodename = statusdict[xcption_job][src]['phases'][0]['nodename']
+			stderrlogpath = statusdict[xcption_job][src]['phases'][0]['stderrlogpath']
+			
+			if not counter:
+				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename'))
+				print('-' * 120)
+			
+			if status in ['complete','failed','aborted']: 
+				cont = False
+				print('-' * 120)
+			else:
+				time.sleep(5)
+			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<30s}{:<20s}'.format(status,scanned,copied,errors,duration,sent,nodename))
+
+
+			if status in ['failed','aborted']: 
+				failed = True
+				cont = False  
+			
+			if status == 'pending' and counter > 500:
+				logging.error("job is pending too much time please check cluster reesources, aborting")
+				failed = True 
+				cont = False 
+
+			#in case of errors 
+			if errors != '-' and is_number(errors):
+				if int(errors) > 0 and not cont:
+					failed = True 
+			
+			if failed and not cont:
+					errlogpath, errlogfile = os.path.split(stderrlogpath)
+					logfilecopy = os.path.join(logdirpath,errlogfile)
+					logging.error("job completed with some errors, please check the log file:"+logfilecopy)
+					if shutil.copyfile(stderrlogpath, logfilecopy):
+						logging.error("could not copy log file from:"+stderrlogpath+' to:'+logfilecopy)
+						exit(1)
+					assert False 
+
+			counter+=1
+
+		#running delete job to copy dqtq
+		xcption_cmd = [xcption_script,'delete','-f','-s',src, '-j',xcption_job]
+		subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT)	
+		exit(1)
+	except KeyboardInterrupt:
+		#in case of canclation job will be delete 
+		logging.error("job canceled by user, deleting")
+		xcption_cmd = [xcption_script,'delete','-f','-s',src, '-j',xcption_job]
+		if subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT):
+			logging.error("cannot delete xcption job for src:"+src)
+		exit(1)	
+	except:
+		#in case of error job will be delete 
+		logging.debug("deleting job due to error")
+		xcption_cmd = [xcption_script,'delete','-f','-s',src, '-j',xcption_job]
+		subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT)	
+		exit(1)
+
+	
+
+
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
@@ -4824,10 +4972,22 @@ if args.subparser_name == 'nomad':
 	exit (0)
 
 if args.subparser_name == 'assess':
+	if args.cron: 
+		try:
+			now = datetime.datetime.now()
+			cront = croniter.croniter(args.cron, now)
+		except:
+			logging.error('cron format: "'+args.cron+ '" is incorrect')
+			exit(1)	
+		defaultjobcron = args.cron
+					
 	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
 		assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 	else:
 		assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+
+if args.subparser_name == 'copy':
+	monitored_copy(args.source,args.destination)
 
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
