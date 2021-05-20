@@ -84,3 +84,7 @@
 2.9.2.12
 - dispaly status with warning in the log file (the status will show warning)
 - fail sync job if it contains the nfs3 error in the log (xcp bug)
+
+2.9.2.13
+- add flag to be able to change scheule as part of assess subcommand (--cron)
+- add copy subcommand to be able to perform monitored copy of source to destination using single command (NFS only)
