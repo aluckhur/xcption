@@ -157,6 +157,7 @@ parser_verify       = subparser.add_parser('verify',    help='start verify to va
 parser_delete       = subparser.add_parser('delete',    help='delete existing config',parents=[parent_parser])
 parser_modify       = subparser.add_parser('modify',    help='modify task job',parents=[parent_parser])
 parser_copy         = subparser.add_parser('copy',      help='perfored monitored copy of source to destination',parents=[parent_parser])
+parser_deletedata   = subparser.add_parser('copy',      help='perfored monitored delete of data using xcp',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',    help='export existing jobs to csv',parents=[parent_parser])
 parser_web          = subparser.add_parser('web',       help='start web interface to display status',parents=[parent_parser])
@@ -3918,7 +3919,7 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 						unmountdir(tempmountpointdst)
 						exit(1)
 					else:
-						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists but empty")
+						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and empty")
 
 			#check if destination directory exists/contains files
 			if taskcounter > 50:
@@ -4804,8 +4805,6 @@ def monitored_copy(src,dst):
 		logging.error("destination format is incorrect: " + src) 
 		exit(1)	
 
-
-
 	xcption_job = 'monitored_copy_'+str(os.getpid())
 	xcption_csv = '/tmp/'+xcption_job+".csv"
 	if os.path.isfile(xcption_csv):
@@ -4868,7 +4867,7 @@ def monitored_copy(src,dst):
 			stderrlogpath = statusdict[xcption_job][src]['phases'][0]['stderrlogpath']
 			
 			if not counter:
-				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename'))
+				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename'))
 				print('-' * 120)
 			
 			if status in ['complete','failed','aborted']: 
@@ -4876,7 +4875,7 @@ def monitored_copy(src,dst):
 				print('-' * 120)
 			else:
 				time.sleep(5)
-			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<30s}{:<20s}'.format(status,scanned,copied,errors,duration,sent,nodename))
+			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format(status,scanned,copied,errors,duration,sent,nodename))
 
 
 			if status in ['failed','aborted']: 
@@ -4893,14 +4892,21 @@ def monitored_copy(src,dst):
 				if int(errors) > 0 and not cont:
 					failed = True 
 			
-			if failed and not cont:
+			if not cont:
 					errlogpath, errlogfile = os.path.split(stderrlogpath)
 					logfilecopy = os.path.join(logdirpath,errlogfile)
-					logging.error("job completed with some errors, please check the log file:"+logfilecopy)
-					if shutil.copyfile(stderrlogpath, logfilecopy):
-						logging.error("could not copy log file from:"+stderrlogpath+' to:'+logfilecopy)
-						exit(1)
-					assert False 
+					
+					if os.path.isfile(stderrlogpath) and os.path.isdir(logdirpath):
+						if shutil.copyfile(stderrlogpath, logfilecopy):
+							logging.error("could not copy log file from:"+stderrlogpath+' to:'+logfilecopy)
+							exit(1)
+					if failed:
+						logging.error("job completed with some errors, please check the log file:"+logfilecopy)
+						assert False
+					else:
+						logging.info("job completed successfuly, please check the log file:"+logfilecopy) 
+			
+
 
 			counter+=1
 
