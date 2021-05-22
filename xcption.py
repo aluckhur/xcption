@@ -1303,9 +1303,18 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) modification", lastline, re.M|re.I)
 		if matchObj: 
 			results['modification'] = matchObj.group(1)
+
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) error", lastline, re.M|re.I)
 		if matchObj: 
 			results['errors'] = matchObj.group(1)
+
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) removes", lastline, re.M|re.I)
+		if matchObj: 
+			results['removes'] = matchObj.group(1)
+		
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) rmdirs", lastline, re.M|re.I)
+		if matchObj: 
+			results['rmdirs'] = matchObj.group(1)			
 
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) file.gone", lastline, re.M|re.I)
 		if matchObj: 
@@ -4873,7 +4882,8 @@ def monitored_copy(src,dst):
 			nodename = statusdict[xcption_job][src]['phases'][0]['nodename']
 			stderrlogpath = statusdict[xcption_job][src]['phases'][0]['stderrlogpath']
 			
-			if not counter:
+			if not counter  or counter%10==0:
+				print('-' * 120)
 				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename'))
 				print('-' * 120)
 			
@@ -4900,18 +4910,18 @@ def monitored_copy(src,dst):
 					failed = True 
 			
 			if not cont:
-					errlogpath, errlogfile = os.path.split(stderrlogpath)
-					logfilecopy = os.path.join(logdirpath,errlogfile)
-					
-					if os.path.isfile(stderrlogpath) and os.path.isdir(logdirpath):
-						if shutil.copyfile(stderrlogpath, logfilecopy):
-							logging.error("could not copy log file from:"+stderrlogpath+' to:'+logfilecopy)
-							exit(1)
-					if failed:
-						logging.error("job completed with some errors, please check the log file:"+logfilecopy)
-						assert False
-					else:
-						logging.info("job completed successfuly, please check the log file:"+logfilecopy) 
+				errlogpath, errlogfile = os.path.split(stderrlogpath)
+				logfilecopy = os.path.join(logdirpath,errlogfile)
+				
+				if os.path.isfile(stderrlogpath) and os.path.isdir(logdirpath):
+					if shutil.copyfile(stderrlogpath, logfilecopy):
+						logging.error("could not copy log file from:"+stderrlogpath+' to:'+logfilecopy)
+						exit(1)
+				if failed:
+					logging.error("job completed with some errors, please check the log file:"+logfilecopy)
+					assert False
+				else:
+					logging.info("job completed successfuly, please check the log file:"+logfilecopy) 
 			counter+=1
 
 		#running delete job to copy dqtq
@@ -5021,11 +5031,102 @@ def monitored_delete (src,force):
 		logging.error("failed to start delete job:"+xcp_delete_job_name)
 		exit(1)
 
-	while True:
-		parse_nomad_jobs_to_files()
-		results = check_verbose_job_status(xcp_delete_job_name,'xcpdelete')
-		print(results['status'])
-		time.sleep(3)
+	#monitor delete progress 
+	try:
+		cont = True
+		counter = 0 
+		failed = False
+		while cont:
+			parse_nomad_jobs_to_files()
+			jobresults = check_verbose_job_status(xcp_delete_job_name,'xcpdelete')
+			jobstatus = jobresults['status']
+			jobstderrlogpath = jobresults['stderrlog']
+			scanned = "-"
+			errors = "-"
+			removes = "-"
+			rmdirs = '-'
+			duration = '-'
+			if os.path.isfile(jobstderrlogpath):
+				logstats = parse_stats_from_log('file',jobstderrlogpath,'xcpdelete')	
+				if 'scanned'  in logstats: scanned = logstats['scanned']
+				if 'removes'  in logstats: removes = logstats['removes']
+				if 'rmdirs'   in logstats: rmdirs = logstats['rmdirs']
+				if 'errors'   in logstats: rmdirs = logstats['errors']
+				if 'time'     in logstats: duration = logstats['time']			
+
+			if not counter or counter%10==0:
+				print('-' * 100)
+				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format('status','scanned','file-delete','dir-delete','errors','duration'))
+				print('-' * 100)
+			if jobstatus in ['completed','failed','aborted']: 
+				cont = False
+				print('-' * 100)				
+			else:
+				time.sleep(5)
+			
+			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format(jobstatus,scanned,removes,rmdirs,errors,duration))
+			
+			if jobstatus in ['failed','aborted']: 
+				failed = True
+				cont = False  
+			if jobstatus == 'pending' and counter > 500:
+				logging.error("job is pending too much time please check cluster reesources, aborting")
+				failed = True 
+				cont = False 			
+			#in case of errors 
+			if errors != '-' and is_number(errors):
+				if int(errors) > 0 and not cont:
+					failed = True 				
+			if not cont:
+				errlogpath, errlogfile = os.path.split(jobstderrlogpath)
+				logfilecopy = os.path.join(logdirpath,errlogfile)
+				if os.path.isfile(jobstderrlogpath) and os.path.isdir(logdirpath):
+					if shutil.copyfile(jobstderrlogpath, logfilecopy):
+						logging.error("could not copy log file from:"+jobstderrlogpath+' to:'+logfilecopy)
+						exit(1)
+				if failed:
+					logging.error("job failed or completed with errors, please check the log file:"+logfilecopy)
+					assert False
+				else:
+					#job completed succcessfuly
+					delete_job_by_prefix(xcp_delete_job_name)
+					jobcachedir = os.path.join(cachedir,'job_'+xcp_delete_job_name)
+					if os.path.exists(jobcachedir):
+						logging.info("job completed successfuly, please review the log file:"+logfilecopy) 
+						logging.debug("delete cache dir:"+jobcachedir)
+						try:
+							rmout = shutil.rmtree(jobcachedir) 
+						except:
+							logging.error("could not delete cache dir:"+jobcachedir)					
+					
+			counter+=1
+
+	except KeyboardInterrupt:
+		#if cancled by user
+		delete_job_by_prefix(xcp_delete_job_name)
+		jobcachedir = os.path.join(cachedir,'job_'+xcp_delete_job_name)
+		if os.path.exists(jobcachedir):
+			logging.debug("delete cache dir:"+jobcachedir)
+			try:
+				rmout = shutil.rmtree(jobcachedir) 
+			except:
+				logging.error("could not delete cache dir:"+jobcachedir)
+		logging.error("delete job canceled by user")
+		exit(1)	
+	except:
+		#in case of error job will be delete 
+		delete_job_by_prefix(xcp_delete_job_name)
+		jobcachedir = os.path.join(cachedir,'job_'+xcp_delete_job_name)
+		if os.path.exists(jobcachedir):
+			logging.debug("delete cache dir:"+jobcachedir)
+			try:
+				rmout = shutil.rmtree(jobcachedir) 
+			except:
+				logging.error("could not delete cache dir:"+jobcachedir)
+		logging.error("delete job canceled due to an error")#
+		exit(1)
+	
+
 		
 		
 
