@@ -1,8 +1,8 @@
-job "{{ sync_job_name }}" {
+job "{{ delete_job_name }}" {
 	datacenters = ["{{ dcname }}"]
 	type = "batch"
 	periodic {
-		cron = "{{ jobcron }}"
+		cron             = "0 0 31 2 *"
 		prohibit_overlap = true
 	}
 	constraint {
@@ -10,7 +10,7 @@ job "{{ sync_job_name }}" {
 		value     = "{{ os }}"
 	}
 
-	group "{{ sync_job_name }}" {
+	group "{{ delete_job_name }}" {
 		count = 1
 		reschedule {
 			attempts = 0
@@ -19,7 +19,7 @@ job "{{ sync_job_name }}" {
 			attempts = 0
 			mode     = "fail"
 		}
-		task "sync" {
+		task "xcpdelete" {
 			driver = "raw_exec"
 			resources {
 				cpu    = {{ cpu }}
@@ -36,3 +36,4 @@ job "{{ sync_job_name }}" {
 		}
 	}
 }
+

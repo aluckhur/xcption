@@ -143,25 +143,25 @@ parser.add_argument('-d','--debug',   help="log debug messages to console", acti
 subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
 
 # create the sub commands 
-parser_nodestatus   = subparser.add_parser('nodestatus',help='display cluster nodes status',parents=[parent_parser])	
-parser_status       = subparser.add_parser('status',    help='display status',parents=[parent_parser])	
-parser_assess       = subparser.add_parser('assess',    help='assess filesystem and create csv file',parents=[parent_parser])
-parser_load         = subparser.add_parser('load',      help='load/update configuration from csv file',parents=[parent_parser])
-parser_baseline     = subparser.add_parser('baseline',  help='start baseline (xcp copy)',parents=[parent_parser])
-parser_sync         = subparser.add_parser('sync',      help='start schedule updates (xcp sync)',parents=[parent_parser])
-parser_syncnow      = subparser.add_parser('syncnow',   help='initiate sync now',parents=[parent_parser])
-parser_pause        = subparser.add_parser('pause',     help='disable sync schedule',parents=[parent_parser])
-parser_resume       = subparser.add_parser('resume',    help='resume sync schedule',parents=[parent_parser])
-parser_abort        = subparser.add_parser('abort',     help='abort running task')
-parser_verify       = subparser.add_parser('verify',    help='start verify to validate consistency between source and destination (xcp verify)')
-parser_delete       = subparser.add_parser('delete',    help='delete existing config',parents=[parent_parser])
-parser_modify       = subparser.add_parser('modify',    help='modify task job',parents=[parent_parser])
-parser_copy         = subparser.add_parser('copy',      help='perfored monitored copy of source to destination',parents=[parent_parser])
-parser_deletedata   = subparser.add_parser('copy',      help='perfored monitored delete of data using xcp',parents=[parent_parser])
-parser_nomad        = subparser.add_parser('nomad',     description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
-parser_export       = subparser.add_parser('export',    help='export existing jobs to csv',parents=[parent_parser])
-parser_web          = subparser.add_parser('web',       help='start web interface to display status',parents=[parent_parser])
-parser_fileupload   = subparser.add_parser('fileupload',help='transfer files to all nodes, usefull for xcp license update on all nodes',parents=[parent_parser])
+parser_nodestatus   = subparser.add_parser('nodestatus', help='display cluster nodes status',parents=[parent_parser])	
+parser_status       = subparser.add_parser('status',     help='display status',parents=[parent_parser])	
+parser_assess       = subparser.add_parser('assess',     help='assess filesystem and create csv file',parents=[parent_parser])
+parser_load         = subparser.add_parser('load',       help='load/update configuration from csv file',parents=[parent_parser])
+parser_baseline     = subparser.add_parser('baseline',   help='start baseline (xcp copy)',parents=[parent_parser])
+parser_sync         = subparser.add_parser('sync',       help='start schedule updates (xcp sync)',parents=[parent_parser])
+parser_syncnow      = subparser.add_parser('syncnow',    help='initiate sync now',parents=[parent_parser])
+parser_pause        = subparser.add_parser('pause',      help='disable sync schedule',parents=[parent_parser])
+parser_resume       = subparser.add_parser('resume',     help='resume sync schedule',parents=[parent_parser])
+parser_abort        = subparser.add_parser('abort',      help='abort running task')
+parser_verify       = subparser.add_parser('verify',     help='start verify to validate consistency between source and destination (xcp verify)')
+parser_delete       = subparser.add_parser('delete',     help='delete existing config',parents=[parent_parser])
+parser_modify       = subparser.add_parser('modify',     help='modify task job',parents=[parent_parser])
+parser_copy         = subparser.add_parser('copy',       help='perfored monitored copy of source to destination',parents=[parent_parser])
+parser_deletedata   = subparser.add_parser('delete-data',help='perfored monitored delete of data using xcp',parents=[parent_parser])
+parser_nomad        = subparser.add_parser('nomad',      description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
+parser_export       = subparser.add_parser('export',     help='export existing jobs to csv',parents=[parent_parser])
+parser_web          = subparser.add_parser('web',        help='start web interface to display status',parents=[parent_parser])
+parser_fileupload   = subparser.add_parser('fileupload', help='transfer files to all nodes, usefull for xcp license update on all nodes',parents=[parent_parser])
 
 parser_status.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -187,6 +187,10 @@ parser_assess.add_argument('-n','--cron',help="create all task with schedule ", 
 
 parser_copy.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_copy.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
+parser_copy.add_argument('-f','--force',help="force copy event if destination contains files", required=False,action='store_true')
+
+parser_deletedata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_deletedata.add_argument('-f','--force',help="force delete data without confirmation", required=False,action='store_true')
 
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -2810,7 +2814,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 		logging.debug("cannot create lock file:"+lockfile)
 
 	for job in jobs:
-		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify') or job['ID'].startswith('smartassess')):
+		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify') or job['ID'].startswith('smartassess') or job['ID'].startswith('xcpdelete')):
 			continue
 
 		jobdir = os.path.join(cachedir,'job_'+job['ID'])	
@@ -2855,14 +2859,13 @@ def parse_nomad_jobs_to_files (parselog=True):
 		if cachecomplete:
 			logging.debug("cache for job:"+job['ID']+" is complete, skipping")
 			continue
-
 		try:
 			with open(jobjsonfile, 'w') as fp:
 			    json.dump(job, fp)
 			    logging.debug("dumping job to json file:"+jobjsonfile)		
 		except:
 			logging.error("cannot create file:"+jobjsonfile)
-			exit(1)
+			#exit(1)
 
 		logging.debug("caching job:"+job['ID'])
 
@@ -2881,6 +2884,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 				if alloc['TaskGroup'].startswith('baseline'): task='baseline'
 				if alloc['TaskGroup'].startswith('verify'): task='verify'
 				if alloc['TaskGroup'].startswith('smartassess'): task='smartassess'
+				if alloc['TaskGroup'].startswith('xcpdelete'): task='xcpdelete'
 
 				# don't cache logs to make xcption status run faster (updated info will be delayed (max 10s) until next gc will run)
 				if parselog:
@@ -2892,13 +2896,12 @@ def parse_nomad_jobs_to_files (parselog=True):
 							logging.debug("log for job:"+alloc['ID']+" is available using api")
 							alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
 							try:
-								#for smartassess jobs always pull a full file 
-								if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess'):
+								#for smartassess and xcp delete jobs always pull a full file 
+								if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess') or job['ID'].startswith('xcpdelete'):
 									with open(alloclogfile, 'w') as fp:
 										logging.debug("dumping log to log file:"+alloclogfile)
 										fp.write(response.content)
 										fp.close()
-										
 								else:
 									#this is used to be able to add delta to the cache file to enable tail to work
 									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
@@ -3018,7 +3021,7 @@ def nfs_mount(export, mountpoint):
 
 
 #check job status 
-def check_smartassess_job_status (jobname):
+def check_verbose_job_status (jobname, task='smartassess'):
 
 	jobcachedir = os.path.join(cachedir,'job_'+jobname)
 
@@ -3036,7 +3039,7 @@ def check_smartassess_job_status (jobname):
 		job = None
 
 	if not job and not os.path.exists(jobcachedir):
-		logging.debug("smartassess job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
+		logging.debug("job:"+jobname+" does not exist and cahced folder:"+jobcachedir+" does not exists")
 		results['status'] = 'not started'
 		return results
 
@@ -3058,8 +3061,11 @@ def check_smartassess_job_status (jobname):
 				with open(alloccachefile) as f:
 					logging.debug('loading cached info alloc file:'+alloccachefile)
 					allocdata = json.load(f)
-				 	starttime = allocdata['TaskStates']['smartassess']['StartedAt']
-				 	starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
+					try:
+				 		starttime = allocdata['TaskStates'][task]['StartedAt']
+				 		starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
+					except:
+						starttime = '-'
 					results['starttime'] = starttime
 
 			for file in os.listdir(jobcachedir):
@@ -3342,9 +3348,9 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 
 			if (not createcsv and (srcfilter == '' or fnmatch.fnmatch(src, srcfilter))) or (createcsv and src == args.source):
 
-				results = check_smartassess_job_status(smartassessjob)
+				results = check_verbose_job_status(smartassessjob)
 				if not createcsv:
-					resultshardlink = check_smartassess_job_status(smartassessjob+'_hardlink_scan')
+					resultshardlink = check_verbose_job_status(smartassessjob+'_hardlink_scan')
 				else:
 					resultshardlink = {}
 					resultshardlink['status'] = 'not relevant'
@@ -4850,8 +4856,9 @@ def monitored_copy(src,dst):
 		counter = 0 
 		failed = False
 		while cont:
-			xcption_cmd = [xcption_script,'nomad']
-			out=subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT)
+			#update nomad cache
+			parse_nomad_jobs_to_files()
+
 			xcption_cmd = [xcption_script,'status','-s',src,'-p','baseline','-j',xcption_job,'-o','json']
 			json_status=subprocess.check_output(xcption_cmd)
 			statusdict = json.loads(json_status)
@@ -4905,9 +4912,6 @@ def monitored_copy(src,dst):
 						assert False
 					else:
 						logging.info("job completed successfuly, please check the log file:"+logfilecopy) 
-			
-
-
 			counter+=1
 
 		#running delete job to copy dqtq
@@ -4918,8 +4922,7 @@ def monitored_copy(src,dst):
 		#in case of canclation job will be delete 
 		logging.error("job canceled by user, deleting")
 		xcption_cmd = [xcption_script,'delete','-f','-s',src, '-j',xcption_job]
-		if subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT):
-			logging.error("cannot delete xcption job for src:"+src)
+		subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT)
 		exit(1)	
 	except:
 		#in case of error job will be delete 
@@ -4928,7 +4931,104 @@ def monitored_copy(src,dst):
 		subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT)	
 		exit(1)
 
+#start monitored delete job 
+def monitored_delete (src,force):
+	#validate provided paths are unix based 
+	if not re.search("^\S+\:\/\S+", src):
+		logging.error("source format is incorrect: " + src) 
+		exit(1)	    
+
+	if not force:
+		if not query_yes_no("are you sure you want to delete all data from:"+src,'no'):
+			logging.info("delete aborted by user")
+			exit(1)
+
+    #check if src can be mounted
+	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
+	DEVNULL = open(os.devnull, 'wb')
+	if os.path.exists(tempmountpointsrc):
+        #clearing possiable previous mounts 
+		subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
+	else:	
+		os.mkdir(tempmountpointsrc)
+		logging.debug("validating src:"+src+" is mountable")
 	
+	if subprocess.call( ['mount','-t','nfs','-o','vers=3',src, tempmountpointsrc],stderr=subprocess.STDOUT):
+		logging.error("cannot mount src using nfs:" + src)
+		exit(1)
+	subprocess.call( ['umount',tempmountpointsrc],stderr=subprocess.STDOUT)
+	os.rmdir(tempmountpointsrc) 
+
+	logging.debug("starting xcp delete job for src:"+src) 
+	xcp_delete_job_name = 'xcpdelete_'+src.replace(':/','-_')
+	xcp_delete_job_name = xcp_delete_job_name.replace('/','_')
+	xcp_delete_job_name = xcp_delete_job_name.replace(' ','-')
+	xcp_delete_job_name = xcp_delete_job_name.replace('\\','_')
+	xcp_delete_job_name = xcp_delete_job_name.replace('$','_dollar')	
+
+	xcp_delete_job = getnomadjobdetails(xcp_delete_job_name)
+	if xcp_delete_job:
+		if not force:
+			if not query_yes_no("delete-data job for src:"+src+' already exists, do you want to restart','no'):
+				exit(1)
+		delete_job_by_prefix(xcp_delete_job_name)
+		jobcachedir = os.path.join(cachedir,'job_'+xcp_delete_job_name)
+		if os.path.exists(jobcachedir):
+			logging.debug("delete cache dir:"+jobcachedir)
+			try:
+				rmout = shutil.rmtree(jobcachedir) 
+			except:
+				logging.error("could not delete cache dir:"+jobcachedir)
+
+
+	#loading job ginga2 templates
+	templates_dir = ginga2templatedir
+	env = Environment(loader=FileSystemLoader(templates_dir) )
+	try:
+		xcp_delete_template = env.get_template('nomad_delete.txt')
+	except:
+		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_smartassses.txt'))
+		exit(1)
+	
+	#creating delete job hcl file
+	delete_job_file = os.path.join('/tmp',xcp_delete_job_name+'.hcl')	
+	logging.debug("creating delete job file:" + delete_job_file)
+
+	defaultprocessor = defaultcpu
+	defaultram = defaultmemory
+	ostype = 'linux'	
+	if ostype == 'linux': xcpbinpath = xcppath
+	cmdargs = "delete\",\"-force\",\""+src
+
+	with open(delete_job_file, 'w') as fh:
+		fh.write(xcp_delete_template.render(
+			dcname=dcname,
+			os=ostype,
+			delete_job_name=xcp_delete_job_name,
+			xcppath=xcpbinpath,
+			args=cmdargs,
+			memory=defaultram,
+			cpu=defaultprocessor
+		))
+
+	logging.info("starting delete data for src:"+src)
+	if not start_nomad_job_from_hcl(delete_job_file, xcp_delete_job_name):
+		logging.error("failed to create nomad job:"+xcp_delete_job_name)
+		exit(1)
+
+	response = requests.post(nomadapiurl+'job/'+xcp_delete_job_name+'/periodic/force')	
+	if not response.ok:
+		logging.error("failed to start delete job:"+xcp_delete_job_name)
+		exit(1)
+
+	while True:
+		parse_nomad_jobs_to_files()
+		results = check_verbose_job_status(xcp_delete_job_name,'xcpdelete')
+		print(results['status'])
+		time.sleep(3)
+		
+		
+
 
 
 #####################################################################################################
@@ -4994,6 +5094,9 @@ if args.subparser_name == 'assess':
 
 if args.subparser_name == 'copy':
 	monitored_copy(args.source,args.destination)
+
+if args.subparser_name == 'delete-data':
+	monitored_delete(args.source,args.force)
 
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
