@@ -66,8 +66,7 @@ The interaction is done using the following python CLI command (need root access
 [root@centos1 xcption]# ./xcption.py -h
 usage: xcption.py [-h] [-v] [-d]
                   
-                  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy,delete-data,nomad,export,web,fileupload,smartassess}
-                  ...
+  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy,delete-data,nomad,export,web,fileupload,smartassess}
 
 positional arguments:
   {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy,delete-data,nomad,export,web,fileupload,smartassess}
