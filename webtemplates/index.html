@@ -136,12 +136,14 @@
                         {% if showlogs == True %}                        
                         logsdata:[
                             {
+                                
                                 stderrlogpath:"{{ phase.stderrlogpath }}",
                                 stdoutlogpath:"{{ phase.stdoutlogpath }}",                                
                                 stdouturl: "{{ phase.stdoutlogpath }}".slice("{{ phase.stdoutlogpath }}".indexOf("nomadcache")-1,"{{ phase.stdoutlogpath }}".length),
                                 stderrurl: "{{ phase.stderrlogpath }}".slice("{{ phase.stderrlogpath }}".indexOf("nomadcache")-1,"{{ phase.stderrlogpath }}".length),
-                                stderrlogcontent:"{{ phase.stderrlogcontent.encode("string-escape") | replace('"','') }}",
-                                stdoutlogcontent:"{{ phase.stdoutlogcontent.encode("string-escape") | replace('"','') }}",
+                                stderrlogcontent:"{{ phase.stderrlogcontent | escapejs | replace('"','') }}",
+                                stdoutlogcontent:"{{ phase.stdoutlogcontent | escapejs | replace('"','') }}",
+                               
                             },                    
                         ],
                         {% endif %}

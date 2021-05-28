@@ -259,6 +259,7 @@ parser_smartassess_start.add_argument('-s','--source',help="source nfs path (nfs
 parser_smartassess_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_smartassess_start.add_argument('-k','--locate-cross-task-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
+
 #check capacity parameter 
 def checkcapacity (capacity):
 	matchObj = re.match("^(\d+)(\s+)?(K|B|M|G|T)(i)?B$",capacity)
@@ -296,7 +297,8 @@ parser_smartassess_createcsv.add_argument('-j','--job',help="xcption job name", 
 parser_smartassess_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_smartassess_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
 
-args = parser.parse_args()
+#parse args and print help if no args
+args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
 #initialize logging 
 log = logging.getLogger()
@@ -310,8 +312,7 @@ formatterdebug = logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s -
 
 # create file handler which logs even debug messages
 #fh = logging.FileHandler(logfilepath)
-fh = logging.handlers.RotatingFileHandler(
-              logfilepath, maxBytes=1048576, backupCount=5)
+fh = logging.handlers.RotatingFileHandler(logfilepath, maxBytes=1048576, backupCount=5)
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(formatterdebug)
 log.addHandler(fh)
@@ -1220,8 +1221,8 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			logfilesize = os.path.getsize(otherlogfilepath)			
 
 			lines = tail(otherlogfilepath,maxloglinestodisplay)
-			seperator = ""
-			results['contentotherlog'] = seperator.join(lines)
+			seperator = b""
+			results['contentotherlog'] = seperator.join(lines).decode("utf-8")
 			results['logfileotherpath'] = otherlogfilepath
 			results['logfileothersize'] = logfilesize
 		except Exception as e:
@@ -1423,14 +1424,15 @@ def sec_to_time(sec):
 
 #truncate the middle of a string
 def truncate_middle(s, n):
-    if len(s) <= n:
-        # string is already short-enough
-        return s
-    # half of the size, minus the 3 .'s
-    n_2 = int(n) / 2 - 3
-    # whatever's left
-    n_1 = n - n_2 - 3
-    return '{0}...{1}'.format(s[:n_1], s[-n_2:])
+	
+	if len(s) <= n:
+		# string is already short-enough
+		return s
+	# half of the size, minus the 3 .'s
+	n_2 = int(int(n) / 2 - 3)
+	# whatever's left
+	n_1 = int(n - n_2 - 3)
+	return '{0}...{1}'.format(s[:n_1], s[-n_2:])
 
 #create eneral status json 
 def addtogeneralstatusjson(details,jsongeneraldict):
@@ -1773,7 +1775,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									with open(synccachefile) as f:
 										logging.debug('loading cached info periodic file:'+synccachefile)
 										jobdata = json.load(f)
-										if int(file.split('-')[1]) > syncperiodiccounter:										
+									
+										if int(file.split('-')[1]) > int(syncperiodiccounter):										
 											syncstatus = jobdata['Status']
 											joblastdetails = jobdata
 											syncperiodiccounter = file.split('-')[1]
@@ -1884,7 +1887,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								with open(verifycachefile) as f:
 									logging.debug('loading cached info periodic file:'+verifycachefile)
 									jobdata = json.load(f)
-									if int(file.split('-')[1]) > verifyperiodiccounter:										
+									if int(file.split('-')[1]) > int(verifyperiodiccounter):
 										verifystatus = jobdata['Status']
 										verifyjoblastdetails = jobdata
 										verifyperiodiccounter = file.split('-')[1]
@@ -2918,7 +2921,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 								else:
 									#this is used to be able to add delta to the cache file to enable tail to work
 									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
-									with open(tmpalloclogfile, 'w') as fp:
+									with open(tmpalloclogfile, 'wb') as fp:
 										logging.debug("dumping log to temp log file:"+tmpalloclogfile)
 										fp.write(response.content)
 										fp.close()								
@@ -2943,6 +2946,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 									os.remove(tmpalloclogfilenobin)	
 									logging.debug("diff ended and new entries merged into the old cached log file")
 							except Exception as e:
+								print (e)
 								logging.error("cannot create file:"+alloclogfile)
 								exit(1)
 				else:
@@ -4568,7 +4572,7 @@ def normalizedict (jsondict):
 
 #def start web server using flask
 def start_flask(tcpport):
-	from flask import Flask,render_template, send_file, send_from_directory, request
+	from flask import Flask,render_template, send_file, send_from_directory, request, Markup
 
 	#disable flask logging
 	cli = sys.modules['flask.cli']
@@ -4576,7 +4580,30 @@ def start_flask(tcpport):
 
 	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
 	app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-	app.jinja_options['extensions'].append('jinja2.ext.do')
+	env = app.jinja_env
+	env.add_extension('jinja2.ext.do')
+	env.add_extension('jinja2.ext.autoescape')
+
+	_js_escapes = {
+        '\\': '\\u005C',
+        '\'': '\\u0027',
+        '"': '\\u0022',
+        '>': '\\u003E',
+        '<': '\\u003C',
+        '&': '\\u0026',
+        '=': '\\u003D',
+        '-': '\\u002D',
+        ';': '\\u003B',
+        u'\u2028': '\\u2028',
+        u'\u2029': '\\u2029'
+	}
+	# Escape every ASCII character with a value less than 32.
+	_js_escapes.update(('%c' % z, '\\u%04X' % z) for z in range(32))
+
+	def escapejs(value):
+		return Markup("".join(_js_escapes.get(l, l) for l in value))
+
+	app.jinja_env.filters['escapejs'] = escapejs
 
 	@app.route("/")
 	@app.route("/index.html")
