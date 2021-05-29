@@ -649,14 +649,14 @@ def check_job_status (jobname,log=False):
 			logging.debug("stdout log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
-				results['stdout'] = response.content						
+				results['stdout'] = response.content.decode('utf-8')
 		
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stderr&plain=true')
 		if response.ok:
 			logging.debug("stderr log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
-				results['stderr'] = response.content	
+				results['stderr'] = response.content.decode('utf-8')
 
 	return results
 	
@@ -664,8 +664,6 @@ def check_job_status (jobname,log=False):
 
 #run powershell commnad on windows agent
 def run_powershell_cmd_on_windows_agent (pscmd,log=False):
-
-
 	results = {}
 
 	psjobname = pscmd[:15]+str(os.getpid())
@@ -726,7 +724,6 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 				retrycount = 0
 			else:
 				time.sleep(1)
-
 
 	logging.debug("delete job:"+psjobname)
 	response = requests.delete(nomadapiurl+'job/'+psjobname+'?purge=true')				
@@ -1232,7 +1229,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		#try to get the log file using api
 		allocid = name
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+task+'&type='+logtype+'&plain=true')
-		if response.ok and re.search("\d", response.content, re.M|re.I):
+		if response.ok and re.search(r"\d", response.content, re.M|re.I):
 			logging.debug("log for job:"+allocid+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
@@ -3731,353 +3728,15 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 
 	#loading job ginga2 templates 
 	templates_dir = ginga2templatedir
-	env = Environment(loader=FileSystemLoader(templates_dir) )
-	
-	try:
-		smartassess_template = env.get_template('nomad_smartassses.txt')
-	except Exception as e:
-		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_smartassses.txt'))
-		exit(1)
-
-	jobdir = os.path.join(smartassessdir,smartassess_job_name)
-	if not os.path.exists(jobdir):
-		logging.debug("creating job dir:"+jobdir)
-		try:
-			os.makedirs(jobdir)
-		except Exception as e:
-			logging.error("could not create job dir:"+jobdir)
-			exit(1)		
-
-	srchost,srcpath = src.split(":")
-
-	#creating smaetassess job 
-	smartassessjob_file = os.path.join(jobdir,smartassess_job_name+'.hcl')	
-	logging.debug("creating smartassess job file: " + smartassessjob_file)				
-		
-	#check if job dir exists
-	if os.path.exists(jobdir):
-		logging.debug("job directory:" + jobdir + " - already exists") 
-	else:	
-		if os.makedirs(jobdir):
-			logging.error("could not create output directory: " + jobdir)				
-			exit(1)
-
-	defaultprocessor = defaultcpu
-	defaultram = defaultmemory
-	ostype = 'linux'	
-	if ostype == 'linux': xcpbinpath = xcppath
-	depth += 1
-	cmdargs = "diag\",\"find\",\"-v\",\"-branch-match\",\"depth<"+str(depth)+"\",\""+src
-
-	with open(smartassessjob_file, 'w') as fh:
-		fh.write(smartassess_template.render(
-			dcname=dcname,
-			os=ostype,
-			smartassess_job_name=smartassess_job_name,
-			xcppath=xcpbinpath,
-			args=cmdargs,
-			memory=defaultram,
-			cpu=defaultprocessor
-		))
-
-	logging.info("starting smartassess scan for src:"+src)
-	if not start_nomad_job_from_hcl(smartassessjob_file, smartassess_job_name):
-		logging.error("failed to create nomad job:"+smartassess_job_name)
-		exit(1)
-	response = requests.post(nomadapiurl+'job/'+smartassess_job_name+'/periodic/force')	
-	if not response.ok:
-		logging.error("job:"+smartassess_job_name+" force start failed") 
-		exit(1)		
-
-	#creating hadlink scan smaetassess job 
-	smartassess_hardlink_job_name = smartassess_job_name+'_hardlink_scan'
-	hardlinksmartassessjob_file = os.path.join(jobdir,smartassess_hardlink_job_name+'.hcl')	
-	logging.debug("creating hardlink smartassess job file: " + hardlinksmartassessjob_file)			
-
-	cmdargs = "scan\",\"-noid\",\"-match\",\"type == f and nlinks > 1\",\"-fmt\",\"'{},{}'.format(x,fileid)\",\""+src
-	with open(hardlinksmartassessjob_file, 'w') as fh:
-		fh.write(smartassess_template.render(
-			dcname=dcname,
-			os=ostype,
-			smartassess_job_name=smartassess_hardlink_job_name,
-			xcppath=xcpbinpath,
-			args=cmdargs,
-			memory=defaultram,
-			cpu=defaultprocessor
-		))
-
-	if locate_cross_task_hardlink:
-		logging.info("starting smartassess hardlink scan:"+smartassess_hardlink_job_name)
-		if not start_nomad_job_from_hcl(hardlinksmartassessjob_file, smartassess_hardlink_job_name):
-			logging.error("failed to create nomad job:"+smartassess_hardlink_job_name)
-			exit(1)
-		response = requests.post(nomadapiurl+'job/'+smartassess_hardlink_job_name+'/periodic/force')	
-		if not response.ok:
-			logging.error("job:"+smartassess_hardlink_job_name+" force start failed") 
-			exit(1)		
-
-	#fill dict with info
-	smartassessdict[smartassess_job_name] = {}
-	smartassessdict[smartassess_job_name]['src'] = src
-	smartassessdict[smartassess_job_name]['src'] = src
-	smartassessdict[smartassess_job_name]['cpu'] = defaultprocessor
-	smartassessdict[smartassess_job_name]['memory'] = defaultram
-	smartassessdict[smartassess_job_name]['ostype'] = ostype
-	smartassessdict[smartassess_job_name]['depth'] = depth
-	smartassessdict[smartassess_job_name]['locate_cross_task_hardlink'] = locate_cross_task_hardlink
-	smartassessdict[smartassess_job_name]['dcname'] = dcname
-
-	#dumping jobsdict to json file 
-	try:
-		with open(smartassessjobdictjson, 'w') as fp:
-			json.dump(smartassessdict, fp)
-		fp.close()
-	except Exception as e:
-		logging.error("cannot write smart assess job json file:"+smartassessjobdictjson)
-		exit(1)
-
-
-#assessment of filesystem and creation of csv file out of it 
-def assess_fs_linux(csvfile,src,dst,depth,jobname):
-	logging.debug("starting to assess src:" + src + " dst:" + dst) 
-
-	if not re.search("^\S+\:\/.*", src):
-		logging.error("source format is incorrect: " + src) 
-		exit(1)	
-	if not re.search("^\S+\:\/.*", dst):
-		logging.error("destination format is incorrect: " + dst)
-		exit(1)	
-
-	defaultprocessor = defaultcpu
-	if args.cpu: 
-		defaultprocessor = args.cpu 
-		if defaultprocessor < 0 or defaultprocessor > 20000:
-			logging.error("cpu allocation is illegal:"+defaultprocessor)
-			exit(1)	
-
-	defaultram = defaultmemory
-	if args.ram: 
-		defaultram = args.ram
-		if defaultram < 0 or defaultram > 20000:
-			logging.error("ram allocation is illegal:"+defaultram)
-			exit(1)	
-
-	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
-	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
-
-	logging.debug("temporary mounts for assement will be:"+tempmountpointsrc+" and "+tempmountpointdst)
-
-	#check if src/dst can be mounted
-	subprocess.call( [ 'mkdir', '-p',tempmountpointsrc ] )
-	subprocess.call( [ 'mkdir', '-p',tempmountpointdst ] )
-
-	logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
-
-	#clearing possiable previous mounts 
-	DEVNULL = open(os.devnull, 'wb')
-	subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
-	subprocess.call( [ 'umount', tempmountpointdst ], stdout=DEVNULL, stderr=DEVNULL)
-
-	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, tempmountpointsrc ],stderr=subprocess.STDOUT):
-		logging.error("cannot mount src using nfs: " + src)
-		exit(1)					
-	
-	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, tempmountpointdst ],stderr=subprocess.STDOUT):
-		logging.error("cannot mount dst using nfs: " + dst)
-		subprocess.call( [ 'umount', tempmountpointsrc ],stderr=subprocess.STDOUT)
-		exit(1)
-
-
-	if (depth < 1 or depth > 12):
-		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
-		exit(1)	
-
-	#prepare things for csv creation
-	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
-	csv_data = []
-
-	if os.path.isfile(csvfile):
-		logging.warning("csv file:"+csvfile+" already exists")
-		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
-
-	#will be true if warning identified 
-	warning = False 
-
-	#will set to true if Ctrl-C been pressed during os.walk
-	end = False
-
-	srcdirstructure = list_dirs_linux(tempmountpointsrc,depth-1)
-
-	try:
-		taskcounter = 0 
-		for o in srcdirstructure:
-
-			path = o[0]
-			dircount = o[1]
-			filecount = o[2]
-
-			currentdepth = path.count(os.path.sep) + 1
-			if path == './': currentdepth = 1
-
-			#print path,depth,currentdepth
-			
-			nfssrcpath = src+path.lstrip('.')
-			nfsdstpath = dst+path.lstrip('.')
-
-			dstpath = tempmountpointdst+path.lstrip('.')
-
-			
-			#if filecount > 0 and (currentdepth < depth or (currentdepth == depth and dircount > 0)):
-			if (filecount > 0 and dircount > 0 and currentdepth < depth):
-				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
-	
-				warning=True 
-			else:
-				if os.path.exists(dstpath):
-					dstdirfiles = os.listdir(dstpath)
-					if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] != '.snapshot'):
-						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" contains files")
-						unmountdir(tempmountpointsrc)
-						unmountdir(tempmountpointdst)
-						exit(1)
-					else:
-						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and empty")
-
-			#check if destination directory exists/contains files
-			if taskcounter > 50:
-				logging.warning("the amount of created jobs is above 50, this will create extensive amount of xcption jobs")
-				warning=True  
-				taskcounter = -1
-
-			#create xcption job entry
-			#print depth,currentdepth,dircount,nfssrcpath,path
-			#if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
-			if (currentdepth < depth and dircount == 0) or (currentdepth == depth) or (depth == 1):
-				if nfssrcpath == src+"/" and nfsdstpath == dst+"/": 
-					nfssrcpath = src
-					nfsdstpath = dst
-
-				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
-				#append data to csv 
-				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":""})
-				if taskcounter != -1: taskcounter += 1
-
-
-		if warning:
-			if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
-		
-		if not end:
-			try:
-			    with open(csvfile, 'w') as c:
-			        writer = csv.DictWriter(c, fieldnames=csv_columns)
-			        writer.writeheader()
-			        for data in csv_data:
-			            writer.writerow(data)
-			        logging.info("job csv file:"+csvfile+" created")
-			except IOError:
-				logging.error("could not write data to csv file:"+csvfile)
-				unmountdir(tempmountpointsrc)
-				unmountdir(tempmountpointdst)
-				exit(1)		
-			
-			if depth > 1:
-				#use xcp to build the directory structure of the dest filesystem 
-				#xcpcmd = xcplocation + ' copy -noID -match "(type==d and depth=='+str(depth)+') or (type==f and depth<'+str(depth)+')" '+ src  + ' ' + dst
-				# logging.info("xcp can be used to create the destination initial directory structure for xcption jobs")
-				# logging.info("xcp command to sync directory structure for the required depth will be:")				
-				# logging.info(xcpcmd)
-				# if query_yes_no("do you want to run xcp copy to build the directory structure in the dest ?", default="no"): 
-				#  	end=False 
-				#  	logging.info("=================================================================")
-				#  	logging.info("========================Starting xcp=============================")
-				#  	logging.info("=================================================================")
-				#  	#run xcp and check if failed 
-				#  	if os.system(xcpcmd):
-				#  		logging.error("xcp copy failed")
-				#  		exit(1)
-				#  	logging.info("=================================================================")
-				#  	logging.info("=====================xcp ended successfully======================")
-				#  	logging.info("=================================================================")
-				
-				#use rsync to build the directory structure of the dest filesystem 
-				depthrsync = ''
-				for x in range(depth):
-					depthrsync += '/*'
-				rsynccmd = 'rsync -av --exclude ".snapshot" --exclude="'+depthrsync+ '" -f"+ */" -f"- *"  "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
-				logging.info("rsync command to sync directory structure for the required depth will be:")
-				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
-				logging.info(rsynccmd)
-				logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
-				if query_yes_no("do you want to run rsync ?", default="no"): 
-					end=False 
-					logging.info("=================================================================")
-					logging.info("========================Starting rsync===========================")
-					logging.info("=================================================================")
-					#run rsync and check if failed 
-					if os.system(rsynccmd):
-						logging.error("rsync failed")
-						unmountdir(tempmountpointsrc)
-						unmountdir(tempmountpointdst)
-						exit(1)
-					logging.info("=================================================================")
-					logging.info("===================rsync ended successfully======================")
-					logging.info("=================================================================")
-
-				logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
-
-	except KeyboardInterrupt:
-		print("")
-		print("aborted")
-		end = True	
-
-	end = True 	
-	if end:
-		unmountdir(tempmountpointsrc)
-		unmountdir(tempmountpointdst)
-
-
-def list_dirs_windows(startpath,depth):
-
-	matchObj = re.search(r".+\\(.+)$", startpath, re.M|re.I)
-	if matchObj:
-		startfolder = matchObj.group(1)
-	else:
-		logging.error("unexpected format for path:"+startpath)
-		exit(1)
-
-	pscmd = xcpwinpath+' scan -l -depth '+str(depth)+' "'+startpath+'"'
-	results = run_powershell_cmd_on_windows_agent(pscmd,True)
-
-	if results['status'] != 'complete':
-		logging.error("directory scan for path:"+startpath+" failed")
-		exit(1)			
-
-	if results['stderr']:
-		matchObj = re.search("(\d+) errors,", results['stderr'], re.M|re.I)
-		if matchObj:
-			if matchObj.group(1) > 1:
-				logging.error("errors encountered during while scanning path:"+startpath)
-				logging.error("\n\n"+results['stderr'])
-				exit(1)
-
-
-	dirs = {}
-
-	lines = results['stdout'].splitlines()
-	for line in lines:
-		matchObj = re.search("^(f|d)\s+\S+\s+\S+\s+(.+)$", line, re.M|re.I)
-		if matchObj:
-			path = matchObj.group(2).replace(startfolder,".",1)
+	env = Environment(loader=FileSystemLoader(templates_dir) )|||||||||||||||||||||||||||||||||||||||||||||||||||||||||".",1)
 			#if path == ".": path = ".\\"
 			pathtype = matchObj.group(1)
 
-
-			matchObj = re.search(r"(.+)\\.+$", path, re.M|re.I)
+			matchObj = re.search("(.+)\\.+$", path, re.M|re.I)
 			if matchObj:
 				basedir = matchObj.group(1)
 			else:
-				basedir = ''
+				basedir = ''			
 
 			if pathtype == "d": 
 				if not path in list(dirs.keys()):
@@ -4196,7 +3855,6 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 		if path in list(dstdirstructure.keys()):
 			dstdircount = dstdirstructure[path]['dircount']
 			dstfilecount = dstdirstructure[path]['filecount']		
-
 			if (dstfilecount  > 0 or dstdircount >0) and ((currentdepth < depth-1 and dstdircount == 0)
 					or (currentdepth == depth-1 and (dstdircount > 0 or dstfilecount >0))):
 				logging.error("destination path: "+dstpath+ " for source dir: "+srcpath+" exists and contains files")
@@ -4210,7 +3868,6 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 			warning=True  
 
 		#create xcption job entry
-		
 		if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth-1 == 0):
 			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ " will be configured as xcp job")
 
@@ -4274,7 +3931,7 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 					if results['stdout']:
 						logging.error("errorlog:\n"+results['stdout'])							
 					exit(1)							
-				print((results['stdout']))
+				print(results['stdout'])
 
 				logging.info("=================================================================")
 				logging.info("=================robocopy ended successfully=====================")
@@ -4572,11 +4229,11 @@ def normalizedict (jsondict):
 
 #def start web server using flask
 def start_flask(tcpport):
-	from flask import Flask,render_template, send_file, send_from_directory, request, Markup
+	from flask import Flask,render_template, send_file, send_from_directory, request, Markup, cli
 
 	#disable flask logging
-	cli = sys.modules['flask.cli']
-	cli.show_server_banner = lambda *x: None
+	#cli = sys.modules['flask.cli']
+	cli.show_server_banner = lambda *_: None
 
 	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
 	app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
