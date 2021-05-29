@@ -1,4 +1,4 @@
-#!/usr/bin/python3
+#!/usr/bin/python
 
 # XCPtion - NetApp XCP wrapper 
 # Written by Haim Marko 
@@ -108,7 +108,7 @@ logfilepath = os.path.join(logdirpath,'xcption.log')
 if not os.path.isdir(logdirpath):
 	try:
 		os.mkdir(logdirpath)
-	except Exception as e:
+	except:
 		logging.error("could not create log directoy:" + logdirpath)
 		exit (1)
 
@@ -259,7 +259,6 @@ parser_smartassess_start.add_argument('-s','--source',help="source nfs path (nfs
 parser_smartassess_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_smartassess_start.add_argument('-k','--locate-cross-task-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
-
 #check capacity parameter 
 def checkcapacity (capacity):
 	matchObj = re.match("^(\d+)(\s+)?(K|B|M|G|T)(i)?B$",capacity)
@@ -297,8 +296,7 @@ parser_smartassess_createcsv.add_argument('-j','--job',help="xcption job name", 
 parser_smartassess_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_smartassess_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
 
-#parse args and print help if no args
-args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
+args = parser.parse_args()
 
 #initialize logging 
 log = logging.getLogger()
@@ -312,7 +310,8 @@ formatterdebug = logging.Formatter('%(asctime)s - %(levelname)s - %(funcName)s -
 
 # create file handler which logs even debug messages
 #fh = logging.FileHandler(logfilepath)
-fh = logging.handlers.RotatingFileHandler(logfilepath, maxBytes=1048576, backupCount=5)
+fh = logging.handlers.RotatingFileHandler(
+              logfilepath, maxBytes=1048576, backupCount=5)
 fh.setLevel(logging.DEBUG)
 fh.setFormatter(formatterdebug)
 log.addHandler(fh)
@@ -345,7 +344,7 @@ def getnomadjobdetails (nomadjobname):
 	job = {}
 	try:
 		job = n.job.get_job(nomadjobname)
-	except Exception as e:
+	except:
 		assert not job 
 	return job
 
@@ -357,7 +356,7 @@ def load_smartassess_jobs_from_json (jobdictjson):
 			logging.debug("loading existing json file:"+jobdictjson)
 			with open(jobdictjson, 'r') as f:
 				smartassessdict = json.load(f)
-		except Exception as e:
+		except:
 			logging.debug("could not load existing json file:"+jobdictjson)
 
 
@@ -369,7 +368,7 @@ def load_jobs_from_json (jobdictjson):
 			logging.debug("loading existing json file:"+jobdictjson)
 			with open(jobdictjson, 'r') as f:
 				jobsdict = json.load(f)
-		except Exception as e:
+		except:
 			logging.debug("could not load existing json file:"+jobdictjson)
 
 #parse input csv file
@@ -406,7 +405,7 @@ def parse_csv(csv_path):
 					try:
 						now = datetime.datetime.now()
 						cront = croniter.croniter(cron, now)
-					except Exception as e:
+					except:
 						logging.error("cron format: "+cron+ " for src: "+ src + " is incorrect")
 						exit(1)	
 
@@ -566,7 +565,7 @@ def parse_csv(csv_path):
 		with open(jobdictjson, 'w') as fp:
 			json.dump(jobsdict, fp)
 		fp.close()
-	except Exception as e:
+	except:
 		logging.error("cannot write job json file:"+jobdictjson)
 		exit(1)
 
@@ -592,13 +591,13 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 			nomadjobdict['Job'] = json.loads(response.content)
 			try:
 			 	nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
-			except Exception as e:
+			except:
 			 	logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+hclpath+ " for more details") 
 			 	exit(1)
 			logging.debug("starting job:"+nomadjobname)
 			try:
 				nomadout = n.job.register_job(nomadjobname, nomadjobdict)
-			except Exception as e:
+			except:
 				logging.error("job:"+nomadjobname+" creation failed") 
 				exit(1)
 		else:
@@ -611,7 +610,7 @@ def check_job_status (jobname,log=False):
 	jobdetails = {}
 	try:	
 		jobdetails = n.job.get_job(jobname)
-	except Exception as e:
+	except:
 		jobdetails = None
 
 	if not jobdetails:
@@ -639,7 +638,7 @@ def check_job_status (jobname,log=False):
 				allocid = jobdetails[0]['ID']
 				results['allocations'] = jobdetails
 
-			except Exception as e:
+			except:
 				results['status'] = 'unknown'	
 
 
@@ -649,14 +648,14 @@ def check_job_status (jobname,log=False):
 			logging.debug("stdout log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
-				results['stdout'] = response.content.decode('utf-8')
+				results['stdout'] = response.content						
 		
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stderr&plain=true')
 		if response.ok:
 			logging.debug("stderr log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
-				results['stderr'] = response.content.decode('utf-8')
+				results['stderr'] = response.content	
 
 	return results
 	
@@ -664,6 +663,8 @@ def check_job_status (jobname,log=False):
 
 #run powershell commnad on windows agent
 def run_powershell_cmd_on_windows_agent (pscmd,log=False):
+
+
 	results = {}
 
 	psjobname = pscmd[:15]+str(os.getpid())
@@ -691,7 +692,7 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 	
 	try:
 		ps_template = env.get_template('nomad_windows_powershell.txt')
-	except Exception as e:
+	except:
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_windows_powershell.txt'))
 		exit(1)
 
@@ -725,6 +726,7 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 			else:
 				time.sleep(1)
 
+
 	logging.debug("delete job:"+psjobname)
 	response = requests.delete(nomadapiurl+'job/'+psjobname+'?purge=true')				
 	if not response.ok:
@@ -748,19 +750,19 @@ def create_nomad_jobs():
 	
 	try:
 		baseline_template = env.get_template('nomad_baseline.txt')
-	except Exception as e:
+	except:
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_baseline.txt'))
 		exit(1)
 	
 	try:	
 		sync_template = env.get_template('nomad_sync.txt')
-	except Exception as e:
+	except:
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_sync.txt'))
 		exit(1)
 	
 	try:
 		verify_template = env.get_template('nomad_verify.txt')
-	except Exception as e:
+	except:
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_scan.txt'))
 		exit(1)
 	
@@ -829,7 +831,7 @@ def create_nomad_jobs():
 							f = open(robocopylogpath)
 							robocopyunicodelogpath = f.readline().rstrip()
 							f.close()                        
-						except Exception as e:
+						except:
 							logging.debug("robocopy unicode log path cannot be opened: " + robocopylogpath)	
 						
 						if robocopyunicodelogpath != '':
@@ -847,7 +849,7 @@ def create_nomad_jobs():
 								robocopyexcludedirs = " /XD "+ ' '.join(excludepaths)
 								f.close()                        
 								logging.debug("exclude directories for robocopy: " + robocopyexcludedirs)
-							except Exception as e:
+							except:
 								logging.error("exclude directories file cannot be parsed: " + robocopylogpath)	
 								exit(1)
 
@@ -921,7 +923,7 @@ def check_baseline_job_status (baselinejobname):
 	baselinejob = {}
 	try:	
 		baselinejob = n.job.get_job(baselinejobname)
-	except Exception as e:
+	except:
 		baselinejob = None
 
 	if not baselinejob and not os.path.exists(baselinecachedir):
@@ -973,7 +975,7 @@ def start_nomad_jobs(action, force):
                     
 					try:	
 						job = n.job.get_job(nomadjobname)
-					except Exception as e:
+					except:
 						job = ''
 					if job:
 						logging.debug("job name:"+nomadjobname+" already exists") 
@@ -1006,14 +1008,14 @@ def start_nomad_jobs(action, force):
 									logging.debug("delete baseline cache dir:"+baselinecachedir)
 									try:
 										rmout = shutil.rmtree(baselinecachedir) 
-									except Exception as e:
+									except:
 										logging.error("could not delete baseline cache dir:"+baselinecachedir)								
 
 								#pausing sync job if exists 
 								syncjobname = jobdetails['sync_job_name']
 								try:	
 									syncjob = n.job.get_job(syncjobname)
-								except Exception as e:
+								except:
 									syncjob = False
 								
 								if syncjob:
@@ -1084,7 +1086,7 @@ def start_nomad_jobs(action, force):
 
 								try:
 									verify_template = env.get_template('nomad_verify.txt')
-								except Exception as e:
+								except:
 									logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_scan.txt'))
 									exit(1)
 								with open(verify_job_file, 'w') as fh:
@@ -1104,7 +1106,7 @@ def start_nomad_jobs(action, force):
 
 							try:
 								nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
-							except Exception as e:
+							except:
 								logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+jobfile+ " for more details") 
 								exit(1)
 
@@ -1132,7 +1134,7 @@ def start_nomad_jobs(action, force):
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
 								job = n.job.get_job(nomadjobname)
-							except Exception as e:
+							except:
 								logging.error("job:"+nomadjobname+" creation failed") 
 								exit(1)
 
@@ -1161,13 +1163,9 @@ def start_nomad_jobs(action, force):
 #     return lines
 
 def tail (file,n=1):
-	tailfile = ''
-	if os.path.isfile:
-		logging.debug("starting log tail:"+file)
-		tailfile = subprocess.check_output(['tail','-'+str(n),file])
-		logging.debug("ending log tail")
-	else:
-		logging.debug("can't tail:"+file)
+	logging.debug("starting log tail:"+file)
+	tailfile = subprocess.check_output(['tail','-'+str(n),file])
+	logging.debug("ending log tail")
 
 	return tailfile.splitlines(True)
 
@@ -1189,13 +1187,12 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			logfilesize = os.path.getsize(logfilepath)			
 
 			lines = tail(logfilepath,maxloglinestodisplay)
-			seperator = b""
-			results['content'] = seperator.join(lines).decode("utf-8")
+			seperator = ""
+			results['content'] = seperator.join(lines)
 			results['logfilepath'] = logfilepath
 			results['logfilesize'] = logfilesize
 
-		except Exception as e:
-			#print(e)
+		except:
 			logging.debug("cannot read log file:"+logfilepath)	
 
 		#store also other logtype
@@ -1218,18 +1215,18 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			logfilesize = os.path.getsize(otherlogfilepath)			
 
 			lines = tail(otherlogfilepath,maxloglinestodisplay)
-			seperator = b""
-			results['contentotherlog'] = seperator.join(lines).decode("utf-8")
+			seperator = ""
+			results['contentotherlog'] = seperator.join(lines)
 			results['logfileotherpath'] = otherlogfilepath
 			results['logfileothersize'] = logfilesize
-		except Exception as e:
+		except:
 			logging.debug("cannot read other log file:"+otherlogfilepath)							
 			results['contentotherlog'] = ''
 	elif type == 'alloc':						
 		#try to get the log file using api
 		allocid = name
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+task+'&type='+logtype+'&plain=true')
-		if response.ok and re.search(r"\d", response.content, re.M|re.I):
+		if response.ok and re.search("\d", response.content, re.M|re.I):
 			logging.debug("log for job:"+allocid+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
@@ -1270,7 +1267,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['bwout'] = match.group(1)
 		#if otherloglastline != '' and lastline == '':
         #xcp for windiws displays the summary in the stderr when there are errors 
-		if otherloglastline != '':
+        if otherloglastline != '':
 			lastline = otherloglastline	
 	
 	#for xcp logs 	
@@ -1388,7 +1385,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 #			# Writing JSON data
 #			with open(logjsonfile, 'w') as f:
 #				json.dump(results, f)
-#		except Exception as e:
+#		except:
 #			logging.debug("failed storing log data in json file:"+logjsonfile)								
 	logging.debug("ending log parsing type:"+type+" name:"+name+" type:"+type)
 	return results
@@ -1421,15 +1418,14 @@ def sec_to_time(sec):
 
 #truncate the middle of a string
 def truncate_middle(s, n):
-	
-	if len(s) <= n:
-		# string is already short-enough
-		return s
-	# half of the size, minus the 3 .'s
-	n_2 = int(int(n) / 2 - 3)
-	# whatever's left
-	n_1 = int(n - n_2 - 3)
-	return '{0}...{1}'.format(s[:n_1], s[-n_2:])
+    if len(s) <= n:
+        # string is already short-enough
+        return s
+    # half of the size, minus the 3 .'s
+    n_2 = int(n) / 2 - 3
+    # whatever's left
+    n_1 = n - n_2 - 3
+    return '{0}...{1}'.format(s[:n_1], s[-n_2:])
 
 #create eneral status json 
 def addtogeneralstatusjson(details,jsongeneraldict):
@@ -1502,7 +1498,7 @@ def create_csv_status (jsondict):
 					writer.writerow([job,src,jobdetails['dst'],jobdetails['cron'],jobdetails['cpu'],jobdetails['memory'],jobdetails['tool'],jobdetails['excludedirfile'],
 						phase['phase'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],
 						phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status'],phase['stderrlogpath'],phase['stdoutlogpath']])
-	except Exception as e:
+	except:
 		logging.error("error creating csv file:"+csvfile)
 		exit(1)
 
@@ -1511,7 +1507,7 @@ def create_csv_status (jsondict):
 def create_general_status (jsongeneraldict):
 	
 	if len(jsongeneraldict) == 0:
-		print("no data found")
+		print "no data found"
 		return
 
 	#build the table object
@@ -1525,36 +1521,36 @@ def create_general_status (jsongeneraldict):
 	
 	table.border = False
 	table.align = 'l'
-	print("\n BL=Baseline SY=Sync VR=Verify\n")
-	print(table)
+	print "\n BL=Baseline SY=Sync VR=Verify\n"
+	print table
 	
 
 #create verbose status 
 def create_verbose_status (jsondict, displaylogs=False):
 
-	print('')
+	print ''
 
 	for job in jsondict:
 		for src in jsondict[job]:
 			jobdetails = copy.deepcopy(jsondict[job][src])
 
 			#print general information 
-			print(("JOB: "+job))
-			print(("SRC: "+src))
-			print(("DST: "+jobdetails['dst']))
+			print "JOB: "+job
+			print  "SRC: "+src
+			print  "DST: "+jobdetails['dst']
 
 			nextrun = get_next_cron_time(jobdetails['cron'])
 			if 'paused' in jobdetails:
 				nextrun = 'paused'
-			print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"))
+			print  "SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"
 
-			print(("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'))
+			print "RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'
 
-			if jobdetails['ostype'] =='linux': print(("XCP INDEX NAME: "+jobdetails['xcpindexname']))
-			if jobdetails['excludedirfile'] != '': print(("EXCLUDE DIRS FILE: "+jobdetails['excludedirfile']))
-			print(("OS: "+jobdetails['ostype'].upper()))
-			if jobdetails['ostype']=='windows': print(("TOOL NAME: "+jobdetails['tool']))
-			print("")
+			if jobdetails['ostype'] =='linux': print  "XCP INDEX NAME: "+jobdetails['xcpindexname']
+			if jobdetails['excludedirfile'] != '': print  "EXCLUDE DIRS FILE: "+jobdetails['excludedirfile']
+			print  "OS: "+jobdetails['ostype'].upper()
+			if jobdetails['ostype']=='windows': print  "TOOL NAME: "+jobdetails['tool']
+			print  ""
 
 			if len(jobdetails['phases']) > 0:
 				begining = True 
@@ -1569,29 +1565,29 @@ def create_verbose_status (jsondict, displaylogs=False):
 					if displaylogs:
 						verbosetable.border = False
 						verbosetable.align = 'l'
-						print((verbosetable.get_string(sortby="Start Time")))
-						print("")
+						print verbosetable.get_string(sortby="Start Time")
+						print ""
 
 						for logtype in ['stdout','stderr']:
-							print(("Log type:"+logtype))
+							print "Log type:"+logtype
 							if phase[logtype+'logexists']:
-								print((phase[logtype+'logcontent']))
-								print(("the last "+str(maxloglinestodisplay)+" lines are displayed"))
-								print(("full log file path: " +phase[logtype+'logpath']))
+								print phase[logtype+'logcontent']
+								print "the last "+str(maxloglinestodisplay)+" lines are displayed"
+								print "full log file path: " +phase[logtype+'logpath']
 							else:
-								print(("log:"+logtype+" is not available"))
-								print("")
+								print "log:"+logtype+" is not available"
+								print ""
 						
-						print("")
+						print ""
 			else:
-				print(" no data found")
-				print("")
+				print " no data found"
+				print ""
 
 			if not displaylogs and len(jobdetails['phases']) > 0:
 				verbosetable.border = False
 				verbosetable.align = 'l'
-				print((verbosetable.get_string(sortby="Start Time")))
-				print("")
+				print verbosetable.get_string(sortby="Start Time")
+				print ""
 
 
 #create general status
@@ -1617,17 +1613,17 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 	try:
 		jobs  = n.jobs.get_jobs()
-	except Exception as e:
+	except:
 		logging.error('cannot get nomad job list')
 		exit(1)
 	try:
 		allocs = n.allocations.get_allocations()
-	except Exception as e:
+	except:
 		logging.error('cannot get alloc list')
 		exit(1)
 	try:
 		nodes = n.nodes.get_nodes()
-	except Exception as e:
+	except:
 		logging.error('cannot get node list')
 		exit(1)
 
@@ -1703,7 +1699,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								with open(baselinealloccachefile) as f:
 									logging.debug('loading cached info alloc file:'+baselinealloccachefile)
 									allocdata = json.load(f)
-									if int(allocdata['CreateTime']) > allocperiodiccounter:
+									if allocdata['CreateTime'] > allocperiodiccounter:
 										allocperiodiccounter = allocdata['CreateTime'] 
 										baselinestatus = allocdata['ClientStatus']
 										baselinefound  = True
@@ -1712,11 +1708,11 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								baselinelogcachefile = os.path.join(baselinecachedir,file)
 								logging.debug('loading cached info log file:'+baselinelogcachefile) 
 								baselinestatsresults = parse_stats_from_log('file',baselinelogcachefile,logtype)
-								if 'time' in list(baselinestatsresults.keys()): 
+								if 'time' in baselinestatsresults.keys(): 
 									baselinetime = baselinestatsresults['time']
-								if 'bwout' in list(baselinestatsresults.keys()): 
+								if 'bwout' in baselinestatsresults.keys(): 
 									baselinesent = baselinestatsresults['bwout']
-								if 'failure' in list(baselinestatsresults.keys()):
+								if 'failure' in baselinestatsresults.keys():
 									baselinestatus = 'failed'
 
 							if file.startswith("warning."):
@@ -1762,7 +1758,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 										syncsched = 'paused'
 										jobsdict[jobname][src]['paused'] = True 
 
-									if 'job' not in syncjobsstructure:
+									if not syncjobsstructure.has_key('job'):
 										syncjobsstructure['job'] = {}
 									syncjobsstructure['job'] = jobdata
 
@@ -1772,17 +1768,16 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									with open(synccachefile) as f:
 										logging.debug('loading cached info periodic file:'+synccachefile)
 										jobdata = json.load(f)
-									
-										if int(file.split('-')[1]) > int(syncperiodiccounter):										
+										if file.split('-')[1] > syncperiodiccounter:										
 											syncstatus = jobdata['Status']
 											joblastdetails = jobdata
 											syncperiodiccounter = file.split('-')[1]
-										if 'periodics' not in syncjobsstructure:
+										if not syncjobsstructure.has_key('periodics'):
 											syncjobsstructure['periodics'] = {}
 										syncjobsstructure['periodics'][jobdata['ID']] = {}											
 										syncjobsstructure['periodics'][jobdata['ID']] = jobdata
 										synccounter+=1
-								except Exception as e:
+								except:
 									logging.debug("file:"+synccachefile+" no longer exists")
 
 							if file.startswith("alloc_"):
@@ -1791,26 +1786,26 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									with open(syncalloccachefile) as f:
 										logging.debug('loading cached info alloc file:'+syncalloccachefile)
 										allocdata = json.load(f)
-										if int(allocdata['CreateTime']) > allocperiodiccounter:
+										if allocdata['CreateTime'] > allocperiodiccounter:
 											allocperiodiccounter = allocdata['CreateTime'] 
 											alloclastdetails = allocdata
-										if 'allocs' not in syncjobsstructure:
+										if not syncjobsstructure.has_key('allocs'):
 											syncjobsstructure['allocs'] = {}										
 										syncjobsstructure['allocs'][allocdata['ID']] = {}
 										syncjobsstructure['allocs'][allocdata['ID']] = allocdata
-								except Exception as e:
+								except:
 									logging.debug("file:"+syncalloccachefile+" no longer exists")
 
 						for file in os.listdir(synccachedir):
 							if file.startswith(logtype+"log_"):
 								synclogcachefile = os.path.join(synccachedir,file)
 								logallocid = file.replace(logtype+'log_','').replace('.log','')
-								if 'allocs' not in syncjobsstructure:
+								if not syncjobsstructure.has_key('allocs'):
 									syncjobsstructure['allocs'] = {}
-								if logallocid in syncjobsstructure['allocs']:
+								if syncjobsstructure['allocs'].has_key(logallocid):
 									logging.debug('loading cached info log file:'+synclogcachefile)
 									statsresults = parse_stats_from_log('file',synclogcachefile,logtype)							
-									if 'logs' not in syncjobsstructure: syncjobsstructure['logs'] = {}
+									if not syncjobsstructure.has_key('logs'): syncjobsstructure['logs'] = {}
 									syncjobsstructure['logs'][logallocid] = {}										
 									syncjobsstructure['logs'][logallocid] = statsresults
 
@@ -1821,10 +1816,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 						synclogcachefile = os.path.join(synccachedir,logtype+'log_'+alloclastdetails['ID']+'.log')
 						statsresults = parse_stats_from_log('file',synclogcachefile,logtype)
-						if 'time' in list(statsresults.keys()): synctime = statsresults['time']
-						if 'bwout' in list(statsresults.keys()): syncsent = statsresults['bwout']
-						if 'lastline' in list(statsresults.keys()): synclastline = statsresults['lastline']
-						if 'failure' in list(statsresults.keys()): syncstatus = 'failed'
+						if 'time' in statsresults.keys(): synctime = statsresults['time']
+						if 'bwout' in statsresults.keys(): syncsent = statsresults['bwout']
+						if 'lastline' in statsresults.keys(): synclastline = statsresults['lastline']
+						if 'failure' in statsresults.keys(): syncstatus = 'failed'
 
 						syncstatus =  alloclastdetails['ClientStatus']
 						if joblastdetails['Status'] in ['pending','running']: syncstatus =  joblastdetails['Status']
@@ -1875,7 +1870,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									logging.debug('loading cached info job file:'+verifycachefile)
 									jobdata = json.load(f)
 									if jobdata['Stop']: verifysched = 'paused'
-									if 'job' not in verifyjobsstructure:
+									if not verifyjobsstructure.has_key('job'):
 										verifyjobsstructure['job'] = {}
 									verifyjobsstructure['job'] = jobdata
 
@@ -1884,11 +1879,11 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								with open(verifycachefile) as f:
 									logging.debug('loading cached info periodic file:'+verifycachefile)
 									jobdata = json.load(f)
-									if int(file.split('-')[1]) > int(verifyperiodiccounter):
+									if file.split('-')[1] > verifyperiodiccounter:										
 										verifystatus = jobdata['Status']
 										verifyjoblastdetails = jobdata
 										verifyperiodiccounter = file.split('-')[1]
-									if 'periodics' not in verifyjobsstructure:
+									if not verifyjobsstructure.has_key('periodics'):
 										verifyjobsstructure['periodics'] = {}
 									verifyjobsstructure['periodics'][jobdata['ID']] = {}											
 									verifyjobsstructure['periodics'][jobdata['ID']] = jobdata
@@ -1899,10 +1894,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								with open(verifyalloccachefile) as f:
 									logging.debug('loading cached info alloc file:'+verifyalloccachefile)
 									allocdata = json.load(f)
-									if int(allocdata['CreateTime']) > verifyallocperiodiccounter:
+									if allocdata['CreateTime'] > verifyallocperiodiccounter:
 										verifyallocperiodiccounter = allocdata['CreateTime'] 
 										verifyalloclastdetails = allocdata
-									if 'allocs' not in verifyjobsstructure:
+									if not verifyjobsstructure.has_key('allocs'):
 										verifyjobsstructure['allocs'] = {}										
 									verifyjobsstructure['allocs'][allocdata['ID']] = {}
 									verifyjobsstructure['allocs'][allocdata['ID']] = allocdata
@@ -1915,13 +1910,13 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								logallocid = file.replace(logtype+'log_','').replace('.log','')
 								logging.debug('loading cached info log file:'+verifylogcachefile)
 								verifystatsresults = parse_stats_from_log('file',verifylogcachefile,logtype)
-								if 'time' in list(verifystatsresults.keys()): 
+								if 'time' in verifystatsresults.keys(): 
 									verifytime = verifystatsresults['time']
-								if 'bwout' in list(verifystatsresults.keys()): 
+								if 'bwout' in verifystatsresults.keys(): 
 									verifysent = verifystatsresults['bwout']
-								if 'found' in list(verifystatsresults.keys()): 
+								if 'found' in verifystatsresults.keys(): 
 									verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']	
-								if 'logs' not in verifyjobsstructure:
+								if not verifyjobsstructure.has_key('logs'):
 									verifyjobsstructure['logs'] = {}
 								verifyjobsstructure['logs'][logallocid] = {}										
 								verifyjobsstructure['logs'][logallocid] = verifystatsresults
@@ -1935,10 +1930,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 						verifylogcachefile = os.path.join(verifycachedir,'stdoutlog_'+verifyalloclastdetails['ID']+'.log')
 						verifystatsresults = parse_stats_from_log('file',verifylogcachefile,logtype)
-						if 'time' in list(verifystatsresults.keys()): verifytime = verifystatsresults['time']
-						if 'lastline' in list(verifystatsresults.keys()): verifylastline = verifystatsresults['lastline']
-						if 'found' in list(verifystatsresults.keys()): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
-						if 'failure' in list(verifystatsresults.keys()): verifystatus = 'failed'
+						if 'time' in verifystatsresults.keys(): verifytime = verifystatsresults['time']
+						if 'lastline' in verifystatsresults.keys(): verifylastline = verifystatsresults['lastline']
+						if 'found' in verifystatsresults.keys(): verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']						
+						if 'failure' in verifystatsresults.keys(): verifystatus = 'failed'
 						verifystatus =  verifyalloclastdetails['ClientStatus']
 
 						if verifyjoblastdetails['Status'] in ['pending','running']: verifystatus =  verifyjoblastdetails['Status']
@@ -1958,14 +1953,14 @@ def create_status (reporttype,displaylogs=False, output='text'):
 							if verifystatus != 'running' and ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
 							
 							if verifystatus == 'idle' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
-						except Exception as e:
+						except:
 							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
 
-						try:
-							verifystarttime = verifyalloclastdetails['TaskStates']['verify']['StartedAt']
-							verifystarttime = verifystarttime.split('T')[0]+' '+verifystarttime.split('T')[1].split('.')[0]
-						except Exception as e:
-							verifystarttime = '-'
+			 			try:
+			 				verifystarttime = verifyalloclastdetails['TaskStates']['verify']['StartedAt']
+			 				verifystarttime = verifystarttime.split('T')[0]+' '+verifystarttime.split('T')[1].split('.')[0]
+			 			except:
+			 				verifystarttime = '-'
 						
 						#check to see if the log file includes warnings
 						if os.path.isfile(os.path.join(verifycachedir,'warning.'+verifyalloclastdetails['JobID'].split('/')[1])):
@@ -1982,7 +1977,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					try:
 						if args.jobstatus and not baselinestatus.startswith(args.jobstatus) and not syncstatus.startswith(args.jobstatus) and not verifystatus.startswith(args.jobstatus):
 							addrow = False 
-					except Exception as e:
+					except:
 						logging.debug("filter was not passed")
 				
 
@@ -1997,73 +1992,73 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						#keep pending status since pending don't have alloc and we need to reflect in status 
 						baselinestatus1=''
 						if baselinestatus == 'pending': baselinestatus1 = 'pending'
-						#for baseline 
-						if (baselinejob and baselinealloc) or baselinestatus == 'pending':
-							task = 'baseline'
-							try:
-								starttime = baselinealloc['TaskStates']['baseline']['StartedAt']
-								starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]
-							except Exception as e:
-								starttime = '-'
+					 	#for baseline 
+					 	if (baselinejob and baselinealloc) or baselinestatus == 'pending':
+			 				task = 'baseline'
+				 			try:
+				 				starttime = baselinealloc['TaskStates']['baseline']['StartedAt']
+				 				starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]
+				 			except:
+				 				starttime = '-'
 
-							try:
-								endtime = baselinealloc['TaskStates']['baseline']['FinishedAt']
-								endtime = endtime.split('T')[0]+' '+endtime.split('T')[1].split('.')[0]
-							except Exception as e:
-								endtime = '-'
+				 			try:
+				 				endtime = baselinealloc['TaskStates']['baseline']['FinishedAt']
+				 				endtime = endtime.split('T')[0]+' '+endtime.split('T')[1].split('.')[0]
+				 			except:
+				 				endtime = '-'
 
-							try:
-								duration = baselinestatsresults['time']
-							except Exception as e:
-								duration = '-'
+				 			try:
+				 				duration = baselinestatsresults['time']
+				 			except:
+				 				duration = '-'
 
-							try:
-								scanned = baselinestatsresults['scanned']
-							except Exception as e:
-								scanned = '-'
+				 			try:
+				 				scanned = baselinestatsresults['scanned']
+				 			except:
+				 				scanned = '-'
 
 							try:
 								reviewed = baselinestatsresults['reviewed']
-							except Exception as e:
+							except:
 								reviewed = '-'
  				
-							try:
-								copied = baselinestatsresults['copied']
-							except Exception as e:
-								copied = '-'
+				 			try:
+				 				copied = baselinestatsresults['copied']
+				 			except:
+				 				copied = '-'
 
-							try:
-								deleted = baselinestatsresults['gone']
-							except Exception as e:
-								deleted = '-'
+				 			try:
+				 				deleted = baselinestatsresults['gone']
+				 			except:
+				 				deleted = '-'
 
-							try:
-								modified = baselinestatsresults['modification']
-							except Exception as e:
-								modified = '-'						 										 				
+				 			try:
+				 				modified = baselinestatsresults['modification']
+				 			except:
+				 				modified = '-'						 										 				
 
-							try:
-								errors = baselinestatsresults['errors']
-							except Exception as e:
-								errors = '-'
+				 			try:
+				 				errors = baselinestatsresults['errors']
+				 			except:
+				 				errors = '-'
 
-							verifyratio = '-'
+				 			verifyratio = '-'
 
-							try:
-								sent = baselinestatsresults['bwout']
-							except Exception as e:
-								sent = '-'
+				 			try:
+				 				sent = baselinestatsresults['bwout']
+				 			except:
+				 				sent = '-'
 
 							try:
 								nodeid = baselinealloc['NodeID']
 								if nodeid:
 									for node in nodes:
 										if node['ID'] == nodeid: nodename = node['Name']
-							except Exception as e:
+							except:
 								nodeid = ''
 
-							try:
-								baselinestatus =  baselinealloc['ClientStatus']
+				 			try:
+					 			baselinestatus =  baselinealloc['ClientStatus']
 								if baselinejob['Status'] in ['pending','running']: baselinestatus =  baselinejob['Status']
 								if baselinejob['Status'] == 'dead' and baselinejob['Stop']: baselinestatus = 'aborted'
 
@@ -2077,7 +2072,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								#if os.path.isfile(os.path.join(baselinecachedir,'error.'+baselinealloc['JobID'].split('/')[1])):
 								#	baselinestatus = 'failed'
 
-							except Exception as e:
+							except:
 								baselinestatus = '-'
 							
 							#restore pending status when alloc not yet created 
@@ -2099,7 +2094,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 										addrow = False
 								if args.error and errors == '-':
 									addrow = False								
-							except Exception as e:
+							except:
 								logging.debug("filter was not passed")
 
 							if addrow:								
@@ -2128,139 +2123,140 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 						#merge sync and verify data 
 						jobstructure=syncjobsstructure.copy()
-						if 'periodics' in list(verifyjobsstructure.keys()):
-							if not 'periodics' in list(jobstructure.keys()):
+						if 'periodics' in verifyjobsstructure.keys():
+							if not 'periodics' in jobstructure.keys():
 								jobstructure['periodics']={}
 							jobstructure['periodics'].update(verifyjobsstructure['periodics'])
-						if 'allocs' in list(verifyjobsstructure.keys()):
-							if not 'allocs' in list(jobstructure.keys()):
+						if 'allocs' in verifyjobsstructure.keys():
+							if not 'allocs' in jobstructure.keys():
 								jobstructure['allocs']={}							
 							jobstructure['allocs'].update(verifyjobsstructure['allocs'])
-						if 'logs' in list(verifyjobsstructure.keys()):
-							if not 'logs' in list(jobstructure.keys()):
+						if 'logs' in verifyjobsstructure.keys():
+							if not 'logs' in jobstructure.keys():
 								jobstructure['logs']={}								
 							jobstructure['logs'].update(verifyjobsstructure['logs'])
 
-						#for each periodic 					 	
-						synccounter = 1
-						verifycounter = 1
-						if 'periodics' in list(jobstructure.keys()):
-							for periodic in sorted(jobstructure['periodics'].keys()):
-								jobstatus = '-'
-								currentperiodic = jobstructure['periodics'][periodic]
-								
-								tasktype = ''
-								if periodic.startswith('sync'):   
-									task = 'sync' + str(synccounter)
-									tasktype = 'sync'
-									synccounter+=1
-								if periodic.startswith('verify'): 
-									task = 'verify'+str(verifycounter)
-									verifycounter+=1
-									tasktype = 'verify'	
+					 	#for each periodic 					 	
+					 	synccounter = 1
+					 	verifycounter = 1
+					 	if 'periodics' in jobstructure.keys():
+						 	for periodic in sorted(jobstructure['periodics'].keys()):
+						 		jobstatus = '-'
+						 		currentperiodic = jobstructure['periodics'][periodic]
+				 				
+				 				tasktype = ''
+				 				if periodic.startswith('sync'):   
+				 					task = 'sync' + str(synccounter)
+				 					tasktype = 'sync'
+				 					synccounter+=1
+				 				if periodic.startswith('verify'): 
+				 					task = 'verify'+str(verifycounter)
+				 					verifycounter+=1
+				 					tasktype = 'verify'	
 
-								jobstatus = currentperiodic['Status']
+				 				jobstatus = currentperiodic['Status']
+				 				
+				 				starttime = 'future'
+				 				endtime = '-'
+				 				duration = '-'
+				 				reviewed = '-'
+				 				scanned = '-'
+				 				copied = '-'
+				 				deleted = '-'
+				 				modified = '-'
+				 				errors = '-'
+				 				sent = '-'
+				 				nodename = '-'
 								
-								starttime = 'future'
-								endtime = '-'
-								duration = '-'
-								reviewed = '-'
-								scanned = '-'
-								copied = '-'
-								deleted = '-'
-								modified = '-'
-								errors = '-'
-								sent = '-'
-								nodename = '-'								
 								currentlog = {}
 
-								for allocid in jobstructure['allocs']:
-									if jobstructure['allocs'][allocid]['JobID'] == periodic:
-										currentalloc = jobstructure['allocs'][allocid]
-										currentlog = {}
-										
-										if allocid in list(jobstructure['logs'].keys()):
-											currentlog = jobstructure['logs'][allocid]
+						 		for allocid in jobstructure['allocs']:
+						 			if jobstructure['allocs'][allocid]['JobID'] == periodic:
+						 				currentalloc = jobstructure['allocs'][allocid]
+						 				currentlog = {}
+						 				
+						 				if allocid in jobstructure['logs'].keys():
+						 					currentlog = jobstructure['logs'][allocid]
 
 										if tasktype == 'verify' and 'content' in currentlog:
 											if re.search(dst+" "+src,currentlog['content']):
 												task = 'verify'+str(verifycounter-1)+'(reverse)'
 
-										try:
-											starttime = currentalloc['TaskStates'][tasktype]['StartedAt']
-											starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]
-										except Exception as e:
-											starttime = '-'
+							 			try:
+							 				starttime = currentalloc['TaskStates'][tasktype]['StartedAt']
+							 				starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]
+							 			except:
+							 				starttime = '-'
 
-										try:
-											endtime = currentalloc['TaskStates'][tasktype]['FinishedAt']
-											endtime = endtime.split('T')[0]+' '+endtime.split('T')[1].split('.')[0]
-										except Exception as e:
-											endtime = '-'
+							 			try:
+							 				endtime = currentalloc['TaskStates'][tasktype]['FinishedAt']
+							 				endtime = endtime.split('T')[0]+' '+endtime.split('T')[1].split('.')[0]
+							 			except:
+							 				endtime = '-'
 
-										try:
-											duration = currentlog['time']
-										except Exception as e:
-											duration = '-'
+							 			try:
+							 				duration = currentlog['time']
+							 			except:
+							 				duration = '-'
 
-										try:
-											reviewed = currentlog['reviewed']
-										except Exception as e:
-											reviewed = '-'
+							 			try:
+							 				reviewed = currentlog['reviewed']
+							 			except:
+							 				reviewed = '-'
 							 				
 										try:
 											scanned = currentlog['scanned']
 											if tasktype == 'verify': scanned = currentlog['found']+'/'+currentlog['scanned']
-										except Exception as e:
+										except:
 											scanned = '-'
 
-										try:
-											copied = currentlog['copied']
-										except Exception as e:
-											copied = '-'
+							 			try:
+							 				copied = currentlog['copied']
+							 			except:
+							 				copied = '-'
 
-										try:
-											deleted = currentlog['gone']
-										except Exception as e:
-											deleted = '-'
+							 			try:
+							 				deleted = currentlog['gone']
+							 			except:
+							 				deleted = '-'
 
-										try:
-											modified = currentlog['modification']
-										except Exception as e:
-											modified = '-'						 										 				
+							 			try:
+							 				modified = currentlog['modification']
+							 			except:
+							 				modified = '-'						 										 				
 
-										try:
-											errors = currentlog['errors']
-											if tasktype == 'verify':
-												try:
-													diffattr = currentlog['diffattr']
-												except Exception as e:
-													diffattr = '0'								 					
+							 			try:
+							 				errors = currentlog['errors']
+							 				if tasktype == 'verify':
+									 			try:
+									 				diffattr = currentlog['diffattr']
+									 			except:
+									 				diffattr = '0'								 					
 
-												try:
-													diffmodtime = currentlog['diffmodtime']
-												except Exception as e:
-													diffmodtime = '0'
+									 			try:
+									 				diffmodtime = currentlog['diffmodtime']
+									 			except:
+									 				diffmodtime = '0'
 
 												errors = errors+' (attr:'+diffattr+' time:'+diffmodtime+')'
-										except Exception as e:
-											errors = '-'	
+							 			except:
+							 				errors = '-'	
 
-										try:
-											sent = currentlog['bwout']
-										except Exception as e:
-											sent = '-'
+							 			try:
+							 				sent = currentlog['bwout']
+							 			except:
+							 				sent = '-'
 
 										try:
 											nodeid = currentalloc['NodeID']
 											if nodeid:
 												for node in nodes:
 													if node['ID'] == nodeid: nodename = node['Name']
-										except Exception as e:
+										except:
 											nodeid = ''
 
-										try:
-											jobstatus =  currentalloc['ClientStatus']
+							 			try:
+								 			jobstatus =  currentalloc['ClientStatus']
 											if currentperiodic['Status'] in ['pending','running']: jobstatus =  currentperiodic['Status']
 
 											if tasktype == 'verify' and jobstatus != 'running':
@@ -2281,13 +2277,13 @@ def create_status (reporttype,displaylogs=False, output='text'):
 												if os.path.isfile(os.path.join(currentjobcachedir,'error.'+currentalloc['JobID'].split('/')[1])):
 													jobstatus = 'failed'	
 
-										except Exception as e:
+										except:
 											jobstatus = '-'
 
 										try:
 											#job failed but did not exit with error 
-											if 'failure' in list(currentlog.keys()): jobstatus = 'failed'
-										except Exception as e:
+											if 'failure' in currentlog.keys(): jobstatus = 'failed'
+										except:
 											pp.pprint(currentlog)											
 										
 
@@ -2314,7 +2310,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 											addrow = False
 									if args.error and errors == '-':
 										addrow = False
-								except Exception as e:
+								except:
 									logging.debug("filter was not passed")
 													
 								if addrow:
@@ -2356,13 +2352,13 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 	if reporttype == 'verbose':
 		if output == 'text':
-			if len(list(jsondict.keys())) > 0:
+			if len(jsondict.keys()) > 0:
 				create_verbose_status(jsondict,displaylogs)
 			else:
-				print("no data found")				
+				print "no data found"				
 
 		elif output == 'json':
-			print((json.dumps(jsondict)))
+			print json.dumps(jsondict)
 		elif output == 'csv':
 			create_csv_status(jsondict)
 
@@ -2403,7 +2399,7 @@ def update_nomad_job_status(action):
 					try:	
 						job = n.job.get_job(nomadjobname)
 
-					except Exception as e:
+					except:
 						job = ''
 					
 					if not job:
@@ -2415,7 +2411,7 @@ def update_nomad_job_status(action):
 						syncjobdetails = {}
 						try:
 							syncjobdetails = n.job.get_job(nomadjobname)
-						except Exception as e:
+						except:
 							logging.error("cannot get job:"+nomadjobname+" details")
 
 						jobfile = os.path.join(jobdir,nomadjobname+'.hcl')		
@@ -2438,7 +2434,7 @@ def update_nomad_job_status(action):
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
 								job = n.job.get_job(nomadjobname)
-							except Exception as e:
+							except:
 								logging.error("job:"+nomadjobname+" update failed") 
 								exit(1)
 						elif action in ['pause','resume'] and currentstopstatus == action:
@@ -2455,7 +2451,7 @@ def update_nomad_job_status(action):
 									for prefixjob in prefixjobs:
 										if prefixjob["Status"] == 'running':
 											already_running = True 
-								except Exception as e:
+								except:
 									logging.debug("could not get job periodics for job:"+nomadjobname) 
 
 								if already_running:
@@ -2468,7 +2464,7 @@ def update_nomad_job_status(action):
 										nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 										try:
 											job = n.job.get_job(nomadjobname)
-										except Exception as e:
+										except:
 											logging.error("job:"+nomadjobname+" update failed") 
 											exit(1)
 
@@ -2484,7 +2480,7 @@ def update_nomad_job_status(action):
 										nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 										try:
 											job = n.job.get_job(nomadjobname)
-										except Exception as e:
+										except:
 											logging.error("job:"+nomadjobname+" update failed") 
 											exit(1)
 
@@ -2503,7 +2499,7 @@ def query_yes_no(question, default="no"):
 
     while True:
         sys.stdout.write(question + prompt)
-        choice = input().lower()
+        choice = raw_input().lower()
         if default is not None and choice == '':
             return valid[default]
         elif choice in valid:
@@ -2532,7 +2528,7 @@ def delete_job_by_prefix(prefix):
 						try:
 							logging.debug('trying to delete temp alloc log directory:'+allocationlogs)
 							rmout = shutil.rmtree(allocationlogs) 
-						except Exception as e:
+						except:
 							logging.debug('could not delete temp alloc directory'+allocationlogs)
 							exit(1)
 
@@ -2589,7 +2585,7 @@ def delete_jobs(forceparam):
 							logging.debug("delete xcp repo from:"+indexpath)
 							try:
 								rmout = shutil.rmtree(indexpath) 
-							except Exception as e:
+							except:
 								logging.error("could not delete xcp repo from:"+indexpath) 
 
 						baselinecachedir = os.path.join(cachedir,'job_'+baselinejobname)
@@ -2597,7 +2593,7 @@ def delete_jobs(forceparam):
 							logging.debug("delete baseline cache dir:"+baselinecachedir)
 							try:
 								rmout = shutil.rmtree(baselinecachedir) 
-							except Exception as e:
+							except:
 								logging.error("could not delete baseline cache dir:"+baselinecachedir)
 
 						synccachedir = os.path.join(cachedir,'job_'+syncnomadjobname)
@@ -2605,7 +2601,7 @@ def delete_jobs(forceparam):
 							logging.debug("delete sync cache dir:"+synccachedir)
 							try:
 								rmout = shutil.rmtree(synccachedir) 
-							except Exception as e:
+							except:
 								logging.error("could not delete sync cache dir:"+synccachedir)
 
 						verifycachedir = os.path.join(cachedir,'job_'+verifyjobname)
@@ -2613,7 +2609,7 @@ def delete_jobs(forceparam):
 							logging.debug("delete verify cache dir:"+verifyjobname)
 							try:
 								rmout = shutil.rmtree(verifycachedir)
-							except Exception as e:
+							except:
 								logging.error("could not delete verify cache dir:"+verifycachedir)
 
 						# if excludedirfile != '':
@@ -2633,7 +2629,7 @@ def delete_jobs(forceparam):
 							with open(jobdictjson, 'w') as fp:
 								json.dump(jobsdictcopy, fp)
 							fp.close()
-						except Exception as e:
+						except:
 							logging.error("cannot write job json file:"+jobdictjson)
 							exit(1)						
 
@@ -2709,8 +2705,8 @@ def nomadstatus():
 		
 		table.border = False
 		table.align = 'l'
-		print("")
-		print(table)			
+		print ""
+		print table			
 
 #check if nomad is available + run the xcption_gc_system job if not available 
 def check_nomad():
@@ -2737,7 +2733,7 @@ def check_nomad():
 
 				try:
 					gc_template = env.get_template('xcption_gc_system.txt')
-				except Exception as e:
+				except:
 					logging.error("could not find template file: " + os.path.join(templates_dir,'xcption_gc_system.txt'))
 					exit(1)
 				
@@ -2746,7 +2742,7 @@ def check_nomad():
 				if not os.path.isdir(xcptiongcsystemhcldir):
 					try:
 						os.mkdir(xcptiongcsystemhcldir)
-					except Exception as e:
+					except:
 						logging.error("could not create directoy:" + xcptiongcsystemhcldir)
 						exit (1)
 				xcptiongcsystemhcl = os.path.join(jobsdir,'xcption_gc_system.hcl')
@@ -2775,17 +2771,17 @@ def parse_nomad_jobs_to_files (parselog=True):
 	
 	try:
 		jobs  = n.jobs.get_jobs()
-	except Exception as e:
+	except:
 		logging.error('cannot get nomad job list')
 		exit(1)
 	try:
 		allocs = n.allocations.get_allocations()
-	except Exception as e:
+	except:
 		logging.error('cannot get alloc list')
 		exit(1)
 	try:
 		nodes = n.nodes.get_nodes()
-	except Exception as e:
+	except:
 		logging.error('cannot get node list')
 		exit(1)
 
@@ -2795,12 +2791,12 @@ def parse_nomad_jobs_to_files (parselog=True):
 		if response.ok:
 			agentinfo = json.loads(response.content)
 			nomadserver = agentinfo["ServerName"]
-	except Exception as e:
+	except:
 		logging.error("could not get nomad server name")
 		exit(1)
 	try:
 		hostname = socket.gethostname()
-	except Exception as e:
+	except:
 		logging.error("could not get hostname")
 		exit(1)	
 
@@ -2823,7 +2819,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 	#creating the lock file 
 	try:
 		open(lockfile,'w').close()
-	except Exception as e:
+	except:
 		logging.debug("cannot create lock file:"+lockfile)
 
 	for job in jobs:
@@ -2838,7 +2834,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 				try:
 					logging.debug("creating directory:"+jobdir)
 					os.mkdir(jobdir)
-				except Exception as e:
+				except:
 					logging.error("cannot create dir:"+jobdir)
 					exit(1)
 		else:
@@ -2860,7 +2856,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 		try:
 			if job['JobSummary']['Summary'][job['ID'].split('/')[0]]['Complete'] == 1 or job['JobSummary']['Summary'][job['ID'].split('/')[0]]['Failed'] == 1:
 				jobcomplete = True	
-		except Exception as e:
+		except:
 			logging.debug("could not validate job status:"+job['ID'])
 
 		#validting if cache done 
@@ -2876,7 +2872,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 			with open(jobjsonfile, 'w') as fp:
 			    json.dump(job, fp)
 			    logging.debug("dumping job to json file:"+jobjsonfile)		
-		except Exception as e:
+		except:
 			logging.error("cannot create file:"+jobjsonfile)
 			#exit(1)
 
@@ -2889,7 +2885,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 					with open(allocjsonfile, 'w') as fp:
 					    json.dump(alloc, fp)
 					    logging.debug("dumping alloc to json file:"+allocjsonfile)		
-				except Exception as e:
+				except:
 					logging.error("cannot create file:"+allocjsonfile)
 					exit(1)
 
@@ -2905,7 +2901,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 					for logtype in ['stderr','stdout']:
 						#try to get the log file using api
 						response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+'&type='+logtype+'&plain=true')
-						if response.ok and re.search(rb"(\d|\S)", response.content, re.M|re.I):
+						if response.ok and re.search("(\d|\S)", response.content, re.M|re.I):
 							logging.debug("log for job:"+alloc['ID']+" is available using api")
 							alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
 							try:
@@ -2913,12 +2909,12 @@ def parse_nomad_jobs_to_files (parselog=True):
 								if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess') or job['ID'].startswith('xcpdelete'):
 									with open(alloclogfile, 'w') as fp:
 										logging.debug("dumping log to log file:"+alloclogfile)
-										fp.write(response.content.decode('utf-8'))
+										fp.write(response.content)
 										fp.close()
 								else:
 									#this is used to be able to add delta to the cache file to enable tail to work
 									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
-									with open(tmpalloclogfile, 'wb') as fp:
+									with open(tmpalloclogfile, 'w') as fp:
 										logging.debug("dumping log to temp log file:"+tmpalloclogfile)
 										fp.write(response.content)
 										fp.close()								
@@ -2942,8 +2938,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 									os.remove(tmpalloclogfile)	
 									os.remove(tmpalloclogfilenobin)	
 									logging.debug("diff ended and new entries merged into the old cached log file")
-							except Exception as e:
-								print (e)
+							except:
 								logging.error("cannot create file:"+alloclogfile)
 								exit(1)
 				else:
@@ -2980,7 +2975,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 	try:
 		logging.debug("removing lock file:"+lockfile)
 		os.remove(lockfile)
-	except Exception as e:
+	except:
 		logging.debug("cannot remove lock file:"+lockfile)
 
 
@@ -3008,7 +3003,7 @@ def unmountdir(dir):
 
 	try:
 		os.rmdir(dir)
-	except Exception as e:
+	except:
 		logging.error("cannot delete temp mount point:"+dir)
 		exit(1)
 
@@ -3049,7 +3044,7 @@ def check_verbose_job_status (jobname, task='smartassess'):
 
 	try:	
 		job = n.job.get_job(jobname)
-	except Exception as e:
+	except:
 		job = None
 
 	if not job and not os.path.exists(jobcachedir):
@@ -3078,7 +3073,7 @@ def check_verbose_job_status (jobname, task='smartassess'):
 					try:
 				 		starttime = allocdata['TaskStates'][task]['StartedAt']
 				 		starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
-					except Exception as e:
+					except:
 						starttime = '-'
 					results['starttime'] = starttime
 
@@ -3178,7 +3173,7 @@ def createhardlinkmatches(dirtree,inputfile):
 	for line in content:
 		path,inode = line.split(',')
 		if path and inode:
-			if not inode in list(hardlinks.keys()): 
+			if not inode in hardlinks.keys(): 
 				hardlinks[inode] = {}
 				hardlinks[inode]['count'] = 0
 				hardlinks[inode]['tasks'] = {}
@@ -3191,18 +3186,18 @@ def createhardlinkmatches(dirtree,inputfile):
 				if len(task.identifier) > len(longesttask):
 					longesttask = task.identifier
 					taskobj = task
-			if not longesttask in list(hardlinks[inode]['tasks'].keys()): 
+			if not longesttask in hardlinks[inode]['tasks'].keys(): 
 				hardlinks[inode]['tasks'][longesttask] = {}
 				hardlinks[inode]['tasks'][longesttask]['count'] = 1
 				hardlinks[inode]['tasks'][longesttask]['paths'] = {}
 				hardlinks[inode]['tasks'][longesttask]['paths'][path] = True
-				if not 'taskcount' in list(hardlinks[inode].keys()):
+				if not 'taskcount' in hardlinks[inode].keys():
 					hardlinks[inode]['taskcount'] = 1
 				else:	
 					hardlinks[inode]['taskcount'] += 1
 				
 				#updating tree structure with number of hardlink nuber of tasks 
-				if int(hardlinks[inode]['taskcount']) > task.data.hardlinks:
+				if hardlinks[inode]['taskcount'] > task.data.hardlinks:
 					dirtree.update_node(longesttask,data=dirdata(taskobj.data.inodes,
 						taskobj.data.sizek,taskobj.data.inodes_hr,taskobj.data.size_hr,taskobj.data.createjob,taskobj.data.excludejob,
 						hardlinks[inode]['taskcount']))
@@ -3223,9 +3218,9 @@ def gethardlinklistpertask(hardlinks,src):
 						if task1 != src: 
 							for path1 in hardlinks[inode]['tasks'][task1]['paths']:
 								
-								if not task in list(hardlinkpaths.keys()):
+								if not task in hardlinkpaths.keys():
 									hardlinkpaths[task] = {}
-								if not path in list(hardlinkpaths[task].keys()):
+								if not path in hardlinkpaths[task].keys():
 									hardlinkpaths[task][path] = {}
 
 								logging.debug("task:"+task+" path:"+path+" have the following links in another task:"+task1+" path:"+path1)
@@ -3251,7 +3246,7 @@ def smartassess_fs_linux_delete(forceparam):
 					logging.debug("delete smartassess cache dir:"+jobcachedir)
 					try:
 						rmout = shutil.rmtree(jobcachedir) 
-					except Exception as e:
+					except:
 						logging.error("could not delete smartassess cache dir:"+jobcachedir)
 
 				jobcachedir = os.path.join(cachedir,'job_'+smartassessjob+'_hardlink_scan')
@@ -3259,7 +3254,7 @@ def smartassess_fs_linux_delete(forceparam):
 					logging.debug("delete smartassess cache dir:"+jobcachedir)
 					try:
 						rmout = shutil.rmtree(jobcachedir) 
-					except Exception as e:
+					except:
 						logging.error("could not delete smartassess cache dir:"+jobcachedir)
 
 
@@ -3271,7 +3266,7 @@ def smartassess_fs_linux_delete(forceparam):
 		with open(smartassessjobdictjson, 'w') as fp:
 			json.dump(smartassessdictcopy, fp)
 		fp.close()
-	except Exception as e:
+	except:
 		logging.error("cannot write job json file:"+smartassessjobdictjson)
 		exit(1)												
 
@@ -3376,11 +3371,11 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 				if results['status'] != 'not started':
 					#stderr parse
 					stderrresults = parse_stats_from_log ('file',results['stderrlog'],'stderr')
-					if 'time' in list(stderrresults.keys()): 
+					if 'time' in stderrresults.keys(): 
 						scantime = stderrresults['time']
-					if 'scanned' in list(stderrresults.keys()): 
+					if 'scanned' in stderrresults.keys(): 
 						scanned = stderrresults['scanned']
-					if 'errors' in list(stderrresults.keys()): 
+					if 'errors' in stderrresults.keys(): 
 						errors = stderrresults['errors']			
 
 				scantimehl = '-'
@@ -3390,11 +3385,11 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 				if resultshardlink['status'] != 'not started' and resultshardlink['status'] != 'not relevant' :
 					#stderr parse
 					stderrresults = parse_stats_from_log ('file',resultshardlink['stderrlog'],'stderr')
-					if 'time' in list(stderrresults.keys()): 
+					if 'time' in stderrresults.keys(): 
 						scantimehl = stderrresults['time']
-					if 'scanned' in list(stderrresults.keys()): 
+					if 'scanned' in stderrresults.keys(): 
 						scannedhl = stderrresults['scanned']
-					if 'errors' in list(stderrresults.keys()): 
+					if 'errors' in stderrresults.keys(): 
 						errorshl = stderrresults['errors']	
 
 				#handle completed jobs without log
@@ -3455,7 +3450,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 							logging.debug("destination directory:"+nfsdstpath+" already exists validating it is not containing files")
 							dstdirfiles = os.listdir(dstpath)
 							if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] == '.snapshot'):
-								logging.warning("dst:"+nfsdstpath+ " for source path:"+nfssrcpath+" exists and contains files")
+								logging.warning("destination path:"+nfsdstpath+ " for source path:"+nfssrcpath+" already exists and contains files")
 								if not query_yes_no("do you want to to continue?", default="no"):
 									unmountdir(tempmountpointsrc)
 									unmountdir(tempmountpointdst)
@@ -3493,7 +3488,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 								with open(excludefilepath, 'w') as f:
 									f.write(exludedirlist)							
 								f.close()
-							except Exception as e:
+							except:
 								logging.error("could not write data to exlude file:"+excludefilepath)
 								unmountdir(tempmountpointsrc)
 								unmountdir(tempmountpointdst)
@@ -3521,16 +3516,16 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 
 					table.border = False
 					table.align = 'l'
-					print("")
-					print(table)	
+					print ""
+					print table	
 
 					if results['status'] == 'completed' and (resultshardlink['status'] == 'not started' or resultshardlink['status'] == 'completed'):
 						table = PrettyTable()
 						table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']	
 
-						print("")
-						print("   Suggested tasks:")
-						print("")
+						print ""
+						print "   Suggested tasks:"
+						print ""
 						tasktable = PrettyTable()
 						tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Task Hardlinks"]	
 						
@@ -3540,7 +3535,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 							if crosstaskcount > 0:
 								hardlinklist = gethardlinklistpertask(hardlinks,task.identifier)
 								
-								if task.identifier in list(hardlinklist.keys()):
+								if task.identifier in hardlinklist.keys():
 									taskhardlinksinothertasks = len(hardlinklist[task.identifier])
 
 							tasktable.add_row([task.identifier,task.data.size_hr,task.data.inodes_hr,task.is_root(),taskhardlinksinothertasks])
@@ -3549,7 +3544,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 								tasktable.border = False
 								tasktable.align = 'l'
 								tasktable.padding_width = 5
-								print(tasktable)
+								print tasktable
 								tasktable = PrettyTable()
 								tasktable.field_names = ["Path","Total Capacity","Inodes","Root Task","Cross Path Hardlinks"]	
 
@@ -3564,19 +3559,19 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 								hardlinktable.border = False
 								hardlinktable.align = 'l'
 								hardlinktable.padding_width = 8
-								print("")
-								print(hardlinktable)				
-								print("")
+								print ""
+								print hardlinktable				
+								print ""
 
 
 						tasktable.border = False
 						tasktable.align = 'l'
 						tasktable.padding_width = 5
 						#tasktable.sortby = 'Path'
-						print(tasktable)								
+						print tasktable								
 
 					else:
-						print('     vebose information not yet avaialable. it will be available when scan will be completed')
+						print '     vebose information not yet avaialable. it will be available when scan will be completed'
 						table = PrettyTable()
 						table.field_names = ["Path","Scan Status","Scan Start","Scan Time",'Scanned','Errors',"Hardlink Scan","HL Scan Time",'HL Scanned','HL Errors','Total Capacity','# Suggested Tasks','# Cross Task Hardlinks']							
 		
@@ -3584,14 +3579,14 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 			table.border = False
 			table.align = 'l'
 
-			print("")
-			print(table)			
+			print ""
+			print table			
 
 		if not infofound:
-			print("     no info found")
+			print "     no info found"
 	except KeyboardInterrupt:
-		print("")
-		print("aborted")
+		print ""
+		print "aborted"
 	nfs_unmount(tempmountpointsrc)
 	nfs_unmount(tempmountpointdst)
 
@@ -3695,7 +3690,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 	smartassess_job_name = smartassess_job_name.replace('\\','_')
 	smartassess_job_name = smartassess_job_name.replace('$','_dollar')	
 
-	if smartassess_job_name in list(smartassessdict.keys()):
+	if smartassess_job_name in smartassessdict.keys():
 		logging.error("smartassess job already exists for src:"+src+', to run again please delete exisiting task 1st') 
 		exit(1)	
 
@@ -3728,24 +3723,362 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 
 	#loading job ginga2 templates 
 	templates_dir = ginga2templatedir
-	env = Environment(loader=FileSystemLoader(templates_dir) )|||||||||||||||||||||||||||||||||||||||||||||||||||||||||".",1)
+	env = Environment(loader=FileSystemLoader(templates_dir) )
+	
+	try:
+		smartassess_template = env.get_template('nomad_smartassses.txt')
+	except:
+		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_smartassses.txt'))
+		exit(1)
+
+	jobdir = os.path.join(smartassessdir,smartassess_job_name)
+	if not os.path.exists(jobdir):
+		logging.debug("creating job dir:"+jobdir)
+		try:
+			os.makedirs(jobdir)
+		except:
+			logging.error("could not create job dir:"+jobdir)
+			exit(1)		
+
+	srchost,srcpath = src.split(":")
+
+	#creating smaetassess job 
+	smartassessjob_file = os.path.join(jobdir,smartassess_job_name+'.hcl')	
+	logging.debug("creating smartassess job file: " + smartassessjob_file)				
+		
+	#check if job dir exists
+	if os.path.exists(jobdir):
+		logging.debug("job directory:" + jobdir + " - already exists") 
+	else:	
+		if os.makedirs(jobdir):
+			logging.error("could not create output directory: " + jobdir)				
+			exit(1)
+
+	defaultprocessor = defaultcpu
+	defaultram = defaultmemory
+	ostype = 'linux'	
+	if ostype == 'linux': xcpbinpath = xcppath
+	depth += 1
+	cmdargs = "diag\",\"find\",\"-v\",\"-branch-match\",\"depth<"+str(depth)+"\",\""+src
+
+	with open(smartassessjob_file, 'w') as fh:
+		fh.write(smartassess_template.render(
+			dcname=dcname,
+			os=ostype,
+			smartassess_job_name=smartassess_job_name,
+			xcppath=xcpbinpath,
+			args=cmdargs,
+			memory=defaultram,
+			cpu=defaultprocessor
+		))
+
+	logging.info("starting smartassess scan for src:"+src)
+	if not start_nomad_job_from_hcl(smartassessjob_file, smartassess_job_name):
+		logging.error("failed to create nomad job:"+smartassess_job_name)
+		exit(1)
+	response = requests.post(nomadapiurl+'job/'+smartassess_job_name+'/periodic/force')	
+	if not response.ok:
+		logging.error("job:"+smartassess_job_name+" force start failed") 
+		exit(1)		
+
+	#creating hadlink scan smaetassess job 
+	smartassess_hardlink_job_name = smartassess_job_name+'_hardlink_scan'
+	hardlinksmartassessjob_file = os.path.join(jobdir,smartassess_hardlink_job_name+'.hcl')	
+	logging.debug("creating hardlink smartassess job file: " + hardlinksmartassessjob_file)			
+
+	cmdargs = "scan\",\"-noid\",\"-match\",\"type == f and nlinks > 1\",\"-fmt\",\"'{},{}'.format(x,fileid)\",\""+src
+	with open(hardlinksmartassessjob_file, 'w') as fh:
+		fh.write(smartassess_template.render(
+			dcname=dcname,
+			os=ostype,
+			smartassess_job_name=smartassess_hardlink_job_name,
+			xcppath=xcpbinpath,
+			args=cmdargs,
+			memory=defaultram,
+			cpu=defaultprocessor
+		))
+
+	if locate_cross_task_hardlink:
+		logging.info("starting smartassess hardlink scan:"+smartassess_hardlink_job_name)
+		if not start_nomad_job_from_hcl(hardlinksmartassessjob_file, smartassess_hardlink_job_name):
+			logging.error("failed to create nomad job:"+smartassess_hardlink_job_name)
+			exit(1)
+		response = requests.post(nomadapiurl+'job/'+smartassess_hardlink_job_name+'/periodic/force')	
+		if not response.ok:
+			logging.error("job:"+smartassess_hardlink_job_name+" force start failed") 
+			exit(1)		
+
+	#fill dict with info
+	smartassessdict[smartassess_job_name] = {}
+	smartassessdict[smartassess_job_name]['src'] = src
+	smartassessdict[smartassess_job_name]['src'] = src
+	smartassessdict[smartassess_job_name]['cpu'] = defaultprocessor
+	smartassessdict[smartassess_job_name]['memory'] = defaultram
+	smartassessdict[smartassess_job_name]['ostype'] = ostype
+	smartassessdict[smartassess_job_name]['depth'] = depth
+	smartassessdict[smartassess_job_name]['locate_cross_task_hardlink'] = locate_cross_task_hardlink
+	smartassessdict[smartassess_job_name]['dcname'] = dcname
+
+	#dumping jobsdict to json file 
+	try:
+		with open(smartassessjobdictjson, 'w') as fp:
+			json.dump(smartassessdict, fp)
+		fp.close()
+	except:
+		logging.error("cannot write smart assess job json file:"+smartassessjobdictjson)
+		exit(1)
+
+
+#assessment of filesystem and creation of csv file out of it 
+def assess_fs_linux(csvfile,src,dst,depth,jobname):
+	logging.debug("starting to assess src:" + src + " dst:" + dst) 
+
+	if not re.search("^\S+\:\/.*", src):
+		logging.error("source format is incorrect: " + src) 
+		exit(1)	
+	if not re.search("^\S+\:\/.*", dst):
+		logging.error("destination format is incorrect: " + dst)
+		exit(1)	
+
+	defaultprocessor = defaultcpu
+	if args.cpu: 
+		defaultprocessor = args.cpu 
+		if defaultprocessor < 0 or defaultprocessor > 20000:
+			logging.error("cpu allocation is illegal:"+defaultprocessor)
+			exit(1)	
+
+	defaultram = defaultmemory
+	if args.ram: 
+		defaultram = args.ram
+		if defaultram < 0 or defaultram > 20000:
+			logging.error("ram allocation is illegal:"+defaultram)
+			exit(1)	
+
+	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
+	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
+
+	logging.debug("temporary mounts for assement will be:"+tempmountpointsrc+" and "+tempmountpointdst)
+
+	#check if src/dst can be mounted
+	subprocess.call( [ 'mkdir', '-p',tempmountpointsrc ] )
+	subprocess.call( [ 'mkdir', '-p',tempmountpointdst ] )
+
+	logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
+
+	#clearing possiable previous mounts 
+	DEVNULL = open(os.devnull, 'wb')
+	subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
+	subprocess.call( [ 'umount', tempmountpointdst ], stdout=DEVNULL, stderr=DEVNULL)
+
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, tempmountpointsrc ],stderr=subprocess.STDOUT):
+		logging.error("cannot mount src using nfs: " + src)
+		exit(1)					
+	
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, tempmountpointdst ],stderr=subprocess.STDOUT):
+		logging.error("cannot mount dst using nfs: " + dst)
+		subprocess.call( [ 'umount', tempmountpointsrc ],stderr=subprocess.STDOUT)
+		exit(1)
+
+
+	if (depth < 1 or depth > 12):
+		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
+		exit(1)	
+
+	#prepare things for csv creation
+	if jobname == '': jobname = 'job'+str(os.getpid())
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
+	csv_data = []
+
+	if os.path.isfile(csvfile):
+		logging.warning("csv file:"+csvfile+" already exists")
+		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
+
+	#will be true if warning identified 
+	warning = False 
+
+	#will set to true if Ctrl-C been pressed during os.walk
+	end = False
+
+	srcdirstructure = list_dirs_linux(tempmountpointsrc,depth-1)
+
+	try:
+		taskcounter = 0 
+		for o in srcdirstructure:
+
+			path = o[0]
+			dircount = o[1]
+			filecount = o[2]
+
+			currentdepth = path.count(os.path.sep) + 1
+			if path == './': currentdepth = 1
+
+			#print path,depth,currentdepth
+			
+			nfssrcpath = src+path.lstrip('.')
+			nfsdstpath = dst+path.lstrip('.')
+
+			dstpath = tempmountpointdst+path.lstrip('.')
+
+			
+			#if filecount > 0 and (currentdepth < depth or (currentdepth == depth and dircount > 0)):
+			if (filecount > 0 and dircount > 0 and currentdepth < depth):
+				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
+	
+				warning=True 
+			else:
+				if os.path.exists(dstpath):
+					dstdirfiles = os.listdir(dstpath)
+					if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] != '.snapshot'):
+						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and contains files")
+						unmountdir(tempmountpointsrc)
+						unmountdir(tempmountpointdst)
+						exit(1)
+					else:
+						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and empty")
+
+			#check if destination directory exists/contains files
+			if taskcounter > 50:
+				logging.warning("the amount of created jobs is above 50, this will create extensive amount of xcption jobs")
+				warning=True  
+				taskcounter = -1
+
+			#create xcption job entry
+			#print depth,currentdepth,dircount,nfssrcpath,path
+			#if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
+			if (currentdepth < depth and dircount == 0) or (currentdepth == depth) or (depth == 1):
+				if nfssrcpath == src+"/" and nfsdstpath == dst+"/": 
+					nfssrcpath = src
+					nfsdstpath = dst
+
+				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
+				#append data to csv 
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":""})
+				if taskcounter != -1: taskcounter += 1
+
+
+		if warning:
+			if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
+		
+		if not end:
+			try:
+			    with open(csvfile, 'w') as c:
+			        writer = csv.DictWriter(c, fieldnames=csv_columns)
+			        writer.writeheader()
+			        for data in csv_data:
+			            writer.writerow(data)
+			        logging.info("job csv file:"+csvfile+" created")
+			except IOError:
+				logging.error("could not write data to csv file:"+csvfile)
+				unmountdir(tempmountpointsrc)
+				unmountdir(tempmountpointdst)
+				exit(1)		
+	 		
+	 		if depth > 1:
+				#use xcp to build the directory structure of the dest filesystem 
+				#xcpcmd = xcplocation + ' copy -noID -match "(type==d and depth=='+str(depth)+') or (type==f and depth<'+str(depth)+')" '+ src  + ' ' + dst
+				# logging.info("xcp can be used to create the destination initial directory structure for xcption jobs")
+				# logging.info("xcp command to sync directory structure for the required depth will be:")				
+				# logging.info(xcpcmd)
+				# if query_yes_no("do you want to run xcp copy to build the directory structure in the dest ?", default="no"): 
+				#  	end=False 
+				#  	logging.info("=================================================================")
+				#  	logging.info("========================Starting xcp=============================")
+				#  	logging.info("=================================================================")
+				#  	#run xcp and check if failed 
+				#  	if os.system(xcpcmd):
+				#  		logging.error("xcp copy failed")
+				#  		exit(1)
+				#  	logging.info("=================================================================")
+				#  	logging.info("=====================xcp ended successfully======================")
+				#  	logging.info("=================================================================")
+				
+				#use rsync to build the directory structure of the dest filesystem 
+				depthrsync = ''
+				for x in xrange(depth):
+					depthrsync += '/*'
+				rsynccmd = 'rsync -av --exclude ".snapshot" --exclude="'+depthrsync+ '" -f"+ */" -f"- *"  "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
+				logging.info("rsync command to sync directory structure for the required depth will be:")
+				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
+				logging.info(rsynccmd)
+				logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
+				if query_yes_no("do you want to run rsync ?", default="no"): 
+					end=False 
+					logging.info("=================================================================")
+					logging.info("========================Starting rsync===========================")
+					logging.info("=================================================================")
+					#run rsync and check if failed 
+					if os.system(rsynccmd):
+						logging.error("rsync failed")
+						unmountdir(tempmountpointsrc)
+						unmountdir(tempmountpointdst)
+						exit(1)
+					logging.info("=================================================================")
+					logging.info("===================rsync ended successfully======================")
+					logging.info("=================================================================")
+
+				logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+
+	except KeyboardInterrupt:
+		print ""
+		print "aborted"
+		end = True	
+
+	end = True 	
+	if end:
+		unmountdir(tempmountpointsrc)
+		unmountdir(tempmountpointdst)
+
+
+def list_dirs_windows(startpath,depth):
+
+	matchObj = re.search(r".+\\(.+)$", startpath, re.M|re.I)
+	if matchObj:
+		startfolder = matchObj.group(1)
+	else:
+		logging.error("unexpected format for path:"+startpath)
+		exit(1)
+
+	pscmd = xcpwinpath+' scan -l -depth '+str(depth)+' "'+startpath+'"'
+	results = run_powershell_cmd_on_windows_agent(pscmd,True)
+
+	if results['status'] != 'complete':
+		logging.error("directory scan for path:"+startpath+" failed")
+		exit(1)			
+
+	if results['stderr']:
+		matchObj = re.search("(\d+) errors,", results['stderr'], re.M|re.I)
+		if matchObj:
+			if matchObj.group(1) > 1:
+				logging.error("errors encountered during while scanning path:"+startpath)
+				logging.error("\n\n"+results['stderr'])
+				exit(1)
+
+
+	dirs = {}
+
+	lines = results['stdout'].splitlines()
+	for line in lines:
+		matchObj = re.search("^(f|d)\s+\S+\s+\S+\s+(.+)$", line, re.M|re.I)
+		if matchObj:
+			path = matchObj.group(2).replace(startfolder,".",1)
 			#if path == ".": path = ".\\"
 			pathtype = matchObj.group(1)
 
-			matchObj = re.search("(.+)\\.+$", path, re.M|re.I)
+
+			matchObj = re.search(r"(.+)\\.+$", path, re.M|re.I)
 			if matchObj:
 				basedir = matchObj.group(1)
 			else:
-				basedir = ''			
+				basedir = ''
 
 			if pathtype == "d": 
-				if not path in list(dirs.keys()):
+				if not path in dirs.keys():
 					dirs[path]={}
 					dirs[path]["filecount"] = 0
 					dirs[path]["dircount"] = 0
 
 				if basedir != '':
-					if basedir in list(dirs.keys()):
+					if basedir in dirs.keys():
 						dirs[basedir]["dircount"] += 1
 					else:
 						dirs[basedir]={}
@@ -3753,7 +4086,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 						dirs[basedir]["dircount"] = 1						
 
 			elif pathtype == "f":
-				if basedir in list(dirs.keys()):
+				if basedir in dirs.keys():
 					dirs[basedir]["filecount"] += 1
 				else:
 					dirs[basedir]={}
@@ -3852,9 +4185,10 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 
 			warning=True 
 
-		if path in list(dstdirstructure.keys()):
+		if path in dstdirstructure.keys():
 			dstdircount = dstdirstructure[path]['dircount']
 			dstfilecount = dstdirstructure[path]['filecount']		
+
 			if (dstfilecount  > 0 or dstdircount >0) and ((currentdepth < depth-1 and dstdircount == 0)
 					or (currentdepth == depth-1 and (dstdircount > 0 or dstfilecount >0))):
 				logging.error("destination path: "+dstpath+ " for source dir: "+srcpath+" exists and contains files")
@@ -3868,6 +4202,7 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 			warning=True  
 
 		#create xcption job entry
+		
 		if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth-1 == 0):
 			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ " will be configured as xcp job")
 
@@ -3921,7 +4256,7 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 						logging.error("errorlog:\n"+results['stdout'])						
 					exit(1)		
 
-				print((results['stdout']))
+				print results['stdout']
 
 				results = run_powershell_cmd_on_windows_agent(pscmd2,True)
 				if results['status'] != 'complete':
@@ -3931,7 +4266,7 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 					if results['stdout']:
 						logging.error("errorlog:\n"+results['stdout'])							
 					exit(1)							
-				print(results['stdout'])
+				print results['stdout']
 
 				logging.info("=================================================================")
 				logging.info("=================robocopy ended successfully=====================")
@@ -4001,7 +4336,7 @@ def modify_tasks(args,forceparam):
 									try:
 										logging.debug("tryin to create new job dir:"+dstjobdir)
 										os.mkdir(dstjobdir)
-									except Exception as e:
+									except:
 										logging.error("could not create new job dir:" + dstjobdir)
 										exit (1)
 
@@ -4009,21 +4344,21 @@ def modify_tasks(args,forceparam):
 								try:
 									logging.debug("tring to move:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
 									shutil.copy(os.path.join(srcjobdir,baseline_job_file),os.path.join(dstjobdir,baseline_job_file))
-								except Exception as e:
+								except:
 									logging.error("could not move file:"+os.path.join(srcjobdir,baseline_job_file)+" to:"+os.path.join(dstjobdir,baseline_job_file))
 									exit (1)						
 
 								try:
 									logging.debug("tring to move:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
 									shutil.copy(os.path.join(srcjobdir,sync_job_file),os.path.join(dstjobdir,sync_job_file))
-								except Exception as e:
+								except:
 									logging.error("could not move file:"+os.path.join(srcjobdir,sync_job_file)+" to:"+os.path.join(dstjobdir,sync_job_file))
 									exit (1)	
 
 								try:
 									logging.debug("tring to move:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
 									shutil.copy(os.path.join(srcjobdir,verify_job_file),os.path.join(dstjobdir,verify_job_file))
-								except Exception as e:
+								except:
 									logging.error("could not move file:"+os.path.join(srcjobdir,verify_job_file)+" to:"+os.path.join(dstjobdir,verify_job_file))
 									exit (1)	
 						#set to true to recreate hcl files 
@@ -4034,7 +4369,7 @@ def modify_tasks(args,forceparam):
 							with open(jobdictjson, 'w') as fp:
 								json.dump(jobsdictcopy, fp)
 							fp.close()
-						except Exception as e:
+						except:
 							logging.error("cannot write job json file:"+jobdictjson)
 							exit(1)	
 	
@@ -4129,7 +4464,7 @@ def abort_jobs(jobtype, forceparam):
 										logging.debug("trying to remove cache dir"+jobcachedir)
 										try:
 											shutil.rmtree(jobcachedir)
-										except Exception as e:
+										except:
 											logging.warning("could not delete dir:"+jobcachedir)
 
 									jobaborted = True									
@@ -4184,7 +4519,7 @@ def export_csv(csvfile):
 							
 							logging.info("exporting src:"+src+" to dst:"+dst+" info")
 							writer.writerow([jobname,src,dst,jobcron,cpu,memory,tool,failbackuser,failbackgroup,excludedirfile])
-	except Exception as e:
+	except:
 		logging.error("error exporting to csv file:"+csvfile)
 		exit(1)
 
@@ -4211,7 +4546,7 @@ def normalizedict (jsondict):
 						try:
 							if 'M' in str(phase[key]): phase[key] = int(phase[key].replace('M',''))*1000000
 							phase[key] = int(phase[key])
-						except Exception as e:
+						except:
 							phase[key] = 0 
 					if key == 'duration':
 						matchObj = re.match("((\d+)h)?((\d+)m)?(\d+)s",phase[key])
@@ -4229,38 +4564,15 @@ def normalizedict (jsondict):
 
 #def start web server using flask
 def start_flask(tcpport):
-	from flask import Flask,render_template, send_file, send_from_directory, request, Markup, cli
+	from flask import Flask,render_template, send_file, send_from_directory, request
 
 	#disable flask logging
-	#cli = sys.modules['flask.cli']
-	cli.show_server_banner = lambda *_: None
+	cli = sys.modules['flask.cli']
+	cli.show_server_banner = lambda *x: None
 
 	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
 	app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
-	env = app.jinja_env
-	env.add_extension('jinja2.ext.do')
-	env.add_extension('jinja2.ext.autoescape')
-
-	_js_escapes = {
-        '\\': '\\u005C',
-        '\'': '\\u0027',
-        '"': '\\u0022',
-        '>': '\\u003E',
-        '<': '\\u003C',
-        '&': '\\u0026',
-        '=': '\\u003D',
-        '-': '\\u002D',
-        ';': '\\u003B',
-        u'\u2028': '\\u2028',
-        u'\u2029': '\\u2029'
-	}
-	# Escape every ASCII character with a value less than 32.
-	_js_escapes.update(('%c' % z, '\\u%04X' % z) for z in range(32))
-
-	def escapejs(value):
-		return Markup("".join(_js_escapes.get(l, l) for l in value))
-
-	app.jinja_env.filters['escapejs'] = escapejs
+	app.jinja_options['extensions'].append('jinja2.ext.do')
 
 	@app.route("/")
 	@app.route("/index.html")
@@ -4305,7 +4617,7 @@ def start_flask(tcpport):
 		parse_nomad_jobs_to_files(False)
 		jsondict,jsongeneraldict = create_status(statustype,False,'silent')
 		#normalizedjsondict = normalizedict (jsondict)
-		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict, jobs=list(jobsdict.keys()), statustype=statustype, showlogs=showlogs)
+		return render_template('index.html', jsongeneraldict=jsongeneraldict, jsondict=jsondict, jobs=jobsdict.keys(), statustype=statustype, showlogs=showlogs)
 
 
 	#return all other files up to 3 level deep (css,js)
@@ -4341,7 +4653,7 @@ def upload_file (path, linuxpath, windowspath):
 	#get list of nodes in the cluster
 	try:
 		nodes = n.nodes.get_nodes()
-	except Exception as e:
+	except:
 		logging.error('cannot get node list')
 		exit(1)
 
@@ -4351,7 +4663,7 @@ def upload_file (path, linuxpath, windowspath):
 		if response.ok:
 			agentinfo = json.loads(response.content)
 			nomadserver = agentinfo['Members'][0]['Addr']
-	except Exception as e:
+	except:
 		nomadserver = ''
 	if nomadserver == '':
 		logging.error("cannot find nomad server ip")
@@ -4388,7 +4700,7 @@ def upload_file (path, linuxpath, windowspath):
 		if linuxpath and ostype == 'linux':	
 			try:
 				job_template = env.get_template('nomad_linux_all_hosts.txt')
-			except Exception as e:
+			except:
 				logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_linux_all_hosts.txt'))
 				exit(1)	
 			
@@ -4404,7 +4716,7 @@ def upload_file (path, linuxpath, windowspath):
 		if windowspath and ostype == 'windows':	
 			try:
 				job_template = env.get_template('nomad_windows_all_hosts.txt')
-			except Exception as e:
+			except:
 				logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_windows_all_hosts.txt'))
 				exit(1)	
 			
@@ -4449,7 +4761,7 @@ def upload_file (path, linuxpath, windowspath):
 							#if the job completed validate the exist code, 9998 will be used a a default value if the task not yet completed
 							try:
 								exitcode = int(alloc['TaskStates'][ostype+'upload']['Events'][3]['Details']['exit_code'])
-							except Exception as e:
+							except:
 								exitcode = 9998
 							#upload job completed 
 							if exitcode == 0 and nodestaskstatus[nodename] != 'succesfull':
@@ -4571,16 +4883,16 @@ def monitored_copy(src,dst):
 			stderrlogpath = statusdict[xcption_job][src]['phases'][0]['stderrlogpath']
 			
 			if not counter  or counter%10==0:
-				print(('-' * 120))
-				print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename')))
-				print(('-' * 120))
+				print('-' * 120)
+				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename'))
+				print('-' * 120)
 			
 			if status in ['complete','failed','aborted']: 
 				cont = False
-				print(('-' * 120))
+				print('-' * 120)
 			else:
 				time.sleep(5)
-			print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format(status,scanned,copied,errors,duration,sent,nodename)))
+			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format(status,scanned,copied,errors,duration,sent,nodename))
 
 
 			if status in ['failed','aborted']: 
@@ -4602,9 +4914,7 @@ def monitored_copy(src,dst):
 				logfilecopy = os.path.join(logdirpath,errlogfile)
 				
 				if os.path.isfile(stderrlogpath) and os.path.isdir(logdirpath):
-					try:
-						shutil.copyfile(stderrlogpath, logfilecopy)
-					except:
+					if shutil.copyfile(stderrlogpath, logfilecopy):
 						logging.error("could not copy log file from:"+stderrlogpath+' to:'+logfilecopy)
 						exit(1)
 				if failed:
@@ -4624,7 +4934,7 @@ def monitored_copy(src,dst):
 		xcption_cmd = [xcption_script,'delete','-f','-s',src, '-j',xcption_job]
 		subprocess.check_output(xcption_cmd,stderr=subprocess.STDOUT)
 		exit(1)	
-	except Exception as e:
+	except:
 		#in case of error job will be delete 
 		logging.debug("deleting job due to error")
 		xcption_cmd = [xcption_script,'delete','-f','-s',src, '-j',xcption_job]
@@ -4677,7 +4987,7 @@ def monitored_delete (src,force):
 			logging.debug("delete cache dir:"+jobcachedir)
 			try:
 				rmout = shutil.rmtree(jobcachedir) 
-			except Exception as e:
+			except:
 				logging.error("could not delete cache dir:"+jobcachedir)
 
 
@@ -4686,7 +4996,7 @@ def monitored_delete (src,force):
 	env = Environment(loader=FileSystemLoader(templates_dir) )
 	try:
 		xcp_delete_template = env.get_template('nomad_delete.txt')
-	except Exception as e:
+	except:
 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_smartassses.txt'))
 		exit(1)
 	
@@ -4745,16 +5055,16 @@ def monitored_delete (src,force):
 				if 'time'     in logstats: duration = logstats['time']			
 
 			if not counter or counter%10==0:
-				print(('-' * 100))
-				print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format('status','scanned','file-delete','dir-delete','errors','duration')))
-				print(('-' * 100))
+				print('-' * 100)
+				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format('status','scanned','file-delete','dir-delete','errors','duration'))
+				print('-' * 100)
 			if jobstatus in ['completed','failed','aborted']: 
 				cont = False
-				print(('-' * 100))				
+				print('-' * 100)				
 			else:
 				time.sleep(5)
 			
-			print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format(jobstatus,scanned,removes,rmdirs,errors,duration)))
+			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format(jobstatus,scanned,removes,rmdirs,errors,duration))
 			
 			if jobstatus in ['failed','aborted']: 
 				failed = True
@@ -4771,9 +5081,7 @@ def monitored_delete (src,force):
 				errlogpath, errlogfile = os.path.split(jobstderrlogpath)
 				logfilecopy = os.path.join(logdirpath,errlogfile)
 				if os.path.isfile(jobstderrlogpath) and os.path.isdir(logdirpath):
-					try:
-						shutil.copyfile(jobstderrlogpath, logfilecopy)
-					except:
+					if shutil.copyfile(jobstderrlogpath, logfilecopy):
 						logging.error("could not copy log file from:"+jobstderrlogpath+' to:'+logfilecopy)
 						exit(1)
 				if failed:
@@ -4788,7 +5096,7 @@ def monitored_delete (src,force):
 						logging.debug("delete cache dir:"+jobcachedir)
 						try:
 							rmout = shutil.rmtree(jobcachedir) 
-						except Exception as e:
+						except:
 							logging.error("could not delete cache dir:"+jobcachedir)					
 					
 			counter+=1
@@ -4801,22 +5109,22 @@ def monitored_delete (src,force):
 			logging.debug("delete cache dir:"+jobcachedir)
 			try:
 				rmout = shutil.rmtree(jobcachedir) 
-			except Exception as e:
+			except:
 				logging.error("could not delete cache dir:"+jobcachedir)
 		logging.error("delete job canceled by user")
 		exit(1)	
-	# except Exception as e:
-	# 	#in case of error job will be delete 
-	# 	delete_job_by_prefix(xcp_delete_job_name)
-	# 	jobcachedir = os.path.join(cachedir,'job_'+xcp_delete_job_name)
-	# 	if os.path.exists(jobcachedir):
-	# 		logging.debug("delete cache dir:"+jobcachedir)
-	# 		try:
-	# 			rmout = shutil.rmtree(jobcachedir) 
-	# 		except Exception as e:
-	# 			logging.error("could not delete cache dir:"+jobcachedir)
-	# 	logging.error("delete job canceled due to an error")#
-	# 	exit(1)
+	except:
+		#in case of error job will be delete 
+		delete_job_by_prefix(xcp_delete_job_name)
+		jobcachedir = os.path.join(cachedir,'job_'+xcp_delete_job_name)
+		if os.path.exists(jobcachedir):
+			logging.debug("delete cache dir:"+jobcachedir)
+			try:
+				rmout = shutil.rmtree(jobcachedir) 
+			except:
+				logging.error("could not delete cache dir:"+jobcachedir)
+		logging.error("delete job canceled due to an error")#
+		exit(1)
 	
 
 		
@@ -4831,7 +5139,7 @@ def monitored_delete (src,force):
 if not os.path.isdir(cachedir):
 	try:
 		os.mkdir(cachedir)
-	except Exception as e:
+	except:
 		logging.error("could not create cache directoy:" + cachedir)
 		exit (1)
 
@@ -4856,7 +5164,7 @@ if hasattr(args,'phase'):
 	if args.phase != None:
 		phasefilter = args.phase
 
-if args.version: print(("XCPtion version:"+version))
+if args.version: print "XCPtion version:"+version
 
 #check nomad avaialbility
 check_nomad()
@@ -4875,7 +5183,7 @@ if args.subparser_name == 'assess':
 		try:
 			now = datetime.datetime.now()
 			cront = croniter.croniter(args.cron, now)
-		except Exception as e:
+		except:
 			logging.error('cron format: "'+args.cron+ '" is incorrect')
 			exit(1)	
 		defaultjobcron = args.cron
@@ -4932,7 +5240,7 @@ if args.subparser_name == 'modify':
 		try:
 			now = datetime.datetime.now()
 			cront = croniter.croniter(args.cron, now)
-		except Exception as e:
+		except:
 			logging.error('cron format: "'+args.cron+ '" is incorrect')
 			exit(1)	
 
