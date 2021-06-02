@@ -116,18 +116,18 @@ $INST_APP install -y \
 
 
 if [ "$ONLINE" == "true" ]; then
-  pip install python-nomad
-  pip install jinja2
-  pip install csv
-  pip install argparse
-  pip install logging
-  pip install pprint
-  pip install requests
-  pip install prettytable
-  pip install croniter
-  pip install hurry.filesize
-  pip install treelib
-  pip install flask
+  pip3 install python-nomad
+  pip3 install jinja2
+  pip3 install csv
+  pip3 install argparse
+  pip3 install logging
+  pip3 install pprint
+  pip3 install requests
+  pip3 install prettytable
+  pip3 install croniter
+  pip3 install hurry.filesize
+  pip3 install treelib
+  pip3 install flask
 else
   mkdir -p /tmp/pip_unzip_loc
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
