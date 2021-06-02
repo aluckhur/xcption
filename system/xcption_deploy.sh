@@ -132,10 +132,10 @@ if [ "$ONLINE" == "true" ]; then
 else
   mkdir -p /tmp/pip_unzip_loc
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
-  pip3 install --no-index --find-links /tmp/pip_unzip_loc -r $SCRIPT_DIR/requirements.txt
-  #find /tmp/pip_unzip_loc -name "*" | awk '{system("pip install "$1)}'
-  #find /tmp/pip_unzip_loc -name "*" | awk '{system("pip install "$1)}'
-  #find /tmp/pip_unzip_loc -name "*" | awk '{system("pip install "$1)}'
+  #pip3 install --no-index --find-links /tmp/pip_unzip_loc -r $SCRIPT_DIR/requirements.txt
+  find /tmp/pip_unzip_loc -name "*" | awk '{system("pip3 install "$1)}'
+  find /tmp/pip_unzip_loc -name "*" | awk '{system("pip3 install "$1)}'
+  find /tmp/pip_unzip_loc -name "*" | awk '{system("pip3 install "$1)}'
   rm -rf /tmp/pip_unzip_loc
 fi
 
