@@ -259,7 +259,6 @@ parser_smartassess_start.add_argument('-s','--source',help="source nfs path (nfs
 parser_smartassess_start.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_smartassess_start.add_argument('-k','--locate-cross-task-hardlink',help="located hardlinks that will be converted to regular files when splited to diffrent jobs",required=False,action='store_true')
 
-
 #check capacity parameter 
 def checkcapacity (capacity):
 	matchObj = re.match("^(\d+)(\s+)?(K|B|M|G|T)(i)?B$",capacity)
@@ -297,7 +296,7 @@ parser_smartassess_createcsv.add_argument('-j','--job',help="xcption job name", 
 parser_smartassess_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_smartassess_delete.add_argument('-f','--force',help="force delete", required=False,action='store_true')
 
-#parse args and print help if no args
+#parser_smartassess.print_help()
 args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
 #initialize logging 
@@ -5294,6 +5293,9 @@ if args.subparser_name == 'fileupload':
 	upload_file(args.file,args.linuxpath,args.windowspath)
 
 if args.subparser_name == 'smartassess':
+	if not args.smartassess_command:
+		parser_smartassess.print_help()
+		
 	load_smartassess_jobs_from_json(smartassessjobdictjson)
 
 	if args.smartassess_command == 'start':
