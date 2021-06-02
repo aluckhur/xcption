@@ -4056,17 +4056,17 @@ def list_dirs_windows(startpath,depth):
 		exit(1)			
 
 	if results['stderr']:
-		matchObj = re.search("(\d+) errors,", results['stderr'], re.M|re.I)
+		matchObj = re.search("(\d+) errors,", results['stderr'].decode('utf-8'), re.M|re.I)
 		if matchObj:
 			if matchObj.group(1) > 1:
 				logging.error("errors encountered during while scanning path:"+startpath)
-				logging.error("\n\n"+results['stderr'])
+				logging.error("\n\n"+results['stderr'].decode('utf-8'))
 				exit(1)
 
 
 	dirs = {}
 
-	lines = results['stdout'].splitlines()
+	lines = results['stdout'].decode('utf-8').splitlines()
 	for line in lines:
 		matchObj = re.search("^(f|d)\s+\S+\s+\S+\s+(.+)$", line, re.M|re.I)
 		if matchObj:
@@ -4261,30 +4261,28 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 				if results['status'] != 'complete':
 					logging.error("robocopy failed")
 					if results['stderr']:
-						logging.error("errorlog:\n"+results['stderr'])	
+						logging.error("errorlog:\n"+results['stderr'].decode('utf-8'))	
 					if results['stdout']:
-						logging.error("errorlog:\n"+results['stdout'])						
+						logging.error("errorlog:\n"+results['stdout'].decode('utf-8'))						
 					exit(1)		
 
-				print((results['stdout']))
+				print((results['stdout']).decode('utf-8'))
 
 				results = run_powershell_cmd_on_windows_agent(pscmd2,True)
 				if results['status'] != 'complete':
 					logging.error("robocopy failed")
 					if results['stderr']:
-						logging.error("errorlog:\n"+results['stderr'])	
+						logging.error("errorlog:\n"+results['stderr'].decode('utf-8'))	
 					if results['stdout']:
-						logging.error("errorlog:\n"+results['stdout'])							
+						logging.error("errorlog:\n"+results['stdout'].decode('utf-8'))							
 					exit(1)							
-				print((results['stdout']))
+				print((results['stdout']).decode('utf-8'))
 
 				logging.info("=================================================================")
 				logging.info("=================robocopy ended successfully=====================")
 				logging.info("=================================================================")
 
 			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
-	
-
 
 #move job 
 def modify_tasks(args,forceparam):

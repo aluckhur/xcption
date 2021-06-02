@@ -109,10 +109,10 @@ $INST_APP install -y \
     software-properties-common \
     jq \
     unzip \
-    python \
+    python3 \
     rsync \
     nfs-common \
-    python-pip 
+    python3-pip 
 
 
 if [ "$ONLINE" == "true" ]; then
@@ -124,7 +124,7 @@ if [ "$ONLINE" == "true" ]; then
   pip install pprint
   pip install requests
   pip install prettytable
-  pip install croniter==0.3.30
+  pip install croniter
   pip install hurry.filesize
   pip install treelib
   pip install flask
