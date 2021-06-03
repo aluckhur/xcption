@@ -2731,7 +2731,7 @@ def check_nomad():
 				logging.debug("nomad node status:"+node['Name']+' status:'+node['Status'])
 		response = requests.get(nomadapiurl+'job/xcption_gc_system')
 		if not response.ok:
-			if response.content == "job not found":
+			if response.content.decode('utf-8') == "job not found":
 				logging.debug("xcption_gc_system job is not running, starting it now")
 
 				#loading job ginga2 templates 
@@ -2766,6 +2766,7 @@ def check_nomad():
 				start_nomad_job_from_hcl(xcptiongcsystemhcl,'xcption_gc_system')
 			else:
 				logging.debug("could not contact nomad cluster, please make sure this node is part of the cluster")
+				exit(1)
 		else:
 			logging.debug("xcption_gc_system job is running")
 
