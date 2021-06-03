@@ -648,14 +648,14 @@ def check_job_status (jobname,log=False):
 			logging.debug("stdout log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
-				results['stdout'] = response.content						
+				results['stdout'] = response.content.decode('utf-8')						
 		
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+jobname+'&type=stderr&plain=true')
 		if response.ok:
 			logging.debug("stderr log for job:"+jobname+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
-				results['stderr'] = response.content	
+				results['stderr'] = response.content.decode('utf-8')
 
 	return results
 	
@@ -1236,7 +1236,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			lines = response.content.splitlines()
 			if lines:
 				#lastline = lines[-1]
-				results['content'] = response.content
+				results['content'] = response.content.decode('utf-8')
 		else:
 			logging.debug("log for job:"+allocid+" is not available using api")																								
 
@@ -2737,7 +2737,6 @@ def check_nomad():
 				#loading job ginga2 templates 
 				templates_dir = ginga2templatedir
 				env = Environment(loader=FileSystemLoader(templates_dir) )
-				
 
 				try:
 					gc_template = env.get_template('xcption_gc_system.txt')
