@@ -2766,7 +2766,6 @@ def check_nomad():
 				start_nomad_job_from_hcl(xcptiongcsystemhcl,'xcption_gc_system')
 			else:
 				logging.debug("could not contact nomad cluster, please make sure this node is part of the cluster")
-				exit(1)
 		else:
 			logging.debug("xcption_gc_system job is running")
 
@@ -5295,7 +5294,7 @@ if args.subparser_name == 'fileupload':
 if args.subparser_name == 'smartassess':
 	if not args.smartassess_command:
 		parser_smartassess.print_help()
-		
+
 	load_smartassess_jobs_from_json(smartassessjobdictjson)
 
 	if args.smartassess_command == 'start':
