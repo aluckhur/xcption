@@ -63,14 +63,12 @@ windows hosts `c:\NetApp\XCP\xcp.exe`
 The interaction is done using the following python CLI command (need root access)
 
 ```
-[root@rhel1 xcption]# ./xcption.py -h
-
 usage: xcption.py [-h] [-v] [-d]
-                  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,export,web,smartassess}
+                  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                   ...
 
 positional arguments:
-  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,nomad,export,web,smartassess}
+  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                         sub commands that can be used
     nodestatus          display cluster nodes status
     status              display status
@@ -86,6 +84,8 @@ positional arguments:
                         and destination (xcp verify)
     delete              delete existing config
     modify              modify task job
+    copy-data           perfored monitored copy of source to destination
+    delete-data         perfored monitored delete of data using xcp
     export              export existing jobs to csv
     web                 start web interface to display status
     fileupload          transfer files to all nodes, usefull for xcp license
@@ -93,12 +93,10 @@ positional arguments:
     smartassess         create tasks based on capacity and file count (nfs
                         only)
 
-
 optional arguments:
   -h, --help            show this help message and exit
   -v, --version         print version information
   -d, --debug           log debug messages to console
-
 
 ```
 
