@@ -156,7 +156,7 @@ parser_abort        = subparser.add_parser('abort',      help='abort running tas
 parser_verify       = subparser.add_parser('verify',     help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete       = subparser.add_parser('delete',     help='delete existing config',parents=[parent_parser])
 parser_modify       = subparser.add_parser('modify',     help='modify task job',parents=[parent_parser])
-parser_copy         = subparser.add_parser('copy',       help='perfored monitored copy of source to destination',parents=[parent_parser])
+parser_copydata     = subparser.add_parser('copy-data',  help='perfored monitored copy of source to destination',parents=[parent_parser])
 parser_deletedata   = subparser.add_parser('delete-data',help='perfored monitored delete of data using xcp',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',      description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',     help='export existing jobs to csv',parents=[parent_parser])
@@ -185,9 +185,9 @@ parser_assess.add_argument('-g','--failbackgroup',help="failback group required 
 parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 parser_assess.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
 
-parser_copy.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
-parser_copy.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
-parser_copy.add_argument('-f','--force',help="force copy event if destination contains files", required=False,action='store_true')
+parser_copydata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_copydata.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
+parser_copydata.add_argument('-f','--force',help="force copy event if destination contains files", required=False,action='store_true')
 
 parser_deletedata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_deletedata.add_argument('-f','--force',help="force delete data without confirmation", required=False,action='store_true')
@@ -4876,7 +4876,7 @@ def monitored_copy(src,dst):
 				
 	try:
 		#running load to load the created xcption job csv file
-		xcption_cmd = [xcption_script,'load','-s',src, '-c',xcption_csv]
+		xcption_cmd = [xcption_script,'load','-s',"*"+src, '-c',xcption_csv]
 		if subprocess.call(xcption_cmd,stderr=subprocess.STDOUT):
 			logging.error("cannot create xcption job")
 			assert False 
@@ -5226,7 +5226,7 @@ if args.subparser_name == 'assess':
 	else:
 		assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 
-if args.subparser_name == 'copy':
+if args.subparser_name == 'copy-data':
 	monitored_copy(args.source,args.destination)
 
 if args.subparser_name == 'delete-data':
