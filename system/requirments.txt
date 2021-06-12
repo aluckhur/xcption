@@ -2,7 +2,7 @@ certifi==2021.5.30
 chardet==4.0.0
 click==8.0.1
 croniter==1.0.13
-dataclasses==0.6
+dataclasses==0.8
 Flask==2.0.1
 future==0.18.2
 hurry.filesize==0.9
