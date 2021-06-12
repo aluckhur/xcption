@@ -5,11 +5,7 @@
 # Enjoy
 
 #version 
-<<<<<<< HEAD
-version = '2.9.3.0'
-=======
 version = '3.0.0.1'
->>>>>>> python3
 
 import csv
 import argparse
