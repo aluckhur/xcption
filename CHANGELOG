@@ -87,15 +87,11 @@
 
 2.9.3.0
 - add flag to be able to change scheule as part of assess subcommand (--cron)
-<<<<<<< HEAD
 - add copy subcommand to be able to perform monitored copy of source to destination using single command (NFS only)
 - add delete-data subcommand to be able to perform monitored delete of folder (NFS only)
-=======
 - add copy-data subcommand to be able to perform monitored copy of source to destination using single command (NFS only)
 - add delete-data subcommand to be able to perform monitored delete of folder (NFS only)
 
 3.0.0.1
 - work with python3 instead of 2.7. The code been converted and deploy script now installs pip3 and python3 modules
 
-
->>>>>>> python3
