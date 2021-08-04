@@ -4054,7 +4054,7 @@ def list_dirs_windows(startpath,depth):
 		exit(1)			
 
 	if results['stderr']:
-		matchObj = re.search("(\d+) errors,", results['stderr'].decode('utf-8'), re.M|re.I)
+		matchObj = re.search("(\d+) errors,", results['stderr'], re.M|re.I)
 		if matchObj:
 			if matchObj.group(1) > 1:
 				logging.error("errors encountered during while scanning path:"+startpath)
@@ -4064,7 +4064,7 @@ def list_dirs_windows(startpath,depth):
 
 	dirs = {}
 
-	lines = results['stdout'].decode('utf-8').splitlines()
+	lines = results['stdout'].splitlines()
 	for line in lines:
 		matchObj = re.search("^(f|d)\s+\S+\s+\S+\s+(.+)$", line, re.M|re.I)
 		if matchObj:
@@ -4264,7 +4264,7 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 						logging.error("errorlog:\n"+results['stdout'].decode('utf-8'))						
 					exit(1)		
 
-				print((results['stdout']).decode('utf-8'))
+				print(results['stdout'])
 
 				results = run_powershell_cmd_on_windows_agent(pscmd2,True)
 				if results['status'] != 'complete':
@@ -4274,7 +4274,7 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 					if results['stdout']:
 						logging.error("errorlog:\n"+results['stdout'].decode('utf-8'))							
 					exit(1)							
-				print((results['stdout']).decode('utf-8'))
+				print(results['stdout'])
 
 				logging.info("=================================================================")
 				logging.info("=================robocopy ended successfully=====================")
