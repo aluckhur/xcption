@@ -93,3 +93,7 @@
 3.0.0.1
 - work with python3 instead of 2.7. The code been converted and deploy script now installs pip3 and python3 modules
 
+3.0.0.2
+- add support for nfs4 acl copy for nfs 
+- add partial support to run robocopy/xcp windows without acl 
+- expanded csv file to include acl info using the 11th column, options can be nfs4-acl or no-win-acl 

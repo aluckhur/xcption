@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '3.0.0.1'
+version = '3.0.0.2'
 
 import csv
 import argparse
@@ -184,10 +184,12 @@ parser_assess.add_argument('-u','--failbackuser',help="failback user required fo
 parser_assess.add_argument('-g','--failbackgroup',help="failback group required for xcp for windows jobs, see xcp.exe copy -h", required=False,type=str)
 parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 parser_assess.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
+parser_assess.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
 
 parser_copydata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_copydata.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
 parser_copydata.add_argument('-f','--force',help="force copy event if destination contains files", required=False,action='store_true')
+parser_copydata.add_argument('-a','--nfs4acl',help="use to include nfs4-acl", required=False,action='store_true')
 
 parser_deletedata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_deletedata.add_argument('-f','--force',help="force delete data without confirmation", required=False,action='store_true')
@@ -373,7 +375,6 @@ def load_jobs_from_json (jobdictjson):
 
 #parse input csv file
 def parse_csv(csv_path):
-
 	global jobsdict
 	global dstdict
 	
@@ -438,6 +439,19 @@ def parse_csv(csv_path):
 						logging.error("exclude dir file:"+excludedirfile+" for src:"+src+" could not be found")
 						exit(1)
 					
+					aclcopy = ''
+					if 10 < len(row) and row[10] != '': aclcopy = row[10]
+					if aclcopy != '':
+						if not aclcopy in ['nfs4-acl','no-win-acl']:
+							logging.error("provided acl copy method:"+aclcopy+" for src:"+src+" is not supported. can be one of the following: nfs4-acl,no-win-acl")
+							exit(1)
+						if aclcopy == 'nfs4-acl' and ostype == 'windows':
+							logging.error("acl type: nfs4-acl is not supported for windows task")
+							exit(1)
+						if aclcopy == 'no-win-acl' and ostype == 'linux':
+							logging.error("acl type: nfs4-acl is not supported for windows task")
+							exit(1)
+					
 					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool+" failbackuser:"+failbackuser+" failback group:"+failbackgroup+" exclude dir file:"+excludedirfile) 
 
 					srcbase = src.replace(':/','-_')
@@ -485,12 +499,23 @@ def parse_csv(csv_path):
 							if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
 								logging.error("cannot mount src using nfs: " + src)
 								exit(1)					
-							subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
+							subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)							
 							
 							if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
 								logging.error("cannot mount dst using nfs: " + dst)
 								exit(1)					
 							subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)	
+
+							if aclcopy == 'nfs4-acl':
+								if subprocess.call( [ 'mount', '-t', 'nfs4', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+									logging.error("cannot mount src:"+src+" using nfs version 4 which is required for nfs4 acl processing")
+									exit(1)					
+								subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
+
+								if subprocess.call( [ 'mount', '-t', 'nfs4', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+									logging.error("cannot mount dst:"+dst+"using nfs version 4 which is required for nfs4 acl processing")
+									exit(1)					
+								subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)								
 							
 							srchost,srcpath = src.split(":")
 							dsthost,dstpath = dst.split(":")									
@@ -554,7 +579,7 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["failbackgroup"] = failbackgroup
 					jobsdict[jobname][src]["dcname"] = dcname
 					jobsdict[jobname][src]["excludedirfile"] = excludedirfile
-
+					jobsdict[jobname][src]["aclcopy"] = aclcopy
 
 					logging.debug("parsed the following relation:"+src+" -> "+dst)
 
@@ -616,7 +641,6 @@ def check_job_status (jobname,log=False):
 	if not jobdetails:
 		logging.debug("job:"+jobname+" does not exist")
 		return False,'',''
-
 
 	#if job exists retrun the allocation status
 	results ={}
@@ -800,6 +824,7 @@ def create_nomad_jobs():
 					failbackuser      = jobdetails['failbackuser']
 					failbackgroup     = jobdetails['failbackgroup']
 					excludedirfile    = jobdetails['excludedirfile']
+					aclcopy           = jobdetails['aclcopy']
 
 					if ostype == 'linux': xcpbinpath = xcppath
 					if ostype == 'windows': xcpbinpath = 'powershell'
@@ -810,19 +835,26 @@ def create_nomad_jobs():
 					logging.debug("creating baseline job file: " + baseline_job_file)				
 
 					
-					if ostype == 'linux':  
+					if ostype == 'linux':
+						aclcopyarg = ''
+						if aclcopy == 'nfs4-acl':  
+							aclcopyarg = "\"-acl4\","
 						if excludedirfile == '':
-							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+							cmdargs = "copy\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
 						else:
-							cmdargs = "copy\",\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+							cmdargs = "copy\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 
 					if ostype == 'windows' and tool == 'xcp': 
+						if aclcopy == 'no-win-acl':
+							xcpwincopyparam = "-preserve-atime"
+						else:
+							xcpwincopyparam = "-preserve-atime -acl -root"
+
 						if excludedirfile == '':						
 							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 						else:
 							logging.error("exclude directory is not yet supported when xcp for windows is used for src:" + src)	
 							exit(1)
-							#cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 
 					robocopyunicodelogpath = ''
 					robocopyexcludedirs = ''
@@ -836,7 +868,12 @@ def create_nomad_jobs():
 						
 						if robocopyunicodelogpath != '':
 							robocopyunicodelogpath = " /UNILOG:"+robocopyunicodelogpath+"\\"+xcpindexname+".log"
-						
+
+						if aclcopy == 'no-win-acl':
+							robocopyargs = ' /COPY:DAT /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /BYTES /NDL '
+						else:
+							robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /BYTES /NDL '
+
 						if excludedirfile == '':						
 							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
 						else:
@@ -873,7 +910,12 @@ def create_nomad_jobs():
 					
 					if ostype == 'linux':
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
+
 					if ostype == 'windows' and tool == 'xcp': 
+						if aclcopy == 'no-win-acl':
+							xcpwinsyncparam = "-preserve-atime"
+						else:
+							xcpwinsyncparam = "-preserve-atime -acl -root"						
 						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 					if ostype == 'windows' and tool == 'robocopy': 
 						if excludedirfile == '':
@@ -1544,7 +1586,10 @@ def create_verbose_status (jsondict, displaylogs=False):
 			print(("JOB: "+job))
 			print(("SRC: "+src))
 			print(("DST: "+jobdetails['dst']))
-
+			
+			if jobdetails['aclcopy'] == "nfs4-acl": print("ACL: NFS4 ACL COPY")
+			if jobdetails['aclcopy'] == "no-win-acl": print("ACL: NO CIFS ACL COPY")
+			
 			nextrun = get_next_cron_time(jobdetails['cron'])
 			if 'paused' in jobdetails:
 				nextrun = 'paused'
@@ -1661,9 +1706,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					sync_job_name     = jobdetails['sync_job_name']
 					verify_job_name   = jobdetails['verify_job_name']
 					jobcron           = jobdetails['cron']
-					ostype		  = jobdetails['ostype']
+					ostype            = jobdetails['ostype']
 					tool              = jobdetails['tool']
 					excludedirfile    = jobdetails['excludedirfile']
+					aclcopy           = jobdetails['aclcopy']
 					
 					#xcp logs for linux are in stderr for windows they are in stdout 
 					if ostype=='windows': logtype = 'stdout'
@@ -3838,7 +3884,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 
 
 #assessment of filesystem and creation of csv file out of it 
-def assess_fs_linux(csvfile,src,dst,depth,jobname):
+def assess_fs_linux(csvfile,src,dst,depth,acl,jobname):
 	logging.debug("starting to assess src:" + src + " dst:" + dst) 
 
 	if not re.search("^\S+\:\/.*", src):
@@ -3894,7 +3940,7 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 
 	#prepare things for csv creation
 	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS","ACL COPY"]
 	csv_data = []
 
 	if os.path.isfile(csvfile):
@@ -3960,7 +4006,7 @@ def assess_fs_linux(csvfile,src,dst,depth,jobname):
 
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
 				#append data to csv 
-				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":""})
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":"","ACL COPY":acl})
 				if taskcounter != -1: taskcounter += 1
 
 
@@ -4838,7 +4884,7 @@ def is_number(s):
     except ValueError:
         return False
 
-def monitored_copy(src,dst):
+def monitored_copy(src,dst,nfs4acl):
 	xcption_script = os.path.abspath(__file__)
 
 	#validate provided paths are unix based 
@@ -4856,7 +4902,10 @@ def monitored_copy(src,dst):
 		os.remove(xcption_csv)
 
 	#running assess to create xcption job csv file
-	xcption_cmd = [xcption_script,'assess','-s',src, '-d',dst,'-l','1','-c',xcption_csv,'-j',xcption_job]
+	if nfs4acl:
+		xcption_cmd = [xcption_script,'assess','-s',src, '-d',dst,'-l','1','-c',xcption_csv,'-j',xcption_job,'-a','nfs4-acl']
+	else:	
+		xcption_cmd = [xcption_script,'assess','-s',src, '-d',dst,'-l','1','-c',xcption_csv,'-j',xcption_job]
 	if subprocess.call(xcption_cmd,stderr=subprocess.STDOUT):
 		logging.error("cannot validate source/destination paths")
 		exit(1)		
@@ -5222,12 +5271,18 @@ if args.subparser_name == 'assess':
 		defaultjobcron = args.cron
 					
 	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
-		assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+		if args.acl and not args.acl == 'nfs4-acl':
+			logging.error('invalid acl copy option')
+			exit(1)
+		assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,args.acl,jobfilter)
 	else:
+		if args.acl and not args.acl == 'no-win-acl':
+			logging.error('invalid acl copy option')
+			exit(1)		
 		assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 
 if args.subparser_name == 'copy-data':
-	monitored_copy(args.source,args.destination)
+	monitored_copy(args.source,args.destination,args.nfs4acl)
 
 if args.subparser_name == 'delete-data':
 	monitored_delete(args.source,args.force)

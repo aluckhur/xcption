@@ -63,7 +63,6 @@ windows hosts `c:\NetApp\XCP\xcp.exe`
 The interaction is done using the following python CLI command (need root access)
 
 ```
-<<<<<<< HEAD
 [root@centos1 xcption]# ./xcption.py -h
 usage: xcption.py [-h] [-v] [-d]
                   
@@ -71,14 +70,12 @@ usage: xcption.py [-h] [-v] [-d]
 
 positional arguments:
   {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy,delete-data,nomad,export,web,fileupload,smartassess}
-=======
 usage: xcption.py [-h] [-v] [-d]
                   {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                   ...
 
 positional arguments:
   {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
->>>>>>> python3
                         sub commands that can be used
     nodestatus          display cluster nodes status
     status              display status
@@ -94,11 +91,7 @@ positional arguments:
                         and destination (xcp verify)
     delete              delete existing config
     modify              modify task job
-<<<<<<< HEAD
-    copy                perfored monitored copy of source to destination
-=======
     copy-data           perfored monitored copy of source to destination
->>>>>>> python3
     delete-data         perfored monitored delete of data using xcp
     export              export existing jobs to csv
     web                 start web interface to display status
@@ -150,6 +143,7 @@ a CSV file with the jobs should be created with the following columns:
 `FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)
 
 `EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
+`ACL COPY` (optional) - incldue details for acl copy. no-win-acl will prevent acl copy for CIFS jobs (robocopy and xcp), nfs4-acl will include nfs4-acl for nfs jobs (require nfs4 acl suport on both source and destination)
 
 CSV file example:
 ```
