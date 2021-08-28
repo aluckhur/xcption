@@ -1,0 +1,324 @@
+{
+    "dataBrokerId": "string",
+    "groupId": "string",
+    "source": {
+      "protocol": "nfs",
+      "cifs": {
+        "host": "string",
+        "share": "string",
+        "path": "string",
+        "version": "string",
+        "workingEnvironmentId": "string",
+        "provider": "cifs",
+        "credentials": {
+          "domain": "string",
+          "username": "string",
+          "password": "string"
+        }
+      },
+      "nfs": {
+        "host": "string",
+        "export": "string",
+        "path": "string",
+        "version": "string",
+        "workingEnvironmentId": "string",
+        "accessPoint": "string",
+        "provider": "nfs"
+      },
+      "s3": {
+        "host": "string",
+        "port": "string",
+        "bucket": "string",
+        "prefix": "string",
+        "region": "string",
+        "encryption": {
+          "protocol": "kms",
+          "keyId": "string"
+        },
+        "tags": [
+          {
+            "key": "string",
+            "value": "string"
+          }
+        ],
+        "storageClass": "STANDARD",
+        "provider": "s3",
+        "glacier": {
+          "days": 0,
+          "tier": "string"
+        },
+        "deepArchive": {
+          "days": 0,
+          "tier": "string"
+        },
+        "credentials": {
+          "accessKey": "string",
+          "secretKey": "string"
+        }
+      },
+      "local": {
+        "path": "string"
+      },
+      "azure": {
+        "container": "string",
+        "storageAccountName": "string",
+        "prefix": "string",
+        "tags": [
+          {
+            "key": "string",
+            "value": "string"
+          }
+        ],
+        "blobTier": "HOT",
+        "provider": "azure",
+        "credentials": {
+          "storageAccountConnectionString": "string"
+        }
+      },
+      "gcp": {
+        "bucket": "string",
+        "prefix": "string",
+        "tags": [
+          {
+            "key": "string",
+            "value": "string"
+          }
+        ],
+        "storageClass": "STANDARD",
+        "provider": "gcp"
+      },
+      "sftp": {
+        "host": "string",
+        "port": "string",
+        "path": "string",
+        "rootDirectory": "string",
+        "provider": "sftp",
+        "credentials": {
+          "username": "string",
+          "password": "string"
+        }
+      },
+      "box": {
+        "rootDirectory": "string",
+        "path": "string",
+        "folderId": "string",
+        "provider": "box",
+        "credentials": {
+          "clientId": "string",
+          "clientSecret": "string",
+          "publicKeyId": "string",
+          "privateKey": "string",
+          "passphrase": "string",
+          "enterpriseId": "string"
+        }
+      }
+    },
+    "sourceCredentials": {
+      "sftp": {
+        "username": "string",
+        "password": "string"
+      },
+      "cifs": {
+        "domain": "string",
+        "username": "string",
+        "password": "string"
+      },
+      "s3": {
+        "accessKey": "string",
+        "secretKey": "string"
+      },
+      "azure": {
+        "storageAccountConnectionString": "string"
+      },
+      "box": {
+        "clientId": "string",
+        "clientSecret": "string",
+        "publicKeyId": "string",
+        "privateKey": "string",
+        "passphrase": "string",
+        "enterpriseId": "string"
+      }
+    },
+    "target": {
+      "protocol": "nfs",
+      "cifs": {
+        "host": "string",
+        "share": "string",
+        "path": "string",
+        "version": "string",
+        "workingEnvironmentId": "string",
+        "provider": "cifs",
+        "credentials": {
+          "domain": "string",
+          "username": "string",
+          "password": "string"
+        }
+      },
+      "nfs": {
+        "host": "string",
+        "export": "string",
+        "path": "string",
+        "version": "string",
+        "workingEnvironmentId": "string",
+        "accessPoint": "string",
+        "provider": "nfs"
+      },
+      "s3": {
+        "host": "string",
+        "port": "string",
+        "bucket": "string",
+        "prefix": "string",
+        "region": "string",
+        "encryption": {
+          "protocol": "kms",
+          "keyId": "string"
+        },
+        "tags": [
+          {
+            "key": "string",
+            "value": "string"
+          }
+        ],
+        "storageClass": "STANDARD",
+        "provider": "s3",
+        "glacier": {
+          "days": 0,
+          "tier": "string"
+        },
+        "deepArchive": {
+          "days": 0,
+          "tier": "string"
+        },
+        "credentials": {
+          "accessKey": "string",
+          "secretKey": "string"
+        }
+      },
+      "local": {
+        "path": "string"
+      },
+      "azure": {
+        "container": "string",
+        "storageAccountName": "string",
+        "prefix": "string",
+        "tags": [
+          {
+            "key": "string",
+            "value": "string"
+          }
+        ],
+        "blobTier": "HOT",
+        "provider": "azure",
+        "credentials": {
+          "storageAccountConnectionString": "string"
+        }
+      },
+      "gcp": {
+        "bucket": "string",
+        "prefix": "string",
+        "tags": [
+          {
+            "key": "string",
+            "value": "string"
+          }
+        ],
+        "storageClass": "STANDARD",
+        "provider": "gcp"
+      },
+      "sftp": {
+        "host": "string",
+        "port": "string",
+        "path": "string",
+        "rootDirectory": "string",
+        "provider": "sftp",
+        "credentials": {
+          "username": "string",
+          "password": "string"
+        }
+      },
+      "box": {
+        "rootDirectory": "string",
+        "path": "string",
+        "folderId": "string",
+        "provider": "box",
+        "credentials": {
+          "clientId": "string",
+          "clientSecret": "string",
+          "publicKeyId": "string",
+          "privateKey": "string",
+          "passphrase": "string",
+          "enterpriseId": "string"
+        }
+      }
+    },
+    "targetCredentials": {
+      "sftp": {
+        "username": "string",
+        "password": "string"
+      },
+      "cifs": {
+        "domain": "string",
+        "username": "string",
+        "password": "string"
+      },
+      "s3": {
+        "accessKey": "string",
+        "secretKey": "string"
+      },
+      "azure": {
+        "storageAccountConnectionString": "string"
+      },
+      "box": {
+        "clientId": "string",
+        "clientSecret": "string",
+        "publicKeyId": "string",
+        "privateKey": "string",
+        "passphrase": "string",
+        "enterpriseId": "string"
+      }
+    },
+    "encryption": {
+      "initiator": {
+        "dataBrokerId": "string",
+        "endpointType": "src"
+      },
+      "listener": {
+        "dataBrokerId": "string",
+        "endpointType": "trg"
+      }
+    },
+    "settings": {
+      "gracePeriod": 0,
+      "deleteOnSource": false,
+      "deleteOnTarget": false,
+      "objectTagging": true,
+      "copyAcl": false,
+      "retries": 0,
+      "fileTypes": {
+        "files": true,
+        "directories": true,
+        "symlinks": true
+      },
+      "files": {
+        "excludeExtensions": [
+          "string"
+        ],
+        "minSize": 0,
+        "maxSize": 0,
+        "minDate": "string",
+        "maxDate": "string"
+      },
+      "copyProperties": {
+        "metadata": false,
+        "tags": false
+      },
+      "schedule": {
+        "syncInDays": 0,
+        "syncInHours": 0,
+        "syncInMinutes": 0,
+        "isEnabled": true,
+        "nextTime": "string",
+        "syncWhenCreated": true
+      }
+    }
+  }
