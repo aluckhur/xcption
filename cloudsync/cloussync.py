@@ -5,7 +5,9 @@ import pprint
 import argparse
 import sys,os
 import logging
-import copy
+import time,datetime
+import locale
+locale.setlocale(locale.LC_ALL, '')
 
 #location of xcption root dir  
 root = os.path.dirname(os.path.abspath(__file__))+'/..'
@@ -17,6 +19,7 @@ cloudsyncapikeysfile = os.path.join(cloudsyncrepo,'accounts')
 
 #cloudsync api edpoint 
 endpoint = 'https://api.cloudsync.netapp.com/api/'
+endpoint = 'https://api.demo.cloudsync.netapp.com/api/'
 
 #dictionary for api accounts
 apiaccounts = {}
@@ -33,6 +36,7 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 
 # create the sub commands 
 parser_baseline     = subparser.add_parser('baseline',   help='start baseline of relationships',parents=[parent_parser])
+parser_sync         = subparser.add_parser('sync',   help='start baseline of relationships',parents=[parent_parser])
 
 parser_baseline.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
 parser_baseline.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
@@ -40,6 +44,12 @@ parser_baseline.add_argument('-b','--broker',help="cloud sync broker name",requi
 parser_baseline.add_argument('-s','--source',help="source path",required=True,type=str)
 parser_baseline.add_argument('-d','--destination',help="destination path",required=True,type=str)
 parser_baseline.add_argument('-f','--force',help="force re-baseline", required=False,action='store_true')
+
+parser_sync.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
+parser_sync.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
+parser_sync.add_argument('-b','--broker',help="cloud sync broker name",required=True,type=str)
+parser_sync.add_argument('-s','--source',help="source path",required=True,type=str)
+parser_sync.add_argument('-d','--destination',help="destination path",required=True,type=str)
 
 args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
@@ -71,13 +81,14 @@ def parseapifile():
         f = open(cloudsyncapikeysfile, 'r')
         lines = f.readlines()
         for line in lines:
-            account,apikey = line.split(':')
-            apiaccounts[account] = apikey.rstrip()
+            user,apikey = line.split(':')
+            apiaccounts[user] = apikey.rstrip()
     except Exception as e:
         logging.error("could not load api refrence file:"+cloudsyncapikeysfile)
         exit(1)
 
-def cloudsyncapicall(user,api,method='GET',requestheaders={},body={}):
+def cloudsyncapicall(user,account,api,method='GET',requestheaders={},body={}):
+    
     if not user in apiaccounts:
         logging.error("api key for user:"+user+" could not be found in:"+cloudsyncapikeysfile)
         exit(1)    
@@ -102,25 +113,36 @@ def cloudsyncapicall(user,api,method='GET',requestheaders={},body={}):
 
 #parse path 
 def parsepath(path):
-    if path.startswith('\\\\'):
-        type = 'cifs'
-    elif path.__contains__(':/'):
-        type = 'nfs'
-    else:
+
+    if path.count('://') != 1:
         logging.error('path:'+path+' is in unsupported format')
-        exit(1)
+        exit(1)        
+    type,allpath = path.split('://')
+    if not type or type not in ['cifs','nfs','nfs3','nfs4','nfs4.1']:
+        logging.error('path:'+path+' is in unsupported format')
+        exit(1)        
     
-    if type == 'nfs':
-        nfsserver,fullpath=path.split(':')
+    if type in ['nfs','nfs3','nfs4']:
+        if allpath.count(':') != 1:
+            logging.error('path:'+path+' is in unsupported format')
+            exit(1)            
+        nfsserver,fullpath=allpath.split(':')
         dirs = fullpath.split('/')
         export = dirs[1]
         del dirs[1]
         deeppath =''
         if len(dirs) > 1:
             deeppath = '/'.join(dirs)
-        res = {'type':type,'path':path,'server':nfsserver,'fullpath':fullpath,'export':export,'deeppath':deeppath}
+        if type in ['nfs','nfs3']:
+            version = '3'
+        elif type in ['nfs4']:
+            version = '4'
+        elif type in ['nfs4.1']:
+            version = '4.1'
+
+        res = {'type':type,'path':allpath,'server':nfsserver,'fullpath':fullpath,'export':export,'deeppath':deeppath,'version':version}
     if type == 'cifs':
-        dirs = path.split('\\')
+        dirs = allpath.split('\\')
         if len(dirs) < 4:
             logging.error('cifs path:'+path+' is in unsupported format')
             exit(1)
@@ -131,15 +153,16 @@ def parsepath(path):
             del dirs[2:4]
             del dirs[1]
             deeppath = '\\'.join(dirs)
-        res = {'type':type,'path':path,'server':server,'share':share,'deeppath':deeppath}    
+        res = {'type':type,'path':allpath,'server':server,'share':share,'deeppath':deeppath}    
     
     return(res)
 
 #get broker info 
-def getbrokerinfo(user,broker):
+def getbrokerinfo(user,account,broker,refresh=False):
     global brokerhash 
-    if not user+broker in brokerhash:
-        brokers = cloudsyncapicall(user,'data-brokers')['body']
+    if not user+broker in brokerhash or refresh:
+        accountid = getaccountid(user,account)
+        brokers = cloudsyncapicall(user,account,'data-brokers','GET',{'x-account-id':accountid})['body']
         found = False
         for brk in brokers:
             brokerhash[user+brk['name']] = brk
@@ -157,7 +180,7 @@ def getaccountid(user,account):
     if account in accounthash:
         return accounthash[account]
     else:
-        accounts = cloudsyncapicall(user,'accounts')['body']
+        accounts = cloudsyncapicall(user,account,'accounts')['body']
         for acc in accounts:
             accounthash[acc['name']] = acc['accountId']
         if not account in accounthash:
@@ -166,14 +189,14 @@ def getaccountid(user,account):
             return accounthash[account]
 
 #get relationship data
-def getcloudsyncrelationship (user,account,broker,src,dst):
+def getcloudsyncrelationship (user,account,broker,src,dst,relid=0):
     #validate src 
     srcdetails = parsepath(src)
     #validate dst 
     dstdetails = parsepath(dst)
-
+    
     #validate broker
-    if not getbrokerinfo(user,broker):
+    if not getbrokerinfo(user,account,broker,True):
         logging.error("broker:"+broker+" is not availble for user:"+user)
         exit(1)
 
@@ -182,51 +205,66 @@ def getcloudsyncrelationship (user,account,broker,src,dst):
         logging.error("account:"+account+" is not availble for user:"+user)
         exit(1)
 
-    #get relationship info 
-    rels = cloudsyncapicall(user,'relationships-v2','GET',{'x-account-id':accountid})['body']           
-    
-    for rel in rels:
-        found = True
-        if not srcdetails['type'] in rel['source']:
-            found = False   
-        if srcdetails['type'] == 'nfs' and 'nfs' in rel['source']:
-            if rel['source']['nfs']['host'] != srcdetails['server']:
-                found = False
-            elif rel['source']['nfs']['export'] != '/'+srcdetails['export']:
-                found = False
-                
-            elif rel['source']['nfs']['path'] != srcdetails['deeppath']:
-                found = False
-          
-        if not dstdetails['type'] in rel['target']:
-            found = False
-        if dstdetails['type'] == 'nfs' and 'nfs' in rel['target']:
-            if rel['target']['nfs']['host'] != dstdetails['server']:
-                found = False
-                
-            elif rel['target']['nfs']['export'] != '/'+dstdetails['export']:
-                found = False
+    if relid:
+        #get specific relationship info 
+        rel = cloudsyncapicall(user,account,'relationships-v2/'+relid,'GET',{'x-account-id':accountid})['body'] 
+        if rel:
+            logging.debug('existing cloudsync relationship from src: '+src+' to dst: '+dst+' was found')
+            return(rel) 
+        else:
+            return({})
+    else:         
+        #get relationship info 
+        rels = cloudsyncapicall(user,account,'relationships-v2','GET',{'x-account-id':accountid})['body'] 
         
-            elif rel['target']['nfs']['path'] != dstdetails['deeppath']:
+        #with open('fullrels.json', 'w') as fp:
+        #    json.dump(rels, fp) 
+        #exit(1)    
+        
+        for rel in rels:
+            found = True
+            if not srcdetails['type'] in rel['source']:
                 found = False   
+            if srcdetails['type'] == 'nfs' and 'nfs' in rel['source']:
+                if rel['source']['nfs']['host'] != srcdetails['server']:
+                    found = False
+                elif rel['source']['nfs']['export'] != '/'+srcdetails['export']:
+                    found = False
+                    
+                elif rel['source']['nfs']['path'] != srcdetails['deeppath']:
+                    found = False
+            
+            if not dstdetails['type'] in rel['target']:
+                found = False
+            if dstdetails['type'] == 'nfs' and 'nfs' in rel['target']:
+                if rel['target']['nfs']['host'] != dstdetails['server']:
+                    found = False
+                    
+                elif rel['target']['nfs']['export'] != '/'+dstdetails['export']:
+                    found = False
+            
+                elif rel['target']['nfs']['path'] != dstdetails['deeppath']:
+                    found = False   
 
-        if found: 
-            logging.debug('existing cloudsync relationship from src:'+src+' to dst:'+dst+' was found')
-            return(rel)
+            if found: 
+                logging.debug('existing cloudsync relationship from src: '+src+' to dst: '+dst+' was found')
+                return(rel)
 
-    logging.debug('existing cloudsync relationship from src:'+src+' to dst:'+dst+' could not be found')
+    logging.debug('existing cloudsync relationship from src: '+src+' to dst: '+dst+' could not be found')
     return({})
 
 def deletecloudsyncrelationship(user,account,broker,src,dst):
+    logging.info('deleting existing cloudsync relationship from src: '+src+' to dst: '+dst)
     relinfo = getcloudsyncrelationship (user,account,broker,src,dst)
     if relinfo:
         relid = relinfo['relationshipId']
         accountid = getaccountid(user,account)
-        delresult = cloudsyncapicall(user,'relationships/'+relid,'DELETE',{'x-account-id':accountid})
+        delresult = cloudsyncapicall(user,account,'relationships/'+relid,'DELETE',{'x-account-id':accountid})
 
 
 def createcloudsyncrelationship(user,account,broker,src,dst):
-    brkinfo = getbrokerinfo(user,broker)
+    logging.info('creating new cloudsync relationship from src: '+src+' to dst: '+dst)
+    brkinfo = getbrokerinfo(user,account,broker)
     if not brkinfo:
         logging.error("broker:"+broker+" is not availble for user:"+user)
         exit(1)
@@ -279,7 +317,7 @@ def createcloudsyncrelationship(user,account,broker,src,dst):
         cloudsynccreate["source"]['nfs']['host'] = srcdetails['server']
         cloudsynccreate["source"]['nfs']['export'] = '/'+srcdetails['export']
         cloudsynccreate["source"]['nfs']['path'] = srcdetails['deeppath']
-        cloudsynccreate["source"]['nfs']['version'] = '3'
+        cloudsynccreate["source"]['nfs']['version'] = srcdetails['version']
     if dstdetails['type'] == 'nfs':
         del cloudsynccreate["settings"]['objectTagging']
         del cloudsynccreate['encryption']
@@ -294,29 +332,114 @@ def createcloudsyncrelationship(user,account,broker,src,dst):
         cloudsynccreate["target"]['nfs']['host'] = dstdetails['server']
         cloudsynccreate["target"]['nfs']['export'] = '/'+dstdetails['export']
         cloudsynccreate["target"]['nfs']['path'] = dstdetails['deeppath']
-        cloudsynccreate["target"]['nfs']['version'] = '3'
+        cloudsynccreate["target"]['nfs']['version'] = dstdetails['version']
 
     #create the relationship 
     accountid = getaccountid(user,account)
-    delresult = cloudsyncapicall(user,'relationships-v2','POST',{'x-account-id':accountid},cloudsynccreate)
+    delresult = cloudsyncapicall(user,account,'relationships-v2','POST',{'x-account-id':accountid},cloudsynccreate)
 
-
+def synccloudsyncrelationship(user,account,broker,src,dst):
+    logging.info('issue sync fo cloudsync relationship from src: '+src+' to dst: '+dst)
+    relinfo = getcloudsyncrelationship (user,account,broker,src,dst)
     
+    if relinfo:
+        relid = relinfo['relationshipId']
+        if relinfo['activity']['status'] == 'RUNNING':
+            logging.error('sync already running for src: '+src+' to dst: '+dst)
+            exit(1)
+        accountid = getaccountid(user,account)
+        starttime = time.time()
+        syncresult = cloudsyncapicall(user,account,'relationships/'+relid+'/sync','PUT',{'x-account-id':accountid}) 
+
+        #check sync status 
+        count = 0
+        prevbytes = 0 
+        while True:
+            count+=1
+            relinfo = getcloudsyncrelationship (user,account,broker,src,dst,relid)
+            currenttime = time.time()
+            timespan = currenttime-starttime
+
+            hours,timespan = divmod(timespan, 3600)
+            minutes,timespan = divmod(timespan, 60)
+            seconds = timespan
+            if seconds < 1: seconds=1
+            timestr = str(int(hours))+'h'+str(int(minutes))+'m'+str(int(seconds))+'s'  
+
+            
+            #with open('relstatus'+str(count)+'.json', 'w') as fp:
+            #    json.dump(relinfo, fp)             
+
+            scanned = relinfo['activity']['filesScanned']
+            scanned += relinfo['activity']['dirsScanned']
+            copied = relinfo['activity']['filesCopied']
+            copied += relinfo['activity']['dirsCopied']
+            #modified = relinfo['activity']['filesMarkedForCopy']
+            #modified += relinfo['activity']['dirsMarkedForCopy']
+            modified = 0
+            errors = relinfo['activity']['filesFailed']
+            errors += relinfo['activity']['dirsFailed'] 
+            filesremove = relinfo['activity']['filesRemoved']
+            dirsremove = relinfo['activity']['dirsRemoved']
+            bytescopied = relinfo['activity']['bytesCopied']
+
+            newbytes = bytescopied-prevbytes
+            bw = round(newbytes/1024/1024,2)
+            bwqunatifier = 'MiB'
+            bws = round(bw/timespan,2)
+            bwsquantifier = 'MiB/s'
+
+            if bw >= 1000 and bw<1000000:
+                bw = round(bw/1024,2)
+                bwqunatifier = 'GiB' 
+            elif bw>=1000000:
+                bw = round(bw,2)
+                bwqunatifier = 'TiB'
+
+            if bws >= 1000 and bws<1000000:
+                bws = round(bws/1024,2)
+                bwsquantifier = 'GiB/s' 
+            elif bws>=1000000:
+                bws = round(bws,2)
+                bwsquantifier = 'TiB/s'                  
+
+            prevbytes = bytescopied
+
+            print(f"{scanned:,} scanned, {copied:,} copied, {modified:,} modification, {errors:,} errors, {filesremove:,} file.gone, {dirsremove:,} dir.gone, {bw}{bwqunatifier}({bws}{bwsquantifier}), {timestr}")
+
+            if not relinfo['activity']['status'] == 'RUNNING': break
+            time.sleep(10)
+        
+        if relinfo['activity']['filesFailed'] > 0 or relinfo['activity']['dirsFailed'] > 0:
+            print("")
+            print(f"encountered {errors} errors during sync")
+            print("top 5 errors during sync operation (detailed logs can be downloaded from cloudsync portal):")
+            for err in relinfo['activity']['topFiveMostCommonRelationshipErrors']:
+                desc = ''
+                if 'description' in err: desc = err['description']
+                print(f"count: {err['counter']} step: {err['step']} errorCode: {err['errorCode']} description: {desc}")
+            print("")
+            
+        if relinfo['activity']['status'] == 'FAILED':
+            errormsg = relinfo['activity']['failureMessage']
+            logging.error('cloudsync sync failed for:'+src+' to dst: '+dst+' with error:'+errormsg)
+            exit(1)
+    else:
+        logging.error('could not find cloudsync relationship for:'+src+' to dst: '+dst)
 
 
 
-def  baselinerelation (user,account,broker,src,dst,force=False):
+def baselinerelation (user,account,broker,src,dst,force=False):
     relinfo = getcloudsyncrelationship (user,account,broker,src,dst)
     if relinfo and not force:
-        logging.error('cloudsync relationship from src:'+src+' to dst:'+dst+' already exists. use --force to force new baseline') 
+        logging.error('cloudsync relationship from src: '+src+' to dst: '+dst+' already exists. use --force to force new baseline') 
         exit(1)
     elif relinfo and force:
-        logging.info('deleting existing cloudsync relationship from src:'+src+' to dst:'+dst)
         deletecloudsyncrelationship(user,account,broker,src,dst)
-        logging.info('creating new cloudsync relationship from src:'+src+' to dst:'+dst)
         createcloudsyncrelationship(user,account,broker,src,dst)
+        synccloudsyncrelationship(user,account,broker,src,dst)
     else:
-        logging.info('creating new cloudsync relationship from src:'+src+' to dst:'+dst)
+        logging.info('creating new cloudsync relationship from src: '+src+' to dst: '+dst)
         createcloudsyncrelationship(user,account,broker,src,dst)
 
 #################################################################
@@ -330,6 +453,8 @@ parseapifile()
 
 if args.subparser_name == 'baseline':
     baselinerelation(args.user,args.account,args.broker,args.source,args.destination,args.force)
+if args.subparser_name == 'sync':
+    synccloudsyncrelationship(args.user,args.account,args.broker,args.source,args.destination)
     user = args.user
     
 
