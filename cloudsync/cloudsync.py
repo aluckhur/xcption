@@ -35,14 +35,14 @@ parser.add_argument('-d','--debug',   help="log debug messages to console", acti
 subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
 
 # create the sub commands 
-parser_create       = subparser.add_parser('create',   help='create cloudsync relationships',parents=[parent_parser])
+parser_baseline     = subparser.add_parser('baseline', help='create and baseline cloudsync relationships',parents=[parent_parser])
 parser_sync         = subparser.add_parser('sync',     help='initiate sync for cloudsync relationships',parents=[parent_parser])
 parser_validate     = subparser.add_parser('validate', help='validate cloudsync relationship exists',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',   help='export existing cloudsync relationships',parents=[parent_parser])
 
-parser_create.add_argument('-s','--source',help="source path",required=True,type=str)
-parser_create.add_argument('-d','--destination',help="destination path",required=True,type=str)
-parser_create.add_argument('-f','--force',help="force re-baseline", required=False,action='store_true')
+parser_baseline.add_argument('-s','--source',help="source path",required=True,type=str)
+parser_baseline.add_argument('-d','--destination',help="destination path",required=True,type=str)
+parser_baseline.add_argument('-f','--force',help="force re-baseline", required=False,action='store_true')
 
 parser_sync.add_argument('-s','--source',help="source path",required=True,type=str)
 parser_sync.add_argument('-d','--destination',help="destination path",required=True,type=str)
@@ -486,7 +486,7 @@ def synccloudsyncrelationship(user,account,broker,src,dst):
 
             prevbytes = bytescopied
 
-            print(f"{scanned:,} scanned, {copied:,} copied, {modified:,} modification, {errors:,} errors, {filesremove:,} file.gone, {dirsremove:,} dir.gone, {bw}{bwqunatifier}({bws}{bwsquantifier}), {timestr}")
+            logging.info(f"{scanned:,} scanned, {copied:,} copied, {modified:,} modification, {errors:,} errors, {filesremove:,} file.gone, {dirsremove:,} dir.gone, {bw}{bwqunatifier}({bws}{bwsquantifier}), {timestr}")
 
             if not relinfo['activity']['status'] == 'RUNNING': break
             time.sleep(10)
@@ -508,8 +508,6 @@ def synccloudsyncrelationship(user,account,broker,src,dst):
     else:
         logging.error('could not find cloudsync relationship for:'+src+' to dst: '+dst)
 
-
-
 def baselinerelation (user,account,broker,src,dst,force=False):
     relinfo = getcloudsyncrelationship (user,account,broker,src,dst)
     if relinfo and not force:
@@ -520,6 +518,7 @@ def baselinerelation (user,account,broker,src,dst,force=False):
         createcloudsyncrelationship(user,account,broker,src,dst)
     else:
         createcloudsyncrelationship(user,account,broker,src,dst)
+        synccloudsyncrelationship(user,account,broker,src,dst)
 
 def exportcloudsyncrelationship (user,account,broker,src,dst):
     relinfo = getcloudsyncrelationship (user,account,broker,src,dst,False,True)
@@ -539,7 +538,7 @@ if not os.path.isfile(cloudsyncapikeysfile):
 
 parseapifile()
 
-if args.subparser_name == 'create':
+if args.subparser_name == 'baseline':
     relinfo = validaterelationship(args.source,args.destination)
     baselinerelation(relinfo['user'],relinfo['account'],relinfo['broker'],relinfo['srcpath'],relinfo['dstpath'],args.force)
 if args.subparser_name == 'sync':

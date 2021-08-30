@@ -100,6 +100,9 @@ webtemplatedir = os.path.join(root,'webtemplates')
 #file pload location within the webtempate dir
 uploaddir = os.path.join(webtemplatedir,'upload') 
 
+#cloudsync integration script 
+cloudsyncscript = os.path.join(root,'cloudsync','cloudsync.py')
+
 #log file location
 logdirpath = os.path.join(root,'log') 
 logfilepath = os.path.join(logdirpath,'xcption.log')
@@ -459,12 +462,14 @@ def parse_csv(csv_path):
 					srcbase = srcbase.replace(' ','-')
 					srcbase = srcbase.replace('\\','_')
 					srcbase = srcbase.replace('$','_dollar')
+					srcbase = srcbase.replace('@','_at')
 					
 					dstbase = dst.replace(':/','-_')
 					dstbase = dstbase.replace('/','_')
 					dstbase = dstbase.replace(' ','-')
 					dstbase = dstbase.replace('\\','_')
 					dstbase = dstbase.replace('$','_dollar')
+					dstbase = dstbase.replace('@','_at')
 
 					#validate no duplicate src and destination 
 					for j in jobsdict:
@@ -482,74 +487,93 @@ def parse_csv(csv_path):
 
 					if not jobname in jobsdict:
 						jobsdict[jobname]={}
-
-					if ostype == 'linux':
-						if not re.search("\S+\:\/\S+", src):
-							logging.error("src path format is incorrect: " + src) 
+					
+					if tool == 'cloudsync':
+						cloudsync_cmd = [cloudsyncscript,'validate','-s',src,'-d',dst]
+						cloudsyncrel = {}
+						try:
+							validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
+							cloudsyncrel = json.loads(validatejson.decode('utf-8'))							
+						except Exception as e:
+							logging.error("cannot validate source/destination paths for cloudsync src:"+src+" dst:"+dst)
+							os.system(' '.join(cloudsync_cmd))
 							exit(1)	
-						if not re.search("\S+\:\/\S+", dst):
-							logging.error("dst path format is incorrect: " + dst)
-							exit(1)	
-
-						
-						if args.subparser_name == 'load':
-							#check if src/dst can be mounted
-							subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
-							logging.info("validating src:" + src + " and dst:" + dst+ " are mountable") 
-							if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-								logging.error("cannot mount src using nfs: " + src)
-								exit(1)					
-							subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)							
-							
-							if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-								logging.error("cannot mount dst using nfs: " + dst)
-								exit(1)					
-							subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)	
-
-							if aclcopy == 'nfs4-acl':
-								if subprocess.call( [ 'mount', '-t', 'nfs4', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-									logging.error("cannot mount src:"+src+" using nfs version 4 which is required for nfs4 acl processing")
-									exit(1)					
-								subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
-
-								if subprocess.call( [ 'mount', '-t', 'nfs4', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
-									logging.error("cannot mount dst:"+dst+"using nfs version 4 which is required for nfs4 acl processing")
-									exit(1)					
-								subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)								
-							
-							srchost,srcpath = src.split(":")
-							dsthost,dstpath = dst.split(":")									
-						
-					if ostype == 'windows':
-						if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
-							logging.error("src path format is incorrect: " + src) 
-							exit(1)	
-						if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
-							logging.error("dst path format is incorrect: " + dst)
-							exit(1)	
-
-						if not args.novalidation:
-							logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are available from one of the windows servers") 
-							
-							pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
-							psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
-							if  psstatus != 'complete':
-								logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
-								exit(1)								
-							
-							pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
-							psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
-
-							if  psstatus != 'complete':
-								logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
-								exit(1)	
+						if cloudsyncrel: 
+							log.info("cloudsync relationship for src:"+src+" dest:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
 						else:
-							logging.debug("skipping path validation src:"+src+" dst:"+dst)
+							log.info("cloudsync relationship validated for src:"+src+" dest:"+dst)
 							
-						srchost = src.split('\\')[2]
-						srcpath = src.replace('\\\\'+srchost,'')
-						dsthost = dst.split('\\')[2]
-						dstpath = dst.replace('\\\\'+dsthost,'')			
+						#set required params 
+						srchost=''; srcpath=''; dsthost=''; dstpath=''; 
+						tool = 'cloudsync'
+					else:
+						if ostype == 'linux':
+							if not re.search("\S+\:\/\S+", src):
+								logging.error("src path format is incorrect: " + src) 
+								exit(1)	
+							if not re.search("\S+\:\/\S+", dst):
+								logging.error("dst path format is incorrect: " + dst)
+								exit(1)	
+
+							
+							if args.subparser_name == 'load':
+								#check if src/dst can be mounted
+								subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
+								logging.info("validating src:" + src + " and dst:" + dst+ " are mountable") 
+								if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+									logging.error("cannot mount src using nfs: " + src)
+									exit(1)					
+								subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)							
+								
+								if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+									logging.error("cannot mount dst using nfs: " + dst)
+									exit(1)					
+								subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)	
+
+								if aclcopy == 'nfs4-acl':
+									if subprocess.call( [ 'mount', '-t', 'nfs4', src, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+										logging.error("cannot mount src:"+src+" using nfs version 4 which is required for nfs4 acl processing")
+										exit(1)					
+									subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)
+
+									if subprocess.call( [ 'mount', '-t', 'nfs4', dst, '/tmp/temp_mount' ],stderr=subprocess.STDOUT):
+										logging.error("cannot mount dst:"+dst+"using nfs version 4 which is required for nfs4 acl processing")
+										exit(1)					
+									subprocess.call( [ 'umount', '/tmp/temp_mount' ],stderr=subprocess.STDOUT)								
+								
+								srchost,srcpath = src.split(":")
+								dsthost,dstpath = dst.split(":")									
+							
+						if ostype == 'windows':
+							if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
+								logging.error("src path format is incorrect: " + src) 
+								exit(1)	
+							if not re.search('^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
+								logging.error("dst path format is incorrect: " + dst)
+								exit(1)	
+
+							if not args.novalidation:
+								logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are available from one of the windows servers") 
+								
+								pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
+								psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+								if  psstatus != 'complete':
+									logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
+									exit(1)								
+								
+								pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
+								psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+
+								if  psstatus != 'complete':
+									logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
+									exit(1)	
+							else:
+								logging.debug("skipping path validation src:"+src+" dst:"+dst)
+								
+							srchost = src.split('\\')[2]
+							srcpath = src.replace('\\\\'+srchost,'')
+							dsthost = dst.split('\\')[2]
+							dstpath = dst.replace('\\\\'+dsthost,'')			
 					
 					baseline_job_name = 'baseline_'+'_'+srcbase
 					sync_job_name     = 'sync_'+'_'+srcbase
@@ -581,7 +605,7 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["excludedirfile"] = excludedirfile
 					jobsdict[jobname][src]["aclcopy"] = aclcopy
 
-					logging.debug("parsed the following relation:"+src+" -> "+dst)
+					logging.debug("parsed the following relationship:"+src+" -> "+dst)
 
 					dstdict[dst] = 1
 					line_count += 1
@@ -828,14 +852,17 @@ def create_nomad_jobs():
 
 					if ostype == 'linux': xcpbinpath = xcppath
 					if ostype == 'windows': xcpbinpath = 'powershell'
+					if tool == 'cloudsync': xcpbinpath = cloudsyncscript
 					
 					#creating baseline job 
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
 					logging.info("creating/updating relationship configs for src:"+src)
 					logging.debug("creating baseline job file: " + baseline_job_file)				
 
-					
-					if ostype == 'linux':
+					if tool == 'cloudsync':
+						cmdargs = "baseline\",\"-s\",\""+src+"\",\"-d\",\""+dst
+
+					if ostype == 'linux' and tool != 'cloudsync':
 						aclcopyarg = ''
 						if aclcopy == 'nfs4-acl':  
 							aclcopyarg = "\"-acl4\","
@@ -1597,10 +1624,10 @@ def create_verbose_status (jsondict, displaylogs=False):
 
 			print(("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'))
 
-			if jobdetails['ostype'] =='linux': print(("XCP INDEX NAME: "+jobdetails['xcpindexname']))
+			if jobdetails['ostype'] =='linux' and jobdetails['tool'] != 'cloudsync': print(("XCP INDEX NAME: "+jobdetails['xcpindexname']))
 			if jobdetails['excludedirfile'] != '': print(("EXCLUDE DIRS FILE: "+jobdetails['excludedirfile']))
-			print(("OS: "+jobdetails['ostype'].upper()))
-			if jobdetails['ostype']=='windows': print(("TOOL NAME: "+jobdetails['tool']))
+			if jobdetails['tool'] != 'cloudsync': print(("OS: "+jobdetails['ostype'].upper()))
+			if jobdetails['ostype']=='windows' or jobdetails['tool']=='cloudsync': print(("TOOL NAME: "+jobdetails['tool']))
 			print("")
 
 			if len(jobdetails['phases']) > 0:
