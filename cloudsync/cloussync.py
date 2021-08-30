@@ -19,7 +19,7 @@ cloudsyncapikeysfile = os.path.join(cloudsyncrepo,'accounts')
 
 #cloudsync api edpoint 
 endpoint = 'https://api.cloudsync.netapp.com/api/'
-endpoint = 'https://api.demo.cloudsync.netapp.com/api/'
+#endpoint = 'https://api.demo.cloudsync.netapp.com/api/'
 
 #dictionary for api accounts
 apiaccounts = {}
@@ -35,21 +35,28 @@ parser.add_argument('-d','--debug',   help="log debug messages to console", acti
 subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
 
 # create the sub commands 
-parser_baseline     = subparser.add_parser('baseline',   help='start baseline of relationships',parents=[parent_parser])
-parser_sync         = subparser.add_parser('sync',   help='start baseline of relationships',parents=[parent_parser])
+parser_create       = subparser.add_parser('create',   help='create cloudsync relationships',parents=[parent_parser])
+parser_sync         = subparser.add_parser('sync',     help='initiate sync for cloudsync relationships',parents=[parent_parser])
+parser_export       = subparser.add_parser('export',   help='export existing cloudsync relationships',parents=[parent_parser])
 
-parser_baseline.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
-parser_baseline.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
-parser_baseline.add_argument('-b','--broker',help="cloud sync broker name",required=True,type=str)
-parser_baseline.add_argument('-s','--source',help="source path",required=True,type=str)
-parser_baseline.add_argument('-d','--destination',help="destination path",required=True,type=str)
-parser_baseline.add_argument('-f','--force',help="force re-baseline", required=False,action='store_true')
+parser_create.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
+parser_create.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
+parser_create.add_argument('-b','--broker',help="cloud sync broker name",required=True,type=str)
+parser_create.add_argument('-s','--source',help="source path",required=True,type=str)
+parser_create.add_argument('-d','--destination',help="destination path",required=True,type=str)
+parser_create.add_argument('-f','--force',help="force re-baseline", required=False,action='store_true')
 
 parser_sync.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
 parser_sync.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
 parser_sync.add_argument('-b','--broker',help="cloud sync broker name",required=True,type=str)
 parser_sync.add_argument('-s','--source',help="source path",required=True,type=str)
 parser_sync.add_argument('-d','--destination',help="destination path",required=True,type=str)
+
+parser_export.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
+parser_export.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
+parser_export.add_argument('-b','--broker',help="cloud sync broker name",required=False,type=str)
+parser_export.add_argument('-s','--source-type',help="source type",choices=['nfs','cifs'],required=False,type=str,metavar='sourcetype')
+parser_export.add_argument('-d','--destination-type',help="source type",choices=['nfs','cifs'],required=False,type=str,metavar='tdestinationtype')
 
 args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
@@ -118,11 +125,11 @@ def parsepath(path):
         logging.error('path:'+path+' is in unsupported format')
         exit(1)        
     type,allpath = path.split('://')
-    if not type or type not in ['cifs','nfs','nfs3','nfs4','nfs4.1']:
+    if not type or type not in ['cifs','nfs','nfs3','nfs4.0','nfs4.1','nfs4.2']:
         logging.error('path:'+path+' is in unsupported format')
         exit(1)        
     
-    if type in ['nfs','nfs3','nfs4']:
+    if type in ['nfs','nfs3','nfs4.0','nfs4.1','nfs4.2']:
         if allpath.count(':') != 1:
             logging.error('path:'+path+' is in unsupported format')
             exit(1)            
@@ -135,10 +142,12 @@ def parsepath(path):
             deeppath = '/'.join(dirs)
         if type in ['nfs','nfs3']:
             version = '3'
-        elif type in ['nfs4']:
+        elif type in ['nfs4.0']:
             version = '4'
         elif type in ['nfs4.1']:
             version = '4.1'
+        elif type in ['nfs4.2']:
+            version = '4.2'
 
         res = {'type':type,'path':allpath,'server':nfsserver,'fullpath':fullpath,'export':export,'deeppath':deeppath,'version':version}
     if type == 'cifs':
@@ -189,23 +198,27 @@ def getaccountid(user,account):
             return accounthash[account]
 
 #get relationship data
-def getcloudsyncrelationship (user,account,broker,src,dst,relid=0):
-    #validate src 
-    srcdetails = parsepath(src)
-    #validate dst 
-    dstdetails = parsepath(dst)
+def getcloudsyncrelationship (user,account,broker,src,dst,relid=0,filter=False):
+    if not filter:
+        #validate src 
+        srcdetails = parsepath(src)
+        #validate dst 
+        dstdetails = parsepath(dst)
     
     #validate broker
-    if not getbrokerinfo(user,account,broker,True):
-        logging.error("broker:"+broker+" is not availble for user:"+user)
-        exit(1)
+    if broker:
+        brkinfo = getbrokerinfo(user,account,broker,True)
+        if not brkinfo:
+            logging.error("broker:"+broker+" is not availble for user:"+user)
+            exit(1)
+        brkid = brkinfo['id']
 
     accountid = getaccountid(user,account)
     if not accountid:
         logging.error("account:"+account+" is not availble for user:"+user)
         exit(1)
-
-    if relid:
+          
+    if relid and not filter:
         #get specific relationship info 
         rel = cloudsyncapicall(user,account,'relationships-v2/'+relid,'GET',{'x-account-id':accountid})['body'] 
         if rel:
@@ -213,6 +226,25 @@ def getcloudsyncrelationship (user,account,broker,src,dst,relid=0):
             return(rel) 
         else:
             return({})
+    #filter only specific rels 
+    elif filter:
+        rels = cloudsyncapicall(user,account,'relationships-v2','GET',{'x-account-id':accountid})['body'] 
+        relfilter = []
+        for rel in rels:
+            found = True
+            if broker:
+                if rel['dataBroker'] != brkid:
+                    found = False
+            if src: 
+                if not src in rel['source']:
+                    found = False
+            if dst:
+                if not dst in rel['target']:
+                    found = False
+            if found:
+                relfilter.append(rel)                
+        return(relfilter)
+    #filter specific rel from all 
     else:         
         #get relationship info 
         rels = cloudsyncapicall(user,account,'relationships-v2','GET',{'x-account-id':accountid})['body'] 
@@ -223,6 +255,8 @@ def getcloudsyncrelationship (user,account,broker,src,dst,relid=0):
         
         for rel in rels:
             found = True
+            if rel['dataBroker'] != brkid:
+                found = False
             if not srcdetails['type'] in rel['source']:
                 found = False   
             if srcdetails['type'] == 'nfs' and 'nfs' in rel['source']:
@@ -250,8 +284,8 @@ def getcloudsyncrelationship (user,account,broker,src,dst,relid=0):
                 logging.debug('existing cloudsync relationship from src: '+src+' to dst: '+dst+' was found')
                 return(rel)
 
-    logging.debug('existing cloudsync relationship from src: '+src+' to dst: '+dst+' could not be found')
-    return({})
+        logging.debug('existing cloudsync relationship from src: '+src+' to dst: '+dst+' could not be found')
+        return({})
 
 def deletecloudsyncrelationship(user,account,broker,src,dst):
     logging.info('deleting existing cloudsync relationship from src: '+src+' to dst: '+dst)
@@ -261,6 +295,21 @@ def deletecloudsyncrelationship(user,account,broker,src,dst):
         accountid = getaccountid(user,account)
         delresult = cloudsyncapicall(user,account,'relationships/'+relid,'DELETE',{'x-account-id':accountid})
 
+def getnfsexports(user,account,broker,host):
+    #validate broker
+    logging.debug('getting list of exports from broker: '+broker+' for host: '+host)
+    if broker:
+        brkinfo = getbrokerinfo(user,account,broker,True)
+        if not brkinfo:
+            logging.error("broker:"+broker+" is not availble for user:"+user)
+            exit(1)
+        brkid = brkinfo['id']
+    accountid = getaccountid(user,account)
+    if not accountid:
+        logging.error("account:"+account+" is not availble for user:"+user)
+        exit(1)
+    
+    exports = cloudsyncapicall(user,account,'data-brokers/'+brkid+'/list-nfs-exports?host='+host,'GET',{'x-account-id':accountid})['body']
 
 def createcloudsyncrelationship(user,account,broker,src,dst):
     logging.info('creating new cloudsync relationship from src: '+src+' to dst: '+dst)
@@ -274,8 +323,13 @@ def createcloudsyncrelationship(user,account,broker,src,dst):
     #validate dst 
     dstdetails = parsepath(dst)
 
+#   API ISSUES for listing 
+#    if srcdetails['type']=='nfs':
+#        exports = getnfsexports(user,account,broker,srcdetails['server'])
+    
+
     #load template         
-    cloudsynccreatetemplatefile = os.path.join(root,'cloudsync','create_relationship.txt')
+    cloudsynccreatetemplatefile = os.path.join(root,'cloudsync','create_relationship_template.txt')
     if not os.path.isfile(cloudsynccreatetemplatefile):
         logging.error("create relationship template file:"+cloudsynccreatetemplatefile+" could not be found")
         exit(1)       
@@ -432,15 +486,18 @@ def synccloudsyncrelationship(user,account,broker,src,dst):
 def baselinerelation (user,account,broker,src,dst,force=False):
     relinfo = getcloudsyncrelationship (user,account,broker,src,dst)
     if relinfo and not force:
-        logging.error('cloudsync relationship from src: '+src+' to dst: '+dst+' already exists. use --force to force new baseline') 
+        logging.error('cloudsync relationship from src: '+src+' to dst: '+dst+' already exists. use --force to recreate') 
         exit(1)
     elif relinfo and force:
         deletecloudsyncrelationship(user,account,broker,src,dst)
         createcloudsyncrelationship(user,account,broker,src,dst)
-        synccloudsyncrelationship(user,account,broker,src,dst)
     else:
-        logging.info('creating new cloudsync relationship from src: '+src+' to dst: '+dst)
         createcloudsyncrelationship(user,account,broker,src,dst)
+
+def exportcloudsyncrelationship (user,account,broker,src,dst,force=False):
+    relinfo = getcloudsyncrelationship (user,account,broker,src,dst,False,True)
+    print(json.dumps(relinfo,indent=4))
+
 
 #################################################################
 ## Main
@@ -451,11 +508,13 @@ if not os.path.isfile(cloudsyncapikeysfile):
 
 parseapifile()
 
-if args.subparser_name == 'baseline':
+if args.subparser_name == 'create':
     baselinerelation(args.user,args.account,args.broker,args.source,args.destination,args.force)
 if args.subparser_name == 'sync':
     synccloudsyncrelationship(args.user,args.account,args.broker,args.source,args.destination)
-    user = args.user
+if args.subparser_name == 'export':
+    exportcloudsyncrelationship(args.user,args.account,args.broker,args.source_type,args.destination_type)
+
     
 
 #broker:nfs:nfsserver:/unixsrc@accountt@user
