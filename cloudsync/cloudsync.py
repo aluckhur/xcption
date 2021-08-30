@@ -37,20 +37,18 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 # create the sub commands 
 parser_create       = subparser.add_parser('create',   help='create cloudsync relationships',parents=[parent_parser])
 parser_sync         = subparser.add_parser('sync',     help='initiate sync for cloudsync relationships',parents=[parent_parser])
+parser_validate     = subparser.add_parser('validate', help='validate cloudsync relationship exists',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',   help='export existing cloudsync relationships',parents=[parent_parser])
 
-parser_create.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
-parser_create.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
-parser_create.add_argument('-b','--broker',help="cloud sync broker name",required=True,type=str)
 parser_create.add_argument('-s','--source',help="source path",required=True,type=str)
 parser_create.add_argument('-d','--destination',help="destination path",required=True,type=str)
 parser_create.add_argument('-f','--force',help="force re-baseline", required=False,action='store_true')
 
-parser_sync.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
-parser_sync.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
-parser_sync.add_argument('-b','--broker',help="cloud sync broker name",required=True,type=str)
 parser_sync.add_argument('-s','--source',help="source path",required=True,type=str)
 parser_sync.add_argument('-d','--destination',help="destination path",required=True,type=str)
+
+parser_validate.add_argument('-s','--source',help="source path",required=True,type=str)
+parser_validate.add_argument('-d','--destination',help="destination path",required=True,type=str)
 
 parser_export.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
 parser_export.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
@@ -117,6 +115,35 @@ def cloudsyncapicall(user,account,api,method='GET',requestheaders={},body={}):
         logging.error("cloudsync api call:"+method+' '+endpoint+api+' failed:'+out['response'].content.decode('utf-8'))
         exit(1)
     return out
+
+#validate fullpath
+def validatefullpath(path):
+    if path.count('@') != 3:
+        logging.error('path:'+path+' is in unsupported format')
+        exit(1)
+    path,broker,account,user = path.split('@')
+    if not user in apiaccounts:
+        logging.error("api key for user:"+user+" could not be found in:"+cloudsyncapikeysfile)
+        exit(1)         
+    return path,broker,account,user
+
+
+#validate full path
+def validaterelationship(src,dst):
+    srcpath,srcbroker,srcaccount,srcuser = validatefullpath(src)
+    dstpath,dstbroker,dstaccount,dstuser = validatefullpath(dst)
+
+    if srcaccount != dstaccount:
+        logging.error('src account: '+srcaccount+' and dst account: '+dstaccount+' must be the same')
+        exit(1)  
+    if srcuser != dstuser:
+        logging.error('src user: '+srcuser+' and dst user: '+dstuser+' must be the same')
+        exit(1)  
+
+    parsepath(srcpath)
+    parsepath(dstpath)
+
+    return({'srcpath':srcpath,'broker':srcbroker,'account':srcaccount,'dstpath':dstpath,'user':srcuser})
 
 #parse path 
 def parsepath(path):
@@ -494,8 +521,12 @@ def baselinerelation (user,account,broker,src,dst,force=False):
     else:
         createcloudsyncrelationship(user,account,broker,src,dst)
 
-def exportcloudsyncrelationship (user,account,broker,src,dst,force=False):
+def exportcloudsyncrelationship (user,account,broker,src,dst):
     relinfo = getcloudsyncrelationship (user,account,broker,src,dst,False,True)
+    print(json.dumps(relinfo,indent=4))
+
+def validatecloudsyncrelationship (user,account,broker,src,dst):
+    relinfo = getcloudsyncrelationship (user,account,broker,src,dst)
     print(json.dumps(relinfo,indent=4))
 
 
@@ -509,15 +540,17 @@ if not os.path.isfile(cloudsyncapikeysfile):
 parseapifile()
 
 if args.subparser_name == 'create':
-    baselinerelation(args.user,args.account,args.broker,args.source,args.destination,args.force)
+    relinfo = validaterelationship(args.source,args.destination)
+    baselinerelation(relinfo['user'],relinfo['account'],relinfo['broker'],relinfo['srcpath'],relinfo['dstpath'],args.force)
 if args.subparser_name == 'sync':
-    synccloudsyncrelationship(args.user,args.account,args.broker,args.source,args.destination)
+    relinfo = validaterelationship(args.source,args.destination)
+    synccloudsyncrelationship(relinfo['user'],relinfo['account'],relinfo['broker'],relinfo['srcpath'],relinfo['dstpath'])
+if args.subparser_name == 'validate':
+    relinfo = validaterelationship(args.source,args.destination)
+    validatecloudsyncrelationship(relinfo['user'],relinfo['account'],relinfo['broker'],relinfo['srcpath'],relinfo['dstpath'])
 if args.subparser_name == 'export':
     exportcloudsyncrelationship(args.user,args.account,args.broker,args.source_type,args.destination_type)
-
     
-
-#broker:nfs:nfsserver:/unixsrc@accountt@user
 
 
 
