@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '3.0.0.2'
+version = '3.1.0.0'
 
 import csv
 import argparse
@@ -933,9 +933,12 @@ def create_nomad_jobs():
 					
 					#creating sync job 
 					sync_job_file = os.path.join(jobdir,sync_job_name+'.hcl')		
-					logging.debug("creating sync job file: " + sync_job_file)				
+					logging.debug("creating sync job file: " + sync_job_file)	
+
+					if tool == 'cloudsync':
+						cmdargs = "sync\",\"-s\",\""+src+"\",\"-d\",\""+dst								
 					
-					if ostype == 'linux':
+					if ostype == 'linux' and tool != 'cloudsync':
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
 
 					if ostype == 'windows' and tool == 'xcp': 
@@ -966,7 +969,10 @@ def create_nomad_jobs():
 					verify_job_file = os.path.join(jobdir,verify_job_name+'.hcl')	
 					logging.debug("creating verify job file: " + verify_job_file)	
 					
-					if ostype == 'linux':  
+					if tool=='cloudsync':
+						cmdargs = "validate\",\"-s\",\""+src+"\",\"-d\",\""+dst
+
+					if ostype == 'linux' and tool != 'cloudsync':  
 						if excludedirfile == '':
 							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
 						else:
@@ -1053,21 +1059,38 @@ def start_nomad_jobs(action, force):
 					baselinecachedir    = os.path.join(cachedir,'job_'+baseline_job_name)                        
 					if os.path.exists(baselinecachedir):
 						logging.debug("baseline job dir:"+baselinecachedir+" exists") 
-                        
+                    
+					#validate if there is clousync job that been created exteranly using cloudsync ui
+					cloudsyncrel = {} 
+					if action=='baseline' and tool=='cloudsync' and not (job or os.path.exists(baselinecachedir)):
+						cloudsync_cmd = [cloudsyncscript,'validate','-s',src,'-d',dst]
+						cloudsyncrel = {}
+						try:
+							validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
+							cloudsyncrel = json.loads(validatejson.decode('utf-8'))							
+						except Exception as e:
+							logging.error("cannot validate source/destination paths for cloudsync src:"+src+" dst:"+dst)
+							os.system(' '.join(cloudsync_cmd))
+							exit(1)	
+						if cloudsyncrel: 
+							log.debug("cloudsync relationship for src:"+src+" dest:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
+
 					forcebaseline = False 
-					if action == 'baseline' and (job or os.path.exists(baselinecachedir)):
-                        
+					if action == 'baseline' and ((job or os.path.exists(baselinecachedir)) or cloudsyncrel):
 						if not force:
-							logging.warning("baseline job already exists. use --force to force new baseline") 
+							if cloudsyncrel and not (job or os.path.exists(baselinecachedir)):
+								logging.warning("cloudsync job already exists for src:"+src+" to dst:"+dst+". use --force import it to XCPtion") 
+							else:
+								logging.warning("baseline job already exists for src:"+src+" to dst:"+dst+". use --force to force new baseline") 
 							continue
 						else:
 							if query_yes_no("are you sure you want to rebaseline "+src+" to "+dst+" ?",'no'):
 								logging.info("destroying existing baseline job")
-								if ostype == 'linux' and (tool == 'xcp' or tool == ''):
+								if ostype == 'linux' and (tool == 'xcp' or tool == '') and tool != 'cloudsync':
 									logging.debug("destroying xcp index:"+xcplocation+' diag -rmid '+xcpindexname)
 									DEVNULL = open(os.devnull, 'wb')
 									if subprocess.call( [ xcplocation, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
-										logging.debug("failed to delete xcp index:"+xcpindexname)								
+										logging.debug("failed to delete xcp index:"+xcpindexname)					
 								#delete baseline jobs 
 								logging.debug("destroying job prefixed by:"+nomadjobname)
 								delete_job_by_prefix(nomadjobname)
@@ -1185,20 +1208,21 @@ def start_nomad_jobs(action, force):
 							#if sync job and baseline was not started disable schedule for sync 
 							if action == 'sync':
 								if baselinestatus != 'baseline is complete':
-									logging.warning(action+" will be paused:"+baselinestatus.lower())									
+									logging.warning(action+" will be paused for src:"+src+" to dst:"+dst+" - "+baselinestatus.lower())									
 									nomadjobdict["Job"]["Stop"] = True
 								else:
 									logging.debug("baseline is completed, can start "+action)
 
 							#if action is verify 
 							if action == 'verify':
-
+								if tool=='cloudsync':
+									logging.warning(action+" is not supported for cloudsync")
+									continue
 								if baselinestatus != 'baseline is complete':
 									logging.warning(action+" is not possiable:"+baselinestatus.lower())									
 									continue
 								else:
 									logging.debug("baseline is completed, can start "+action)
-
 
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
@@ -2646,6 +2670,7 @@ def delete_jobs(forceparam):
 					baselinejobname  = jobdetails['baseline_job_name']
 					verifyjobname    = jobdetails['verify_job_name']
 					excludedirfile	 = jobdetails['excludedirfile']
+					tool			 = jobdetails['tool']
 
 					force = forceparam
 					if not force: force = query_yes_no("delete job for source:"+src,'no')
@@ -4519,6 +4544,16 @@ def abort_jobs(jobtype, forceparam):
 										DEVNULL = open(os.devnull, 'wb')
 										if subprocess.call( [ xcplocation, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
 											logging.debug("failed to delete xcp index:"+xcpindexname)
+									if tool=='cloudsync':
+										logging.info("aborting cloudsync job (expect 1-2 minutes abort time)")
+										cloudsync_cmd = [cloudsyncscript,'abort','-s',src,'-d',dst]
+										cloudsyncrel = {}
+										try:
+											validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
+										except Exception as e:
+											logging.error("cannot abort cloudsync relationship src:"+src+" dst:"+dst)
+											os.system(' '.join(cloudsync_cmd))
+											exit(1)											
 
 									jobaborted = True
 								elif jobstatus == 'pending':
