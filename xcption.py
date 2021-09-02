@@ -484,12 +484,12 @@ def parse_csv(csv_path):
 							if dst == jobsdict[j][s]["dst"]:
 								logging.error("duplicate dst path: " + dst)
 								exit(1)					
-
+								
 					if not jobname in jobsdict:
 						jobsdict[jobname]={}
 					
 					if tool == 'cloudsync':
-						cloudsync_cmd = [cloudsyncscript,'validate','-s',src,'-d',dst]
+						cloudsync_cmd = [cloudsyncscript,'validate','-s',escapestr(src),'-d',escapestr(dst)]
 						cloudsyncrel = {}
 						try:
 							validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
@@ -505,7 +505,6 @@ def parse_csv(csv_path):
 							
 						#set required params 
 						srchost=''; srcpath=''; dsthost=''; dstpath=''; 
-						tool = 'cloudsync'
 					else:
 						if ostype == 'linux':
 							if not re.search("\S+\:\/\S+", src):
@@ -1070,7 +1069,6 @@ def start_nomad_jobs(action, force):
 							cloudsyncrel = json.loads(validatejson.decode('utf-8'))							
 						except Exception as e:
 							logging.error("cannot validate source/destination paths for cloudsync src:"+src+" dst:"+dst)
-							os.system(' '.join(cloudsync_cmd))
 							exit(1)	
 						if cloudsyncrel: 
 							log.debug("cloudsync relationship for src:"+src+" dest:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
@@ -1084,6 +1082,8 @@ def start_nomad_jobs(action, force):
 								logging.warning("baseline job already exists for src:"+src+" to dst:"+dst+". use --force to force new baseline") 
 							continue
 						else:
+							if cloudsyncrel and not (job or os.path.exists(baselinecachedir)):
+								logging.warning("cloudsync job already exists for src:"+src+" to dst:"+dst+". use --force import it to XCPtion") 	
 							if query_yes_no("are you sure you want to rebaseline "+src+" to "+dst+" ?",'no'):
 								logging.info("destroying existing baseline job")
 								if ostype == 'linux' and (tool == 'xcp' or tool == '') and tool != 'cloudsync':
@@ -1472,6 +1472,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if matchObj:		
 			results['found'] = matchObj.group(1)
 			if results['scanned'] == results['found']: results['verified']='yes'
+		
+		#cloudsync broker name
+		matchObj = re.search("broker:(\S+)\s", lastline, re.M|re.I)
+		if matchObj:		
+			results['broker'] = matchObj.group(1)
 
 	
 	#future optimization for status 
@@ -2160,6 +2165,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 										if node['ID'] == nodeid: nodename = node['Name']
 							except Exception as e:
 								nodeid = ''
+							
+							#cloud sync broker name
+							if 'broker' in baselinestatsresults: nodename = baselinestatsresults['broker']						
 
 							try:
 								baselinestatus =  baselinealloc['ClientStatus']
@@ -2359,6 +2367,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 													if node['ID'] == nodeid: nodename = node['Name']
 										except Exception as e:
 											nodeid = ''
+										#cloud sync broker name
+										if 'broker' in currentlog: nodename = currentlog['broker']	
 
 										try:
 											jobstatus =  currentalloc['ClientStatus']
@@ -2673,7 +2683,11 @@ def delete_jobs(forceparam):
 					tool			 = jobdetails['tool']
 
 					force = forceparam
-					if not force: force = query_yes_no("delete job for source:"+src,'no')
+					if not force: 
+						if tool != 'cloudsync':
+							force = query_yes_no("delete job for source:"+src,'no')
+						else:
+							force = query_yes_no("delete xcption and cloudsync job for src:"+src+' dst:'+dst+' ?','no')
 					if force:
 						logging.info("delete job for source:"+src) 
 						#delete baseline jobs 
@@ -2717,7 +2731,16 @@ def delete_jobs(forceparam):
 								rmout = shutil.rmtree(verifycachedir)
 							except Exception as e:
 								logging.error("could not delete verify cache dir:"+verifycachedir)
-
+						if tool == 'cloudsync':
+							cloudsync_cmd = [cloudsyncscript,'delete','-s',src,'-d',dst,'--force']
+							try:
+								deleterel = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
+							except Exception as e:
+								print(' '.join(cloudsync_cmd))
+								os.system(' '.join(cloudsync_cmd))
+								logging.warning("cannot delete source/destination paths for cloudsync src:"+src+" dst:"+dst)	
+								continue
+							
 						# if excludedirfile != '':
 						# 	excludedirfilepath = os.path.join(excludedir,excludedirfile)
 						# 	logging.debug("delete exclude file:"+excludedirfilepath)
@@ -4545,14 +4568,13 @@ def abort_jobs(jobtype, forceparam):
 										if subprocess.call( [ xcplocation, 'diag', '-rmid', xcpindexname ],stdout=DEVNULL,stderr=DEVNULL):
 											logging.debug("failed to delete xcp index:"+xcpindexname)
 									if tool=='cloudsync':
-										logging.info("aborting cloudsync job (expect 1-2 minutes abort time)")
+										logging.info("aborting cloudsync job (expect 1-2 minutes until the cloudsync job will be aborted)")
 										cloudsync_cmd = [cloudsyncscript,'abort','-s',src,'-d',dst]
 										cloudsyncrel = {}
 										try:
 											validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
 										except Exception as e:
 											logging.error("cannot abort cloudsync relationship src:"+src+" dst:"+dst)
-											os.system(' '.join(cloudsync_cmd))
 											exit(1)											
 
 									jobaborted = True
