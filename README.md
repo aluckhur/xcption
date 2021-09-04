@@ -2,7 +2,9 @@
 
 ## What is XCPtion?
 
-XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility (for CIFS the tool supports also robocopy.exe)  
+XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility (for CIFS the tool supports also 
+robocopy.exe). 
+XCPtion been extended with Support for CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync activities including various source and target storage (nfs, cifs, s3, ...)
 XCPtion will be able to parallelly execute and manage multiple XCP jobs on more than one host in a distributed fashion. 
 This is done by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distributed scheduler. 
 
@@ -75,7 +77,8 @@ usage: xcption.py [-h] [-v] [-d]
                   ...
 
 positional arguments:
-  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
+  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,
+    fileupload,smartassess}
                         sub commands that can be used
     nodestatus          display cluster nodes status
     status              display status
@@ -91,8 +94,8 @@ positional arguments:
                         and destination (xcp verify)
     delete              delete existing config
     modify              modify task job
-    copy-data           perfored monitored copy of source to destination
-    delete-data         perfored monitored delete of data using xcp
+    copy-data           perfored monitored copy of source to destination (nfs only)
+    delete-data         perfored monitored delete of data using xcp (nfs only)
     export              export existing jobs to csv
     web                 start web interface to display status
     fileupload          transfer files to all nodes, usefull for xcp license
@@ -136,7 +139,7 @@ a CSV file with the jobs should be created with the following columns:
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
 `CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
 `RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
-`TOOL` (optional) - For windows jobs it is possiable to chose between `xcp` (default) to `robocopy`  
+`TOOL` (optional) - The toll that will be used: xcp(default),robocopy (only for CIFS tasks), cloudsync (requires special src/dst format)
 `FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user 
 (see xcp.exe help copy for details)  
 
@@ -158,6 +161,10 @@ jobwin1,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800
 jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,xcp,domain\user1,domain\Domain Admins
 jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy
 jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,,cifs_dir4_exclude_dirs
+#CloudSync Jobs
+cloudsync,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
+cloudsync,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
+cloudsync,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
 ```
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
@@ -172,6 +179,7 @@ ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_
 unused_files #name of specific directory to exclude
 
 ```
+
 
 
 **2. assessment of existing filesystem**
