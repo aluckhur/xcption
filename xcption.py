@@ -159,8 +159,8 @@ parser_abort        = subparser.add_parser('abort',      help='abort running tas
 parser_verify       = subparser.add_parser('verify',     help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete       = subparser.add_parser('delete',     help='delete existing config',parents=[parent_parser])
 parser_modify       = subparser.add_parser('modify',     help='modify task job',parents=[parent_parser])
-parser_copydata     = subparser.add_parser('copy-data',  help='perfored monitored copy of source to destination',parents=[parent_parser])
-parser_deletedata   = subparser.add_parser('delete-data',help='perfored monitored delete of data using xcp',parents=[parent_parser])
+parser_copydata     = subparser.add_parser('copy-data',  help='perfored monitored copy of source to destination (nfs only)',parents=[parent_parser])
+parser_deletedata   = subparser.add_parser('delete-data',help='perfored monitored delete of data using xcp (nfs only)',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',      description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',     help='export existing jobs to csv',parents=[parent_parser])
 parser_web          = subparser.add_parser('web',        help='start web interface to display status',parents=[parent_parser])
@@ -501,8 +501,15 @@ def parse_csv(csv_path):
 						if cloudsyncrel: 
 							log.info("cloudsync relationship for src:"+src+" dest:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
 						else:
-							log.info("cloudsync relationship validated for src:"+src+" dest:"+dst)
-							
+							log.info("creating cloudsync relationship for src:"+src+" dest:"+dst)
+							cloudsync_cmd = [cloudsyncscript,'create','-s',escapestr(src),'-d',escapestr(dst)]
+							try:
+								subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
+							except Exception as e:
+								logging.error("cannot create cloudsync relationship src:"+src+" dst:"+dst)
+								os.system(' '.join(cloudsync_cmd))
+								exit(1)								
+
 						#set required params 
 						srchost=''; srcpath=''; dsthost=''; dstpath=''; 
 					else:
@@ -1074,13 +1081,11 @@ def start_nomad_jobs(action, force):
 							log.debug("cloudsync relationship for src:"+src+" dest:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
 
 					forcebaseline = False 
-					if action == 'baseline' and ((job or os.path.exists(baselinecachedir)) or cloudsyncrel):
+					if action == 'baseline' and (job or os.path.exists(baselinecachedir)):
 						if not force:
-							if cloudsyncrel and not (job or os.path.exists(baselinecachedir)):
-								logging.warning("cloudsync job already exists for src:"+src+" to dst:"+dst+". use --force import it to XCPtion") 
-							else:
+							if not (cloudsyncrel and not (job or os.path.exists(baselinecachedir))):
 								logging.warning("baseline job already exists for src:"+src+" to dst:"+dst+". use --force to force new baseline") 
-							continue
+								continue
 						else:
 							if cloudsyncrel and not (job or os.path.exists(baselinecachedir)):
 								logging.warning("cloudsync job already exists for src:"+src+" to dst:"+dst+". use --force import it to XCPtion") 	
@@ -2736,7 +2741,6 @@ def delete_jobs(forceparam):
 							try:
 								deleterel = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
 							except Exception as e:
-								print(' '.join(cloudsync_cmd))
 								os.system(' '.join(cloudsync_cmd))
 								logging.warning("cannot delete source/destination paths for cloudsync src:"+src+" dst:"+dst)	
 								continue

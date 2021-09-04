@@ -12,10 +12,17 @@ locale.setlocale(locale.LC_ALL, '')
 #location of xcption root dir  
 root = os.path.dirname(os.path.abspath(__file__))+'/..'
 
-#cloudsync api keys repo 
-cloudsyncrepo = os.path.join(root,'system','xcp_repo','cloudsync')
-cloudsyncapikeysfile = os.path.join(cloudsyncrepo,'accounts')
+#supportedrelationshiptype 
+supportedrelationshiptype = ['cifs','nfs','nfs3','nfs4.0','nfs4.1','nfs4.2','local','s3ontap','sgws']
 
+#cloudsync repository location
+cloudsyncrepo = os.path.join(root,'system','xcp_repo','cloudsync')
+#cloudsync api keys repo 
+cloudsyncapikeysfile = os.path.join(cloudsyncrepo,'accounts')
+#cloud sync relationship template         
+cloudsynccreatetemplatefile = os.path.join(cloudsyncrepo,'create_relationship_template.txt')
+#cloudsync credentials file for required protocols)
+cloudsynccredentialsfile = os.path.join(cloudsyncrepo,'creds')
 
 #cloudsync api edpoint 
 endpoint = 'https://api.cloudsync.netapp.com/api/'
@@ -29,6 +36,8 @@ brokerhash = {}
 grouphash = {}
 #dictionary for accounts
 accounthash = {}
+#dictionary for protocol credentials for
+credshash = {}
 
 parent_parser = argparse.ArgumentParser(add_help=False)
 parser = argparse.ArgumentParser()
@@ -37,12 +46,16 @@ parser.add_argument('-d','--debug',   help="log debug messages to console", acti
 subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that can be used')
 
 # create the sub commands 
-parser_baseline     = subparser.add_parser('baseline', help='create and baseline cloudsync relationship',parents=[parent_parser])
+parser_create       = subparser.add_parser('create',   help='create cloudsync relationship',parents=[parent_parser])
+parser_baseline     = subparser.add_parser('baseline', help='create than baseline cloudsync relationship',parents=[parent_parser])
 parser_sync         = subparser.add_parser('sync',     help='initiate sync for cloudsync relationship',parents=[parent_parser])
 parser_validate     = subparser.add_parser('validate', help='validate cloudsync relationship exists',parents=[parent_parser])
 parser_abort        = subparser.add_parser('abort',    help='abort sync for cloudsync relationship',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',   help='export existing cloudsync relationships',parents=[parent_parser])
 parser_delete       = subparser.add_parser('delete',   help='delete existing cloudsync relationship',parents=[parent_parser])
+
+parser_create.add_argument('-s','--source',help="source path",required=True,type=str)
+parser_create.add_argument('-d','--destination',help="destination path",required=True,type=str)
 
 parser_baseline.add_argument('-s','--source',help="source path",required=True,type=str)
 parser_baseline.add_argument('-d','--destination',help="destination path",required=True,type=str)
@@ -64,8 +77,8 @@ parser_validate.add_argument('-d','--destination',help="destination path",requir
 parser_export.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
 parser_export.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
 parser_export.add_argument('-b','--group',help="cloud sync broker group name",required=False,type=str)
-parser_export.add_argument('-s','--source-type',help="source type",choices=['nfs','cifs','local'],required=False,type=str,metavar='sourcetype')
-parser_export.add_argument('-d','--destination-type',help="source type",choices=['nfs','cifs','local'],required=False,type=str,metavar='tdestinationtype')
+parser_export.add_argument('-s','--source-type',help="source type",choices=supportedrelationshiptype,required=False,type=str,metavar='sourcetype')
+parser_export.add_argument('-d','--destination-type',help="source type",choices=supportedrelationshiptype,required=False,type=str,metavar='tdestinationtype')
 
 args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
@@ -93,15 +106,65 @@ pp = pprint.PrettyPrinter(indent=1)
 
 def parseapifile():
     try:
+        if not os.path.isfile(cloudsyncapikeysfile):  
+            logging.error("api refrence file:"+cloudsyncapikeysfile+" doesn't exists, please create it based on the template in:"+os.path.join(root,'cloudsync','acoounts'))
+            exit(1)
         logging.debug("loading api refrence file:"+cloudsyncapikeysfile)
         f = open(cloudsyncapikeysfile, 'r')
         lines = f.readlines()
         for line in lines:
+            if line.startswith('#'): continue
             user,apikey = line.split(':')
             apiaccounts[user] = apikey.rstrip()
     except Exception as e:
         logging.error("could not load api refrence file:"+cloudsyncapikeysfile)
+        print(e)
         exit(1)
+
+def getcredsfromfile(type,server):
+
+    if not credshash: 
+        try:
+            if not os.path.isfile(cloudsynccredentialsfile):  
+                logging.debug("credentials file:"+cloudsynccredentialsfile+" doesn't exists, please create it based on the template in:"+os.path.join(root,'cloudsync','creds'))
+                exit(1)
+            logging.debug("loading cred file:"+cloudsynccredentialsfile)
+            f = open(cloudsynccredentialsfile, 'r')
+            lines = f.readlines()
+            for num,line in enumerate(lines):
+                line = line.rstrip()
+                if line.startswith('#'): continue
+                details = line.split(':')
+                if len(details)<4 or len(details)>5: 
+                    logging.debug("cannot parse creds file line:"+str(num+1))
+                    continue
+                if not details[0] in ['cifs','s3']:
+                    logging.debug("cannot parse creds file line:"+str(num+1)+' unsupported protocol')
+                    continue
+                
+                if details[0] == 'cifs':
+                    credshash[type+server] = {}
+                    credshash[type+server]['domain'] = ''
+                    if len(details) == 5:
+                        credshash[type+server]['domain'] = details[4]
+                    credshash[type+server]['username'] = details[2]
+                    credshash[type+server]['password'] = details[3]
+                    logging.debug("loaded creds for type:cifs server:"+server)
+                if details[0] == 's3':
+                    credshash[type+server] = {}
+                    credshash[type+server]['accessKey'] = details[2]
+                    credshash[type+server]['secretKey'] = details[3]
+                    logging.debug("loaded creds for type:s3 server")
+        except Exception as e:
+            logging.error("could not load creds file:"+cloudsynccredentialsfile)
+            print(e)
+            exit(1)                
+
+    if type+server in credshash: 
+        return(credshash[type+server])
+    else:
+        return{}
+    
 
 def cloudsyncapicall(user,account,api,method='GET',requestheaders={},body={}):
 
@@ -158,12 +221,14 @@ def validaterelationship(src,dst):
 
 #parse path 
 def parsepath(path):
+    global supportedrelationshiptype
     if path.count('://') != 1:
         logging.error('path:'+path+' is in unsupported format (type could not be extracted)')
         exit(1)        
     type,allpath = path.split('://')
-    if not type or type not in ['cifs','nfs','nfs3','nfs4.0','nfs4.1','nfs4.2','local']:
-        logging.error('path:'+path+' is in unsupported format (unsupported type)')
+
+    if not type or type not in supportedrelationshiptype:
+        logging.error('path:'+path+' is not from the supported list:'+' '.join(supportedrelationshiptype))
         exit(1)        
     
     if type in ['nfs','nfs3','nfs4.0','nfs4.1','nfs4.2']:
@@ -200,15 +265,31 @@ def parsepath(path):
         if len(dirs) > 1:
             deeppath = '/'.join(dirs)
         version = '2.1'
-        res = {'type':type,'path':allpath,'server':server,'fullpath':fullpath,'share':share,'deeppath':deeppath,'version':version}
+        creds = getcredsfromfile(type,server)
+        res = {'type':type,'path':allpath,'server':server,'fullpath':fullpath,'share':share,'deeppath':deeppath,'version':version, 'credentials':creds}
 
     if type in ['local']:
         if not allpath.startswith('/'):
-            logging.error('path:'+path+' is in unsupported format (local path is unsupported)')
+            logging.error('path:'+path+' is in unsupported format (local path unsupported format)')
             exit(1)            
-
         res = {'type':type,'path':allpath}
+    
+    if type in ['s3ontap','sgws']:
+        if 1 > allpath.count(':') > 2:
+            logging.error('path:'+path+' is in unsupported format (ontap s3 should be host:bucket:[port])')
+            exit(1)
+         
+        if allpath.count(':') == 1: 
+            host,bucket=allpath.split(':')
+            port= ''
+        else:
+            host,bucket,port=allpath.split(':')
+            port = str(port)
 
+        creds = getcredsfromfile('s3',host)
+        if type == 's3ontap': provider = 'ontap'
+        if type == 'sgws': provider = 'sgws'
+        res = {'type':'s3','bucket':bucket,'host':host,'port':port, 'credentials':creds, 'provider':provider}
 
     return(res)
 
@@ -393,9 +474,12 @@ def getnfsexports(user,account,group,host,export,deeppath):
         logging.error("could not get information from group:"+group)
         print(e)
 
-
 def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
-    logging.info('creating new cloudsync relationship from src: '+src+' to dst: '+dst)
+    logging.debug('creating new cloudsync relationship from src: '+src+' to dst: '+dst)
+    relinfo = getcloudsyncrelationship (user,account,group,src,dst)
+    if relinfo:
+        logging.error('cloudsync relationship from src: '+src+' to dst: '+dst+' already exists') 
+        exit()
     grpinfo = getgroupinfo(user,account,group)
     if not grpinfo:
         logging.error("group:"+group+" is not availble for user:"+user)
@@ -409,8 +493,6 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
     #if srcdetails['type']=='nfs':
     #    exports = getnfsexports(user,account,group,srcdetails['server'],srcdetails['export'],srcdetails['deeppath'])
     
-    #load template         
-    cloudsynccreatetemplatefile = os.path.join(root,'cloudsync','create_relationship_template.txt')
     if not os.path.isfile(cloudsynccreatetemplatefile):
         logging.error("create relationship template file:"+cloudsynccreatetemplatefile+" could not be found")
         exit(1)       
@@ -419,8 +501,6 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         f.close()
     
     #preperation of required structure for relationship 
-    #cloudsynccreate["dataBrokerId"] = brkinfo['id']
-    #del cloudsynccreate["groupId"]
     cloudsynccreate["groupId"]=grpinfo['id']
     del cloudsynccreate["dataBrokerId"]
 
@@ -480,6 +560,8 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["source"]['cifs']['share'] = '/'+srcdetails['share']
         cloudsynccreate["source"]['cifs']['path'] = srcdetails['deeppath']
         cloudsynccreate["source"]['cifs']['version'] = srcdetails['version']
+        cloudsynccreate["source"]['cifs']['credentials'] = srcdetails['credentials']
+        #print (cloudsynccreate["source"]['cifs']['credentials'])
     if dstdetails['type'] == 'cifs':
         del cloudsynccreate["settings"]['objectTagging']
         del cloudsynccreate['encryption']
@@ -495,16 +577,37 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["target"]['cifs']['share'] = '/'+dstdetails['share']
         cloudsynccreate["target"]['cifs']['path'] = dstdetails['deeppath']
         cloudsynccreate["target"]['cifs']['version'] = dstdetails['version']
-
+        cloudsynccreate["target"]['cifs']['credentials'] = srcdetails['credentials']
 
     if srcdetails['type'] == 'local': 
         cloudsynccreate["source"]['local']['path'] = srcdetails['path']
     if dstdetails['type'] == 'local': 
         cloudsynccreate["target"]['local']['path'] = dstdetails['path']
 
+    #create relationship with s3 
+    if srcdetails['type'] == 's3': 
+        del cloudsynccreate["source"]['s3']
+        cloudsynccreate["source"]['s3'] = {}
+        cloudsynccreate["source"]['s3'] = srcdetails
+        cloudsynccreate['sourceCredentials']['s3'] = srcdetails['credentials']
+
+    if dstdetails['type'] == 's3': 
+        del cloudsynccreate["target"]['s3']
+        cloudsynccreate["target"]['s3'] = {}
+        cloudsynccreate["target"]['s3'] = dstdetails
+        cloudsynccreate['targetCredentials']['s3'] = dstdetails['credentials']
+
+        del cloudsynccreate["settings"]['objectTagging']
+        del cloudsynccreate['encryption']
+        
+        if cloudsynccreate["settings"]['files']["excludeExtensions"][0] == "string": del cloudsynccreate["settings"]['files']["excludeExtensions"]
+
+        if cloudsynccreate["settings"]['files']["minDate"] == "string": del cloudsynccreate["settings"]['files']["minDate"]
+        if cloudsynccreate["settings"]['files']["maxDate"] == "string": del cloudsynccreate["settings"]['files']["maxDate"]
+        
     #create the relationship 
     accountid = getaccountid(user,account)
-    delresult = cloudsyncapicall(user,account,'relationships-v2','POST',{'x-account-id':accountid},cloudsynccreate)
+    createresult = cloudsyncapicall(user,account,'relationships-v2','POST',{'x-account-id':accountid},cloudsynccreate)
 
 def abortcloudsyncrelationship(user,account,group,src,dst):
     logging.info('abort sync fo cloudsync relationship from src: '+src+' to dst: '+dst)
@@ -534,6 +637,7 @@ def synccloudsyncrelationship(user,account,group,src,dst):
         #check sync status 
         count = 0
         prevbytes = 0 
+        fatalerror = False
         while True:
             count+=1
             relinfo = getcloudsyncrelationship (user,account,group,src,dst,relid)
@@ -597,11 +701,16 @@ def synccloudsyncrelationship(user,account,group,src,dst):
             for err in relinfo['activity']['topFiveMostCommonRelationshipErrors']:
                 desc = ''
                 if 'description' in err: desc = err['description']
+                if "The specified bucket does not exist" in desc: fatalerror = True
+                if "Bucket names cannot contain" in desc: fatalerror = True
                 logging.error(f"count: {err['counter']} step: {err['step']} errorCode: {err['errorCode']} description: {desc}")
             
         if relinfo['activity']['status'] == 'FAILED':
             errormsg = relinfo['activity']['failureMessage']
             logging.error('cloudsync sync failed for:'+src+' to dst: '+dst+' with error:'+errormsg)
+            exit(1)
+        elif fatalerror:
+            logging.error('cloudsync sync failed with fatal error for src:'+src+' to dst: '+dst)
             exit(1)
         else:
             logging.info("job completed successfuly")
@@ -655,7 +764,7 @@ def deleterelationship (user,account,group,src,dst,force=False):
 def baselinerelation (user,account,group,src,dst,force=False):
     relinfo = getcloudsyncrelationship (user,account,group,src,dst)
     if relinfo and not force:
-        logging.warning('reusing cloudsync existing relationship from src: '+src+' to dst: '+dst) 
+        logging.warning('reusing existing cloudsync relationship from src: '+src+' to dst: '+dst) 
         synccloudsyncrelationship(user,account,group,src,dst)
     elif relinfo and force:
         deletecloudsyncrelationship(user,account,group,src,dst)
@@ -677,11 +786,12 @@ def validatecloudsyncrelationship (user,account,group,src,dst):
 #################################################################
 ## Main
 #################################################################
-if not os.path.isfile(cloudsyncapikeysfile):  
-    logging.error("api refrence file:"+cloudsyncapikeysfile+" doesn't exists")
-    exit(1)
+
 parseapifile()
 
+if args.subparser_name == 'create':
+    relinfo = validaterelationship(args.source,args.destination)
+    createcloudsyncrelationship(relinfo['user'],relinfo['account'],relinfo['group'],relinfo['srcpath'],relinfo['dstpath'])
 if args.subparser_name == 'baseline':
     relinfo = validaterelationship(args.source,args.destination)
     baselinerelation(relinfo['user'],relinfo['account'],relinfo['group'],relinfo['srcpath'],relinfo['dstpath'],args.force)
