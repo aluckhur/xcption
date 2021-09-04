@@ -13,7 +13,7 @@ locale.setlocale(locale.LC_ALL, '')
 root = os.path.dirname(os.path.abspath(__file__))+'/..'
 
 #supportedrelationshiptype 
-supportedrelationshiptype = ['cifs','nfs','nfs3','nfs4.0','nfs4.1','nfs4.2','local','s3ontap','sgws']
+supportedrelationshiptype = ['cifs','nfs','nfs3','nfs4.0','nfs4.1','nfs4.2','local','s3ontap','sgws','s3']
 
 #cloudsync repository location
 cloudsyncrepo = os.path.join(root,'system','xcp_repo','cloudsync')
@@ -121,7 +121,8 @@ def parseapifile():
         print(e)
         exit(1)
 
-def getcredsfromfile(type,server):
+def getcredsfromfile(type,key):
+    global credshash
 
     if not credshash: 
         try:
@@ -138,30 +139,32 @@ def getcredsfromfile(type,server):
                 if len(details)<4 or len(details)>5: 
                     logging.debug("cannot parse creds file line:"+str(num+1))
                     continue
-                if not details[0] in ['cifs','s3']:
+                if not details[0] in ['cifs','sgws','s3ontap','s3']:
                     logging.debug("cannot parse creds file line:"+str(num+1)+' unsupported protocol')
                     continue
                 
                 if details[0] == 'cifs':
-                    credshash[type+server] = {}
-                    credshash[type+server]['domain'] = ''
+                    credshash[details[0]+details[1]] = {}
+                    credshash[details[0]+details[1]]['domain'] = ''
                     if len(details) == 5:
-                        credshash[type+server]['domain'] = details[4]
-                    credshash[type+server]['username'] = details[2]
-                    credshash[type+server]['password'] = details[3]
-                    logging.debug("loaded creds for type:cifs server:"+server)
-                if details[0] == 's3':
-                    credshash[type+server] = {}
-                    credshash[type+server]['accessKey'] = details[2]
-                    credshash[type+server]['secretKey'] = details[3]
-                    logging.debug("loaded creds for type:s3 server")
+                        credshash[details[0]+details[1]]['domain'] = details[4]
+                    credshash[details[0]+details[1]]['username'] = details[2]
+                    credshash[details[0]+details[1]]['password'] = details[3]
+                    logging.debug("loaded creds for type:cifs server/bucket:"+details[0]+details[1])
+
+                if details[0] in ['s3','sgws','s3ontap']:
+                    credshash[details[0]+details[1]] = {}
+                    credshash[details[0]+details[1]]['accessKey'] = details[2]
+                    credshash[details[0]+details[1]]['secretKey'] = details[3]
+                    logging.debug("loaded creds for type:"+details[0]+" server/bucket:"+details[0]+details[1])
+
         except Exception as e:
             logging.error("could not load creds file:"+cloudsynccredentialsfile)
             print(e)
             exit(1)                
 
-    if type+server in credshash: 
-        return(credshash[type+server])
+    if type+key in credshash: 
+        return(credshash[type+key])
     else:
         return{}
     
@@ -204,6 +207,7 @@ def validatefullpath(path):
 
 #validate full path
 def validaterelationship(src,dst):
+    
     srcpath,srcgroup,srcaccount,srcuser = validatefullpath(src)
     dstpath,srcgroup,dstaccount,dstuser = validatefullpath(dst)
 
@@ -224,7 +228,8 @@ def parsepath(path):
     global supportedrelationshiptype
     if path.count('://') != 1:
         logging.error('path:'+path+' is in unsupported format (type could not be extracted)')
-        exit(1)        
+        exit(1) 
+
     type,allpath = path.split('://')
 
     if not type or type not in supportedrelationshiptype:
@@ -233,7 +238,7 @@ def parsepath(path):
     
     if type in ['nfs','nfs3','nfs4.0','nfs4.1','nfs4.2']:
         if allpath.count(':') != 1:
-            logging.error('path:'+path+' is in unsupported format (nfs is not formated correctrly)')
+            logging.error('path:'+path+' is in unsupported format (nfs://server:/export/path)')
             exit(1)            
         nfsserver,fullpath=allpath.split(':')
         dirs = fullpath.split('/')
@@ -255,7 +260,7 @@ def parsepath(path):
 
     if type == 'cifs':
         if allpath.count(':') != 1:
-            logging.error('path:'+path+' is in unsupported format (cufs is not formated correctrly - cifs://host:/share/..)')
+            logging.error('path:'+path+' is in unsupported format (cifs://host:/share/..)')
             exit(1)            
         server,fullpath=allpath.split(':')
         dirs = fullpath.split('/')
@@ -266,30 +271,51 @@ def parsepath(path):
             deeppath = '/'.join(dirs)
         version = '2.1'
         creds = getcredsfromfile(type,server)
+        if not creds:
+            logging.warning('no credentials found for path:'+path+' please add entry to:'+cloudsynccredentialsfile)
         res = {'type':type,'path':allpath,'server':server,'fullpath':fullpath,'share':share,'deeppath':deeppath,'version':version, 'credentials':creds}
 
     if type in ['local']:
         if not allpath.startswith('/'):
-            logging.error('path:'+path+' is in unsupported format (local path unsupported format)')
+            logging.error('path:'+path+' is in unsupported format (local:///data)')
             exit(1)            
         res = {'type':type,'path':allpath}
     
-    if type in ['s3ontap','sgws']:
-        if 1 > allpath.count(':') > 2:
-            logging.error('path:'+path+' is in unsupported format (ontap s3 should be host:bucket:[port])')
+    if type in ['s3ontap','sgws','s3']:
+        if 1 > allpath.count(':') > 2 and type != 's3': 
+            logging.error('path:'+path+' is in unsupported format ('+type+'://host:bucket:[port])')
             exit(1)
-         
-        if allpath.count(':') == 1: 
-            host,bucket=allpath.split(':')
-            port= ''
-        else:
-            host,bucket,port=allpath.split(':')
-            port = str(port)
+        if allpath.count(':') != 1 and type == 's3': 
+            logging.error('path:'+path+' is in unsupported format (s3://region:bucket)')
+            exit(1)
 
-        creds = getcredsfromfile('s3',host)
         if type == 's3ontap': provider = 'ontap'
         if type == 'sgws': provider = 'sgws'
-        res = {'type':'s3','bucket':bucket,'host':host,'port':port, 'credentials':creds, 'provider':provider}
+        if type == 's3': provider = 's3'
+
+        if provider != 's3':
+            if allpath.count(':') == 1: 
+                host,bucket=allpath.split(':')
+                port= ''
+            else:
+                host,bucket,port=allpath.split(':')
+                port = str(port)
+
+            creds = getcredsfromfile(type,bucket+'@'+host)
+            if not creds:
+                logging.error('no '+provider+' keys found for path:'+path+' ('+type+':'+bucket+'@'+host+') please add entry to:'+cloudsynccredentialsfile)        
+                exit(1)
+            res = {'type':'s3','bucket':bucket,'host':host,'port':port,'credentials':creds,'provider':provider}
+
+        elif provider == 's3':
+            if allpath.count(':') == 1: 
+                region,bucket=allpath.split(':')
+
+            creds = getcredsfromfile(provider,bucket)
+            if not creds:
+                logging.error('no s3 keys found for bucket:'+bucket+' please add entry to:'+cloudsynccredentialsfile)        
+                exit(1)                
+            res = {'type':'s3','bucket':bucket,'credentials':creds,'provider':provider,'region':region}
 
     return(res)
 
@@ -462,7 +488,7 @@ def getnfsexports(user,account,group,host,export,deeppath):
         exit(1)
 
     listnfs = cloudsyncapicall(user,account,'group/'+brkid+'/list-nfs-exports?host='+host,'GET',{'x-account-id':accountid})
-    print(listnfs)
+    #print(listnfs)
     try:
         while True:
             jobinfo = cloudsyncapicall(user,account,'messages/client','GET',{'x-account-id':accountid})['body']
@@ -561,7 +587,8 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["source"]['cifs']['path'] = srcdetails['deeppath']
         cloudsynccreate["source"]['cifs']['version'] = srcdetails['version']
         cloudsynccreate["source"]['cifs']['credentials'] = srcdetails['credentials']
-        #print (cloudsynccreate["source"]['cifs']['credentials'])
+
+        cloudsynccreate['sourceCredentials']['cifs'] = srcdetails['credentials']
     if dstdetails['type'] == 'cifs':
         del cloudsynccreate["settings"]['objectTagging']
         del cloudsynccreate['encryption']
@@ -578,6 +605,8 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["target"]['cifs']['path'] = dstdetails['deeppath']
         cloudsynccreate["target"]['cifs']['version'] = dstdetails['version']
         cloudsynccreate["target"]['cifs']['credentials'] = srcdetails['credentials']
+
+        cloudsynccreate['targetCredentials']['cifs'] = dstdetails['credentials']
 
     if srcdetails['type'] == 'local': 
         cloudsynccreate["source"]['local']['path'] = srcdetails['path']

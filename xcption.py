@@ -488,6 +488,7 @@ def parse_csv(csv_path):
 					if not jobname in jobsdict:
 						jobsdict[jobname]={}
 					
+					createcloudsync = False
 					if tool == 'cloudsync':
 						cloudsync_cmd = [cloudsyncscript,'validate','-s',escapestr(src),'-d',escapestr(dst)]
 						cloudsyncrel = {}
@@ -499,16 +500,10 @@ def parse_csv(csv_path):
 							os.system(' '.join(cloudsync_cmd))
 							exit(1)	
 						if cloudsyncrel: 
-							log.info("cloudsync relationship for src:"+src+" dest:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
+							log.info("cloudsync relationship for src:"+src+" dst:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
 						else:
-							log.info("creating cloudsync relationship for src:"+src+" dest:"+dst)
-							cloudsync_cmd = [cloudsyncscript,'create','-s',escapestr(src),'-d',escapestr(dst)]
-							try:
-								subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
-							except Exception as e:
-								logging.error("cannot create cloudsync relationship src:"+src+" dst:"+dst)
-								os.system(' '.join(cloudsync_cmd))
-								exit(1)								
+							log.info("cloudsync relationship for src:"+src+" dst:"+dst+" does not exists")							
+							createcloudsync = True
 
 						#set required params 
 						srchost=''; srcpath=''; dsthost=''; dstpath=''; 
@@ -610,6 +605,7 @@ def parse_csv(csv_path):
 					jobsdict[jobname][src]["dcname"] = dcname
 					jobsdict[jobname][src]["excludedirfile"] = excludedirfile
 					jobsdict[jobname][src]["aclcopy"] = aclcopy
+					jobsdict[jobname][src]["createcloudsync"] = createcloudsync
 
 					logging.debug("parsed the following relationship:"+src+" -> "+dst)
 
@@ -866,6 +862,15 @@ def create_nomad_jobs():
 					logging.debug("creating baseline job file: " + baseline_job_file)				
 
 					if tool == 'cloudsync':
+						if 'createcloudsync' in jobdetails:
+							if jobdetails['createcloudsync']:
+								cloudsync_cmd = [cloudsyncscript,'create','-s',escapestr(src),'-d',escapestr(dst)]
+								try:
+									subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
+								except Exception as e:
+									logging.error("cannot create cloudsync relationship src:"+src+" dst:"+dst)
+									os.system(' '.join(cloudsync_cmd))
+															
 						cmdargs = "baseline\",\"-s\",\""+src+"\",\"-d\",\""+dst
 
 					if ostype == 'linux' and tool != 'cloudsync':
@@ -1076,6 +1081,7 @@ def start_nomad_jobs(action, force):
 							cloudsyncrel = json.loads(validatejson.decode('utf-8'))							
 						except Exception as e:
 							logging.error("cannot validate source/destination paths for cloudsync src:"+src+" dst:"+dst)
+							os.system(' '.join(cloudsync_cmd))
 							exit(1)	
 						if cloudsyncrel: 
 							log.debug("cloudsync relationship for src:"+src+" dest:"+dst+" already exists. status:"+cloudsyncrel['activity']['status']+' type:"'+cloudsyncrel['activity']['type']+'"')
@@ -2743,7 +2749,6 @@ def delete_jobs(forceparam):
 							except Exception as e:
 								os.system(' '.join(cloudsync_cmd))
 								logging.warning("cannot delete source/destination paths for cloudsync src:"+src+" dst:"+dst)	
-								continue
 							
 						# if excludedirfile != '':
 						# 	excludedirfilepath = os.path.join(excludedir,excludedirfile)
