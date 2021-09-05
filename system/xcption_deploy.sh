@@ -287,7 +287,9 @@ fi
 mkdir -p ${SCRIPT_DIR}/xcp_repo
 chmod 770 ${SCRIPT_DIR}/xcp_repo
 
-ln -s ${SCRIPT_DIR}/xcp_repo/nomadcache ${SCRIPT_DIR}/../webtemplates/nomadcache
+if [ ! -L "${SCRIPT_DIR}/../webtemplates/nomadcache" ]; then
+  ln -s ${SCRIPT_DIR}/xcp_repo/nomadcache ${SCRIPT_DIR}/../webtemplates/nomadcache
+fi
 
 if grep -q "${REPO_MOUNT_POINT}" "/etc/fstab"
 then
@@ -299,7 +301,15 @@ fi
 mount ${REPO_MOUNT_POINT}
 
 if grep -qs ${REPO_MOUNT_POINT} /proc/mounts; then
-  echo "XCP repo:${REPO_MOUNT_POINT} is mountable."
+  echo "XCP repo:${REPO_MOUNT_POINT} is mounted."
+  if [ ! -d "${REPO_MOUNT_POINT}/cloudsync" ]; then
+    mkdir ${REPO_MOUNT_POINT}/cloudsync
+  fi
+  if [ ! -d "${REPO_MOUNT_POINT}/excludedir" ]; then
+    mkdir ${REPO_MOUNT_POINT}/excludedir
+  fi
+  exit 0 
 else
   echo "ERROR: could not mount XCP repo:${REPO_MOUNT_POINT}"
+  exit 1
 fi  

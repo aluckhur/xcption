@@ -1,6 +1,8 @@
 #for cloudsync src/dst authentication please put the required access credinatial in this file and copy it to xcption_intall_dir/system/xcp_rep/cloudsync/creds
 #for cifs for each cifs host neet to provide the following information:
 #cifs:host:user:password:domain
-#for s3
-#s3:host:bucket:accessKey:secretkey
-
+#for s3ontap,sgws
+#sgws:bucket@host:accessKey:secretkey
+#s3ontap:bucket@host:accessKey:secretkey
+#for s3 (aws)
+#s3:bucket@region:accessKey:secretkey
