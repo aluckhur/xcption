@@ -149,7 +149,7 @@ a CSV file with the jobs should be created with the following columns:
 
 * SOURCE and DEST paths format are as follows: 
 - NFS job using xcp - nfsserver:/export[/path] - both source and destination should be accesible from each one of the Linux servers in the cluster using root permissions  
-- CIFS job using xcp for windows or robocopy - \\cifsserver\share[\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
+- CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
 - CloudSync job includes accoring to the following format: protocol://path@broker_group_name@username 
   - protocol - can be one of the following: nfs,cifs,local,s3,sgws,s3ontap 
   - broker_group_name - NFS job: nfs://server:/export[/path]@broker_group_name@username - 
