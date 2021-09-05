@@ -212,9 +212,7 @@ s3ontap:bucket2@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZ
 ```
 
 
-
-
-**2. assessment of existing filesystem**
+**2. assessment of existing filesystem (not supported for cloudsync) **
 
 Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `asses` command.
 
@@ -241,17 +239,14 @@ XCPtion will analyze the source file system, will validate destination filesyste
 for example if a file is created under /src/folder1/ it should be manually updated to the destination**
 
 ```
-user@master:~/xcption$ ./xcption.py asses -h
-usage: xcption.py asses [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE
-                        [-p CPU] [-m RAM] [-r] [-u FAILBACKUSER]
-                        [-g FAILBACKGROUP] [-j jobname]
+usage: xcption.py assess [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE [-p CPU] [-m RAM] [-r] [-u FAILBACKUSER] [-g FAILBACKGROUP] [-j jobname] [-n cron] [-a aclcopy]
 
 optional arguments:
   -h, --help            show this help message and exit
   -s SOURCE, --source SOURCE
-                        source nfs path (nfssrv:/mount)
+                        source nfs/cifs path
   -d DESTINATION, --destination DESTINATION
-                        destintion nfs path (nfssrv:/mount)
+                        destination nfs/cifs path
   -l DEPTH, --depth DEPTH
                         filesystem depth to create jobs, range of 1-12
   -c CSVFILE, --csvfile CSVFILE
@@ -260,17 +255,18 @@ optional arguments:
   -m RAM, --ram RAM     RAM allocation in MB for each job
   -r, --robocopy        use robocopy instead of xcp for windows jobs
   -u FAILBACKUSER, --failbackuser FAILBACKUSER
-                        failback user required for xcp for windows jobs, see
-                        xcp.exe copy -h
+                        failback user required for xcp for windows jobs, see xcp.exe copy -h
   -g FAILBACKGROUP, --failbackgroup FAILBACKGROUP
-                        failback group required for xcp for windows jobs, see
-                        xcp.exe copy -h
+                        failback group required for xcp for windows jobs, see xcp.exe copy -h
   -j jobname, --job jobname
                         xcption job name
+  -n cron, --cron cron  create all task with schedule
+  -a aclcopy, --acl aclcopy
+                        use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy
 
 ```
 
-Example of running asses on NFS job:
+Example of running assess on NFS job:
 
 ```
 user@master:~/xcption$ sudo ./xcption.py asses -c example/nfsjob.csv -s 192.168.0.200:/nfssrc -d 192.168.0.200:/nfsdst -l 1 -p 1000 -m 800 -j jobnfs1
@@ -451,7 +447,8 @@ user@master:~/xcption$ sudo ./xcption.py load -c example/cifsjob.csv
 
 
 ```
-usage: xcption.py baseline [-h] [-j jobname] [-s srcpath]
+user@master:~/xcption$ sudo ./xcption.py baseline -h
+usage: xcption.py baseline [-h] [-j jobname] [-s srcpath] [-f]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -459,6 +456,7 @@ optional arguments:
                         change the scope of the command to specific job
   -s srcpath, --source srcpath
                         change the scope of the command to specific path
+  -f, --force           force re-baseline
 ```
 
 
@@ -520,9 +518,8 @@ user@master:~/xcption$ sudo ./xcption.py verify
 can be filtered by specific job (-j), source (-s) and phase (-p)
 
 ```
-user@master:~/xcption$ sudo ./xcption.py status -h
-uusage: xcption.py status [-h] [-j jobname] [-s srcpath] [-t jobstatus] [-v]
-                         [-p phase] [-n node] [-e] [-l]
+user@master:~/xcption$ ./xcption.py status -h
+usage: xcption.py status [-h] [-j jobname] [-s srcpath] [-t jobstatus] [-v] [-p phase] [-n node] [-e] [-o output] [-l]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -531,17 +528,14 @@ optional arguments:
   -s srcpath, --source srcpath
                         change the scope of the command to specific path
   -t jobstatus, --jobstatus jobstatus
-                        change the scope of the command to specific job status
-                        ex:complete,running,failed,pending
+                        change the scope of the command to specific job status ex:complete,running,failed,pending,aborted
   -v, --verbose         provide verbose per phase info
   -p phase, --phase phase
-                        change the scope of the command to specific phase
-                        ex:baseline,sync#,verify#,lastsync (requires
-                        -v/--verbose)
-  -n node, --node node  change the scope of the command to specific node
-                        (requires -v/--verbose)
-  -e, --error           change the scope of the command to jobs with errors
-                        (requires -v/--verbose)
+                        change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)
+  -n node, --node node  change the scope of the command to specific node (requires -v/--verbose)
+  -e, --error           change the scope of the command to jobs with errors (requires -v/--verbose)
+  -o output, --output output
+                        output type: [csv|json]
   -l, --logs            display job logs
 
 ```
