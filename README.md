@@ -4,10 +4,10 @@
 
 XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility (for CIFS the tool supports also 
 robocopy.exe). 
-XCPtion been extended with Support for CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync activities including various source and target storage (nfs, cifs, s3, ...)
 XCPtion will be able to parallelly execute and manage multiple XCP jobs on more than one host in a distributed fashion. 
 This is done by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distributed scheduler. 
 
+XCPtion also include support for NetApp CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync relationships using various source and target endpoints (nfs, cifs, s3, s3ontap, sgws, local).
 
 ## Where do I get XCPtion?
 
@@ -25,7 +25,6 @@ XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/Red
 
 For offline istallation the XCPtion package can be downloaded from the following location [xcption-master.tar.gz](https://gitlab.com/haim.marko/xcption/-/archive/master/xcption-master.tar.gz).
 (will require standard yum/apt repository avaialble for the linux servers)
-
 
 Before starting the setup, NFS accessed volume with root access should be created to host the shared XCP repository. This volume should be exported to all Linux servers that are going to be part of the cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
@@ -134,8 +133,8 @@ The command display each node in the cluster, its status and amount of resources
 a CSV file with the jobs should be created with the following columns:
 
 `JOB NAME` - A name for the JOB, later on actions and output can be filtered by this name  
-`SOURCE PATH` - Source NFSv3 path. The source should be mountable as root from all instances in the cluster  
-`DEST PATH` - Destination NFSv3 path. The destination should be mountable as root from all instances in the cluster  
+`SOURCE PATH` - Source path *  
+`DEST PATH` - Destination path *  
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
 `CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
 `RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
@@ -147,6 +146,15 @@ a CSV file with the jobs should be created with the following columns:
 
 `EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
 `ACL COPY` (optional) - incldue details for acl copy. no-win-acl will prevent acl copy for CIFS jobs (robocopy and xcp), nfs4-acl will include nfs4-acl for nfs jobs (require nfs4 acl suport on both source and destination)
+
+* SOURCE and DEST paths format are as follows: 
+- NFS job using xcp - nfsserver:/export[/path] - both source and destination should be accesible from each one of the Linux servers in the cluster using root permissions  
+- CIFS job using xcp for windows or robocopy - \\cifsserver\share[\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
+- CloudSync job includes accoring to the following format: protocol://path@broker_group_name@username 
+  - protocol - can be one of the following: nfs,cifs,local,s3,sgws,s3ontap 
+  - broker_group_name - NFS job: nfs://server:/export[/path]@broker_group_name@username - 
+nfs://192.168.0.200:/unixsrc/dir1@grp1@XCPtion@hmarko
+source and destination protocols can be mixed (ex. nfs to cifs or cifs to s3, etc) and c
 
 CSV file example:
 ```
@@ -162,9 +170,12 @@ jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800
 jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy
 jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,,cifs_dir4_exclude_dirs
 #CloudSync Jobs
-cloudsync,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
-cloudsync,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
-cloudsync,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
+cloudsync,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+job2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+job2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+job3,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 ```
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
