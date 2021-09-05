@@ -149,8 +149,10 @@ a CSV file with the jobs should be created with the following columns:
 
 SOURCE and DEST paths format are as follows: 
 - NFS job using xcp - nfsserver:/export[/path] - both source and destination should be accesible from each one of the Linux servers in the cluster using root permissions  
+
 - CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
-- CloudSync job includes accoring to the following format: protocol://path@broker_group_name@username 
+
+- CloudSync job includes accoring to the following format: protocol://path@broker_group_name@username , src and dst can be from diffrent protocols 
   - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,cifs,local,s3,sgws,s3ontap 
   - path - the following formats are supported paths:
         nfs path format: nfsserver:/export[/path]
@@ -162,10 +164,6 @@ SOURCE and DEST paths format are as follows:
   - broker_group_name - name of the cloud sync broker group (containing one or more broker) with access to both source and destination. can be seen in the cloudesync:manage data brokers tab
   - username - the username provided should corelate to entry in the xcption installdir/system/xcp_repo/cloudsync/accounts with corelation to valid cloudsync API key created according to the procedure https://docs.netapp.com/us-en/occm/api_sync.html. Each line in the file should use the following format: username:apikey 
 
-  
-  NFS job: nfs://server:/export[/path]@broker_group_name@username - 
-nfs://192.168.0.200:/unixsrc/dir1@grp1@XCPtion@hmarko
-source and destination protocols can be mixed (ex. nfs to cifs or cifs to s3, etc) and c
 
 CSV file example:
 ```
