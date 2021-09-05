@@ -181,12 +181,12 @@ jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800
 jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy
 jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,,cifs_dir4_exclude_dirs
 #CloudSync Jobs
-cloudsync,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-cloudsync,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-cloudsync,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-job2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-job2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-job3,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+csjob1,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+csjob1,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+csjob1,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+csjob2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+csjob2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+csjob2,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 ```
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
@@ -199,8 +199,20 @@ ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_
 \\192.168.0.200\src$\dir4\old_not_required_files_dir
 \\192.168.0.200\src$\dir4\subdir1\files_not_needed
 unused_files #name of specific directory to exclude
-
 ```
+cloudsync accounts file example (<installdir>/system/xcp_repo/cloudsync/accounts for the above example)
+```
+hmarko:eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik5rSXlPVFUzUWpZek1ESkRPVGd5TlRJMU1EUkZNVFpFUTBFd1JEUkJRVGxFT1VFMU5UUkNOZyJ9.eyJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9mdWxsX25hbWUiOiJIYWltIE1hcmtvIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vY29ubmVjdGlvbl9pZCI6ImNvbl92TkN2N2x2MEpra3k5bExkIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vaXNfZmVkZXJhdGVkIjp0cnVlLCJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9pbnRlcm5hbCI6Ik5ldEFwcCIsImlzcyI6Imh0dHBzOi8vbmV0YXBwLWNsb3VkLWFjY291bnQuYXV0aDAuY29tLyIsInN1YiI6InNhbWxwfE5ldEFwcFNBTUx8aG1hcmtvIiwiYXVkIjoiaHR0cHM6Ly9hcGkuY2xvdWQubmV0YXBwLmNvbSIsImlhdCI6MTYzMDc0NzIwNiwiZXhwIjoxNjMwODMzNjA2LCJhenAiOiJNdTBWMXl3Z1l0ZUk2dzFNYkQxNWZLZlZJVXJOWEdXQyIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.rO45_dYtwWpQhZAps2vM46wHlsBpZ_lEJE7QTE7P331fOC7ks5oipmr6apngRblAn-KcftdVRsBmL0iOtByr8ERlct2VNmtb1RH2T5sN5LpXjvd9hZQxgDJlzRnUFj-V_S_JjPVXEaEF857VQouO99uJj581us8DXoREl1Sel3h5MxLp7NNDkpCfW1kcogeF1GEKbo9cJJDgpXlJp-XTrwSLGOyhEizoumJKBuxkV-3bj0orZcjH8UYVzEpB-ps_nLTwnlmSluwzvtkrJIqDHtkBQOwqs4QKZVrIb_OzfLIj-r05nLrYWiOW_kFgY3ecgSAo9H2L92tVuF8oRon3oA
+```
+cloudsync creds file example (<installdir>/system/xcp_repo/cloudsync/creds for the above example)
+```
+cifs:192.168.0.200:administrator:Netapp1!:demo
+s3:bucket:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+sgws:bucket1@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+s3ontap:huge@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+s3ontap:bucket2@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+```
+
 
 
 
