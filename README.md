@@ -147,12 +147,23 @@ a CSV file with the jobs should be created with the following columns:
 `EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
 `ACL COPY` (optional) - incldue details for acl copy. no-win-acl will prevent acl copy for CIFS jobs (robocopy and xcp), nfs4-acl will include nfs4-acl for nfs jobs (require nfs4 acl suport on both source and destination)
 
-* SOURCE and DEST paths format are as follows: 
+SOURCE and DEST paths format are as follows: 
 - NFS job using xcp - nfsserver:/export[/path] - both source and destination should be accesible from each one of the Linux servers in the cluster using root permissions  
 - CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
 - CloudSync job includes accoring to the following format: protocol://path@broker_group_name@username 
-  - protocol - can be one of the following: nfs,cifs,local,s3,sgws,s3ontap 
-  - broker_group_name - NFS job: nfs://server:/export[/path]@broker_group_name@username - 
+  - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,cifs,local,s3,sgws,s3ontap 
+  - path - the following formats are supported paths:
+        nfs path format: nfsserver:/export[/path]
+        local (local storage on the broker) path format : /path
+        cifs path format: cifsserver:/share[/path] - username, password and domain for cifs can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: cifs:cifsserver:username:password[:domain]. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
+        s3ontap (ontap s3 server) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: s3ontap:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
+        sgws (storage grid) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)        
+        s3 (aws s3) path format: region:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@region:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)           
+  - broker_group_name - name of the cloud sync broker group (containing one or more broker) with access to both source and destination. can be seen in the cloudesync:manage data brokers tab
+  - username - the username provided should corelate to entry in the xcption installdir/system/xcp_repo/cloudsync/accounts with corelation to valid cloudsync API key created according to the procedure https://docs.netapp.com/us-en/occm/api_sync.html. Each line in the file should use the following format: username:apikey 
+
+  
+  NFS job: nfs://server:/export[/path]@broker_group_name@username - 
 nfs://192.168.0.200:/unixsrc/dir1@grp1@XCPtion@hmarko
 source and destination protocols can be mixed (ex. nfs to cifs or cifs to s3, etc) and c
 
