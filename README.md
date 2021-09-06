@@ -152,7 +152,7 @@ SOURCE and DEST paths format are as follows:
 
 - CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
 
-- CloudSync job includes accoring to the following format: protocol://path@broker_group_name@username , src and dst can be from diffrent protocols 
+- CloudSync job includes accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
   - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,cifs,local,s3,sgws,s3ontap 
   - path - the following formats are supported paths:
         nfs path format: nfsserver:/export[/path]
@@ -162,6 +162,7 @@ SOURCE and DEST paths format are as follows:
         sgws (storage grid) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)        
         s3 (aws s3) path format: region:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@region:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)           
   - broker_group_name - name of the cloud sync broker group (containing one or more broker) with access to both source and destination. can be seen in the cloudesync:manage data brokers tab
+  - account_name - name of the cloud sync multitenancy account name 
   - username - the username provided should corelate to entry in the xcption installdir/system/xcp_repo/cloudsync/accounts with corelation to valid cloudsync API key created according to the procedure https://docs.netapp.com/us-en/occm/api_sync.html. Each line in the file should use the following format: username:apikey 
 
 
@@ -179,12 +180,12 @@ jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800
 jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy
 jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,,cifs_dir4_exclude_dirs
 #CloudSync Jobs
-csjob1,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-csjob1,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-csjob1,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-csjob2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-csjob2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
-csjob2,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync1,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync1,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync1,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync2,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 ```
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
