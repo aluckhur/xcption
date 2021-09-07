@@ -97,3 +97,7 @@
 - add support for nfs4 acl copy for nfs 
 - add partial support to run robocopy/xcp windows without acl 
 - expanded csv file to include acl info using the 11th column, options can be nfs4-acl or no-win-acl 
+
+3.1.0.10
+- cloudsync integration added 
+- upgrade xcp to 1.7 
