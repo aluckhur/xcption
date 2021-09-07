@@ -153,7 +153,7 @@ SOURCE and DEST paths format are as follows:
 - CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
 
 - CloudSync job includes accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
-  - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,cifs,local,s3,sgws,s3ontap 
+  - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,nfs-fsx,cifs,local,s3,sgws,s3ontap 
   - path - the following formats are supported paths:
         nfs path format: nfsserver:/export[/path]
         local (local storage on the broker) path format : /path
