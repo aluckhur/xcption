@@ -224,7 +224,7 @@ def validaterelationship(src,dst):
     return({'srcpath':srcpath,'group':srcgroup,'account':srcaccount,'dstpath':dstpath,'user':srcuser})
 
 #parse path 
-def parsepath(path):
+def parsepath(path, validatecreds=False):
     global supportedrelationshiptype
     if path.count('://') != 1:
         logging.error('path:'+path+' is in unsupported format (type could not be extracted)')
@@ -279,7 +279,7 @@ def parsepath(path):
             deeppath = '/'.join(dirs)
         version = '2.1'
         creds = getcredsfromfile(type,server)
-        if not creds:
+        if not creds and validatecreds:
             logging.warning('no credentials found for path:'+path+' please add entry to:'+cloudsynccredentialsfile)
         res = {'type':type,'path':allpath,'server':server,'fullpath':fullpath,'share':share,'deeppath':deeppath,'version':version, 'credentials':creds}
 
@@ -310,7 +310,7 @@ def parsepath(path):
                 port = str(port)
 
             creds = getcredsfromfile(type,bucket+'@'+host)
-            if not creds:
+            if not creds and validecred:
                 logging.error('no '+provider+' keys found for path:'+path+' ('+type+':'+bucket+'@'+host+') please add entry to:'+cloudsynccredentialsfile)        
                 exit(1)
             res = {'type':'s3','bucket':bucket,'host':host,'port':port,'credentials':creds,'provider':provider}
@@ -520,9 +520,9 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         exit(1)
 
     #validate src 
-    srcdetails = parsepath(src)
+    srcdetails = parsepath(src,True)
     #validate dst 
-    dstdetails = parsepath(dst)
+    dstdetails = parsepath(dst,True)
 
     #if srcdetails['type']=='nfs':
     #    exports = getnfsexports(user,account,group,srcdetails['server'],srcdetails['export'],srcdetails['deeppath'])
