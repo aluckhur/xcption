@@ -4,10 +4,10 @@
 
 XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility (for CIFS the tool supports also 
 robocopy.exe). 
-XCPtion been extended with Support for CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync activities including various source and target storage (nfs, cifs, s3, ...)
 XCPtion will be able to parallelly execute and manage multiple XCP jobs on more than one host in a distributed fashion. 
 This is done by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distributed scheduler. 
 
+XCPtion also include support for NetApp CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync relationships using various source and target endpoints (nfs, cifs, s3, s3ontap, sgws, local).
 
 ## Where do I get XCPtion?
 
@@ -25,7 +25,6 @@ XCPtion Server can be installed directly on internet connected Ubuntu/CentOS/Red
 
 For offline istallation the XCPtion package can be downloaded from the following location [xcption-master.tar.gz](https://gitlab.com/haim.marko/xcption/-/archive/master/xcption-master.tar.gz).
 (will require standard yum/apt repository avaialble for the linux servers)
-
 
 Before starting the setup, NFS accessed volume with root access should be created to host the shared XCP repository. This volume should be exported to all Linux servers that are going to be part of the cluster. The size is dependent on the number of files (good practice will be to allocate ~50G for the repository)
 
@@ -134,8 +133,8 @@ The command display each node in the cluster, its status and amount of resources
 a CSV file with the jobs should be created with the following columns:
 
 `JOB NAME` - A name for the JOB, later on actions and output can be filtered by this name  
-`SOURCE PATH` - Source NFSv3 path. The source should be mountable as root from all instances in the cluster  
-`DEST PATH` - Destination NFSv3 path. The destination should be mountable as root from all instances in the cluster  
+`SOURCE PATH` - Source path *  
+`DEST PATH` - Destination path *  
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
 `CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
 `RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
@@ -147,6 +146,25 @@ a CSV file with the jobs should be created with the following columns:
 
 `EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
 `ACL COPY` (optional) - incldue details for acl copy. no-win-acl will prevent acl copy for CIFS jobs (robocopy and xcp), nfs4-acl will include nfs4-acl for nfs jobs (require nfs4 acl suport on both source and destination)
+
+SOURCE and DEST paths format are as follows: 
+- NFS job using xcp - nfsserver:/export[/path] - both source and destination should be accesible from each one of the Linux servers in the cluster using root permissions  
+
+- CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
+
+- CloudSync job includes accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
+  - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,cifs,local,s3,sgws,s3ontap 
+  - path - the following formats are supported paths:
+        nfs path format: nfsserver:/export[/path]
+        local (local storage on the broker) path format : /path
+        cifs path format: cifsserver:/share[/path] - username, password and domain for cifs can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: cifs:cifsserver:username:password[:domain]. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
+        s3ontap (ontap s3 server) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: s3ontap:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
+        sgws (storage grid) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)        
+        s3 (aws s3) path format: region:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@region:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)           
+  - broker_group_name - name of the cloud sync broker group (containing one or more broker) with access to both source and destination. can be seen in the cloudesync:manage data brokers tab
+  - account_name - name of the cloud sync multitenancy account name 
+  - username - the username provided should corelate to entry in the xcption installdir/system/xcp_repo/cloudsync/accounts with corelation to valid cloudsync API key created according to the procedure https://docs.netapp.com/us-en/occm/api_sync.html. Each line in the file should use the following format: username:apikey 
+
 
 CSV file example:
 ```
@@ -162,9 +180,12 @@ jobwin2,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800
 jobwin1,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy
 jobwin4,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,,cifs_dir4_exclude_dirs
 #CloudSync Jobs
-cloudsync,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
-cloudsync,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
-cloudsync,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync,,,,
+cloudsync1,nfs://192.168.0.200:/unixsrc/dir7@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir7@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync1,cifs://192.168.0.200:/cifssrc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir8@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync1,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+cloudsync2,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 ```
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
@@ -177,12 +198,22 @@ ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_
 \\192.168.0.200\src$\dir4\old_not_required_files_dir
 \\192.168.0.200\src$\dir4\subdir1\files_not_needed
 unused_files #name of specific directory to exclude
-
+```
+cloudsync accounts file example (<installdir>/system/xcp_repo/cloudsync/accounts for the above example)
+```
+hmarko:eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik5rSXlPVFUzUWpZek1ESkRPVGd5TlRJMU1EUkZNVFpFUTBFd1JEUkJRVGxFT1VFMU5UUkNOZyJ9.eyJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9mdWxsX25hbWUiOiJIYWltIE1hcmtvIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vY29ubmVjdGlvbl9pZCI6ImNvbl92TkN2N2x2MEpra3k5bExkIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vaXNfZmVkZXJhdGVkIjp0cnVlLCJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9pbnRlcm5hbCI6Ik5ldEFwcCIsImlzcyI6Imh0dHBzOi8vbmV0YXBwLWNsb3VkLWFjY291bnQuYXV0aDAuY29tLyIsInN1YiI6InNhbWxwfE5ldEFwcFNBTUx8aG1hcmtvIiwiYXVkIjoiaHR0cHM6Ly9hcGkuY2xvdWQubmV0YXBwLmNvbSIsImlhdCI6MTYzMDc0NzIwNiwiZXhwIjoxNjMwODMzNjA2LCJhenAiOiJNdTBWMXl3Z1l0ZUk2dzFNYkQxNWZLZlZJVXJOWEdXQyIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.rO45_dYtwWpQhZAps2vM46wHlsBpZ_lEJE7QTE7P331fOC7ks5oipmr6apngRblAn-KcftdVRsBmL0iOtByr8ERlct2VNmtb1RH2T5sN5LpXjvd9hZQxgDJlzRnUFj-V_S_JjPVXEaEF857VQouO99uJj581us8DXoREl1Sel3h5MxLp7NNDkpCfW1kcogeF1GEKbo9cJJDgpXlJp-XTrwSLGOyhEizoumJKBuxkV-3bj0orZcjH8UYVzEpB-ps_nLTwnlmSluwzvtkrJIqDHtkBQOwqs4QKZVrIb_OzfLIj-r05nLrYWiOW_kFgY3ecgSAo9H2L92tVuF8oRon3oA
+```
+cloudsync creds file example (<installdir>/system/xcp_repo/cloudsync/creds for the above example)
+```
+cifs:192.168.0.200:administrator:Netapp1!:demo
+s3:bucket:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+sgws:bucket1@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+s3ontap:huge@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+s3ontap:bucket2@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
 ```
 
 
-
-**2. assessment of existing filesystem**
+**2. assessment of existing filesystem (not supported for cloudsync) **
 
 Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `asses` command.
 
@@ -209,17 +240,14 @@ XCPtion will analyze the source file system, will validate destination filesyste
 for example if a file is created under /src/folder1/ it should be manually updated to the destination**
 
 ```
-user@master:~/xcption$ ./xcption.py asses -h
-usage: xcption.py asses [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE
-                        [-p CPU] [-m RAM] [-r] [-u FAILBACKUSER]
-                        [-g FAILBACKGROUP] [-j jobname]
+usage: xcption.py assess [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE [-p CPU] [-m RAM] [-r] [-u FAILBACKUSER] [-g FAILBACKGROUP] [-j jobname] [-n cron] [-a aclcopy]
 
 optional arguments:
   -h, --help            show this help message and exit
   -s SOURCE, --source SOURCE
-                        source nfs path (nfssrv:/mount)
+                        source nfs/cifs path
   -d DESTINATION, --destination DESTINATION
-                        destintion nfs path (nfssrv:/mount)
+                        destination nfs/cifs path
   -l DEPTH, --depth DEPTH
                         filesystem depth to create jobs, range of 1-12
   -c CSVFILE, --csvfile CSVFILE
@@ -228,17 +256,18 @@ optional arguments:
   -m RAM, --ram RAM     RAM allocation in MB for each job
   -r, --robocopy        use robocopy instead of xcp for windows jobs
   -u FAILBACKUSER, --failbackuser FAILBACKUSER
-                        failback user required for xcp for windows jobs, see
-                        xcp.exe copy -h
+                        failback user required for xcp for windows jobs, see xcp.exe copy -h
   -g FAILBACKGROUP, --failbackgroup FAILBACKGROUP
-                        failback group required for xcp for windows jobs, see
-                        xcp.exe copy -h
+                        failback group required for xcp for windows jobs, see xcp.exe copy -h
   -j jobname, --job jobname
                         xcption job name
+  -n cron, --cron cron  create all task with schedule
+  -a aclcopy, --acl aclcopy
+                        use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy
 
 ```
 
-Example of running asses on NFS job:
+Example of running assess on NFS job:
 
 ```
 user@master:~/xcption$ sudo ./xcption.py asses -c example/nfsjob.csv -s 192.168.0.200:/nfssrc -d 192.168.0.200:/nfsdst -l 1 -p 1000 -m 800 -j jobnfs1
@@ -419,7 +448,8 @@ user@master:~/xcption$ sudo ./xcption.py load -c example/cifsjob.csv
 
 
 ```
-usage: xcption.py baseline [-h] [-j jobname] [-s srcpath]
+user@master:~/xcption$ sudo ./xcption.py baseline -h
+usage: xcption.py baseline [-h] [-j jobname] [-s srcpath] [-f]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -427,6 +457,7 @@ optional arguments:
                         change the scope of the command to specific job
   -s srcpath, --source srcpath
                         change the scope of the command to specific path
+  -f, --force           force re-baseline
 ```
 
 
@@ -488,9 +519,8 @@ user@master:~/xcption$ sudo ./xcption.py verify
 can be filtered by specific job (-j), source (-s) and phase (-p)
 
 ```
-user@master:~/xcption$ sudo ./xcption.py status -h
-uusage: xcption.py status [-h] [-j jobname] [-s srcpath] [-t jobstatus] [-v]
-                         [-p phase] [-n node] [-e] [-l]
+user@master:~/xcption$ ./xcption.py status -h
+usage: xcption.py status [-h] [-j jobname] [-s srcpath] [-t jobstatus] [-v] [-p phase] [-n node] [-e] [-o output] [-l]
 
 optional arguments:
   -h, --help            show this help message and exit
@@ -499,17 +529,14 @@ optional arguments:
   -s srcpath, --source srcpath
                         change the scope of the command to specific path
   -t jobstatus, --jobstatus jobstatus
-                        change the scope of the command to specific job status
-                        ex:complete,running,failed,pending
+                        change the scope of the command to specific job status ex:complete,running,failed,pending,aborted
   -v, --verbose         provide verbose per phase info
   -p phase, --phase phase
-                        change the scope of the command to specific phase
-                        ex:baseline,sync#,verify#,lastsync (requires
-                        -v/--verbose)
-  -n node, --node node  change the scope of the command to specific node
-                        (requires -v/--verbose)
-  -e, --error           change the scope of the command to jobs with errors
-                        (requires -v/--verbose)
+                        change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)
+  -n node, --node node  change the scope of the command to specific node (requires -v/--verbose)
+  -e, --error           change the scope of the command to jobs with errors (requires -v/--verbose)
+  -o output, --output output
+                        output type: [csv|json]
   -l, --logs            display job logs
 
 ```
