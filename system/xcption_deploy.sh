@@ -304,7 +304,7 @@ if grep -qs ${REPO_MOUNT_POINT} /proc/mounts; then
   echo "XCP repo:${REPO_MOUNT_POINT} is mounted."
   if [ ! -d "${REPO_MOUNT_POINT}/cloudsync" ]; then
     mkdir ${REPO_MOUNT_POINT}/cloudsync
-    cp -r ${SCRIPT_DIR}/cloudsync/* ${REPO_MOUNT_POINT}/cloudsync
+    cp -r ${SCRIPT_DIR}/../cloudsync/* ${REPO_MOUNT_POINT}/cloudsync
   fi
   if [ ! -d "${REPO_MOUNT_POINT}/excludedir" ]; then
     mkdir ${REPO_MOUNT_POINT}/excludedir
