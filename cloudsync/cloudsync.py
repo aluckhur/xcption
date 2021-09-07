@@ -13,7 +13,7 @@ locale.setlocale(locale.LC_ALL, '')
 root = os.path.dirname(os.path.abspath(__file__))+'/..'
 
 #supportedrelationshiptype 
-supportedrelationshiptype = ['cifs','nfs','nfs3','nfs4.0','nfs4.1','nfs4.2','local','s3ontap','sgws','s3']
+supportedrelationshiptype = ['cifs','nfs','nfs3','nfs4.0','nfs4.1','nfs4.2','nfs-fsx','local','s3ontap','sgws','s3']
 
 #cloudsync repository location
 cloudsyncrepo = os.path.join(root,'system','xcp_repo','cloudsync')
@@ -77,8 +77,8 @@ parser_validate.add_argument('-d','--destination',help="destination path",requir
 parser_export.add_argument('-u','--user',help="cloud central user (api key to be referenced in:"+cloudsyncapikeysfile+')',required=True,type=str)
 parser_export.add_argument('-a','--account',help="cloud acount account name",required=True,type=str)
 parser_export.add_argument('-b','--group',help="cloud sync broker group name",required=False,type=str)
-parser_export.add_argument('-s','--source-type',help="source type",choices=supportedrelationshiptype,required=False,type=str,metavar='sourcetype')
-parser_export.add_argument('-d','--destination-type',help="source type",choices=supportedrelationshiptype,required=False,type=str,metavar='tdestinationtype')
+parser_export.add_argument('-s','--source-type',help="source type:["+' '.join(supportedrelationshiptype)+']',choices=supportedrelationshiptype,required=False,type=str,metavar='sourcetype')
+parser_export.add_argument('-d','--destination-type',help="destination type:["+' '.join(supportedrelationshiptype)+']',choices=supportedrelationshiptype,required=False,type=str,metavar='tdestinationtype')
 
 args = parser.parse_args(args=None if sys.argv[1:] else ['--help'])
 
@@ -236,9 +236,9 @@ def parsepath(path):
         logging.error('path:'+path+' is not from the supported list:'+' '.join(supportedrelationshiptype))
         exit(1)        
     
-    if type in ['nfs','nfs3','nfs4.0','nfs4.1','nfs4.2']:
+    if 'nfs' in type:
         if allpath.count(':') != 1:
-            logging.error('path:'+path+' is in unsupported format (nfs://server:/export/path)')
+            logging.error('path:'+path+' is in unsupported format ('+type+'://server:/export/path)')
             exit(1)            
         nfsserver,fullpath=allpath.split(':')
         dirs = fullpath.split('/')
@@ -247,6 +247,8 @@ def parsepath(path):
         deeppath =''
         if len(dirs) > 1:
             deeppath = '/'.join(dirs)
+        
+        version = '3'
         if type in ['nfs','nfs3']:
             version = '3'
         elif type in ['nfs4.0']:
@@ -255,8 +257,14 @@ def parsepath(path):
             version = '4.1'
         elif type in ['nfs4.2']:
             version = '4.2'
+        
+        type = 'nfs'
+        provider = 'nfs'
 
-        res = {'type':type,'path':allpath,'server':nfsserver,'fullpath':fullpath,'export':export,'deeppath':deeppath,'version':version}
+        if type == 'nfs-fsx': 
+            provider = 'fsx'
+
+        res = {'type':type,'path':allpath,'server':nfsserver,'fullpath':fullpath,'export':export,'deeppath':deeppath,'version':version, 'provider':provider}
 
     if type == 'cifs':
         if allpath.count(':') != 1:
@@ -562,6 +570,8 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["source"]['nfs']['export'] = '/'+srcdetails['export']
         cloudsynccreate["source"]['nfs']['path'] = srcdetails['deeppath']
         cloudsynccreate["source"]['nfs']['version'] = srcdetails['version']
+        cloudsynccreate["source"]['nfs']['provider'] = srcdetails['provider']
+
     if dstdetails['type'] == 'nfs':
         del cloudsynccreate["settings"]['objectTagging']
         del cloudsynccreate['encryption']
@@ -577,6 +587,7 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["target"]['nfs']['export'] = '/'+dstdetails['export']
         cloudsynccreate["target"]['nfs']['path'] = dstdetails['deeppath']
         cloudsynccreate["target"]['nfs']['version'] = dstdetails['version']
+        cloudsynccreate["target"]['nfs']['provider'] = dstdetails['provider']
 
     #type is cifs
     if srcdetails['type'] == 'cifs': 

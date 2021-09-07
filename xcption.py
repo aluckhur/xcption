@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-# XCPtion - NetApp XCP wrapper 
+# XCPtion - NetApp XCP,robocopy and cloudsync wrapper 
 # Written by Haim Marko 
 # Enjoy
 
 #version 
-version = '3.1.0.0'
+version = '3.1.1.10'
 
 import csv
 import argparse
@@ -4630,7 +4630,7 @@ def export_csv(csvfile):
 	try: 
 		with open(csvfile, 'w') as file:
 			writer = csv.writer(file)
-			writer.writerow(["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"])
+			writer.writerow(["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS","ACL COPY"])
 
 			for jobname in jobsdict:
 				
@@ -4661,9 +4661,10 @@ def export_csv(csvfile):
 							failbackuser      = jobdetails['failbackuser']
 							failbackgroup     = jobdetails['failbackgroup']
 							excludedirfile    = jobdetails['excludedirfile']
+							aclcopy           = jobdetails['aclcopy']
 							
 							logging.info("exporting src:"+src+" to dst:"+dst+" info")
-							writer.writerow([jobname,src,dst,jobcron,cpu,memory,tool,failbackuser,failbackgroup,excludedirfile])
+							writer.writerow([jobname,src,dst,jobcron,cpu,memory,tool,failbackuser,failbackgroup,excludedirfile,aclcopy])
 	except Exception as e:
 		logging.error("error exporting to csv file:"+csvfile)
 		exit(1)
