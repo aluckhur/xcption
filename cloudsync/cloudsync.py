@@ -311,8 +311,7 @@ def parsepath(path, validatecreds=False):
 
             creds = getcredsfromfile(type,bucket+'@'+host)
             if not creds and validatecreds:
-                logging.error('no '+provider+' keys found for path:'+path+' ('+type+':'+bucket+'@'+host+') please add entry to:'+cloudsynccredentialsfile)        
-                exit(1)
+                logging.warning('no '+provider+' keys found for path:'+path+' ('+type+':'+bucket+'@'+host+') please add entry to:'+cloudsynccredentialsfile)        
             res = {'type':'s3','bucket':bucket,'host':host,'port':port,'credentials':creds,'provider':provider}
 
         elif provider == 's3':
@@ -321,8 +320,7 @@ def parsepath(path, validatecreds=False):
 
             creds = getcredsfromfile(provider,bucket)
             if not creds:
-                logging.error('no s3 keys found for bucket:'+bucket+' please add entry to:'+cloudsynccredentialsfile)        
-                exit(1)                
+                logging.warning('no s3 keys found for bucket:'+bucket+' please add entry to:'+cloudsynccredentialsfile)                    
             res = {'type':'s3','bucket':bucket,'credentials':creds,'provider':provider,'region':region}
 
     return(res)
