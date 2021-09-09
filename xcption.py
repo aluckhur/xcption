@@ -462,14 +462,16 @@ def parse_csv(csv_path):
 					srcbase = srcbase.replace(' ','-')
 					srcbase = srcbase.replace('\\','_')
 					srcbase = srcbase.replace('$','_dollar')
-					srcbase = srcbase.replace('@','_at')
+					srcbase = srcbase.replace('@','_at_')
+					srcbase = srcbase.replace(':','_')
 					
 					dstbase = dst.replace(':/','-_')
 					dstbase = dstbase.replace('/','_')
 					dstbase = dstbase.replace(' ','-')
 					dstbase = dstbase.replace('\\','_')
 					dstbase = dstbase.replace('$','_dollar')
-					dstbase = dstbase.replace('@','_at')
+					dstbase = dstbase.replace('@','_at_')
+					dstbase = dstbase.replace(':','_')
 
 					#validate no duplicate src and destination 
 					for j in jobsdict:
