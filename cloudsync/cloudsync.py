@@ -151,7 +151,7 @@ def getcredsfromfile(type,key):
                     credshash[details[0]+details[1]]['username'] = details[2]
                     credshash[details[0]+details[1]]['password'] = details[3]
                     logging.debug("loaded creds for type:cifs server/bucket:"+details[0]+details[1])
-
+                    
                 if details[0] in ['s3','sgws','s3ontap']:
                     credshash[details[0]+details[1]] = {}
                     credshash[details[0]+details[1]]['accessKey'] = details[2]
@@ -313,10 +313,9 @@ def parsepath(path, validatecreds=False):
             res = {'type':'s3','bucket':bucket,'host':host,'port':port,'credentials':creds,'provider':provider}
 
         elif provider == 's3':
-            if allpath.count(':') == 1: 
-                region,bucket=allpath.split(':')
+            region,bucket=allpath.split(':')
 
-            creds = getcredsfromfile(provider,bucket)                  
+            creds = getcredsfromfile(provider,bucket+'@'+region)                
             res = {'type':'s3','bucket':bucket,'credentials':creds,'provider':provider,'region':region}
 
     return(res)
