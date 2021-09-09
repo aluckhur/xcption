@@ -611,6 +611,7 @@ def parse_csv(csv_path):
 
 					dstdict[dst] = 1
 					line_count += 1
+
 	#dumping jobsdict to json file 
 	try:
 		with open(jobdictjson, 'w') as fp:

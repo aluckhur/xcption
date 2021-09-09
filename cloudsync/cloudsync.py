@@ -279,8 +279,7 @@ def parsepath(path, validatecreds=False):
             deeppath = '/'.join(dirs)
         version = '2.1'
         creds = getcredsfromfile(type,server)
-        if not creds and validatecreds:
-            logging.warning('no credentials found for path:'+path+' please add entry to:'+cloudsynccredentialsfile)
+
         res = {'type':type,'path':allpath,'server':server,'fullpath':fullpath,'share':share,'deeppath':deeppath,'version':version, 'credentials':creds}
 
     if type in ['local']:
@@ -310,17 +309,14 @@ def parsepath(path, validatecreds=False):
                 port = str(port)
 
             creds = getcredsfromfile(type,bucket+'@'+host)
-            if not creds and validatecreds:
-                logging.warning('no '+provider+' keys found for path:'+path+' ('+type+':'+bucket+'@'+host+') please add entry to:'+cloudsynccredentialsfile)        
+    
             res = {'type':'s3','bucket':bucket,'host':host,'port':port,'credentials':creds,'provider':provider}
 
         elif provider == 's3':
             if allpath.count(':') == 1: 
                 region,bucket=allpath.split(':')
 
-            creds = getcredsfromfile(provider,bucket)
-            if not creds:
-                logging.warning('no s3 keys found for bucket:'+bucket+' please add entry to:'+cloudsynccredentialsfile)                    
+            creds = getcredsfromfile(provider,bucket)                  
             res = {'type':'s3','bucket':bucket,'credentials':creds,'provider':provider,'region':region}
 
     return(res)
@@ -597,6 +593,10 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["source"]['cifs']['version'] = srcdetails['version']
         cloudsynccreate["source"]['cifs']['credentials'] = srcdetails['credentials']
 
+        if not srcdetails['credentials']:
+            logging.error('no credentials found for src: '+src+' please add entry to:'+cloudsynccredentialsfile)        
+            exit(1)
+            
         cloudsynccreate['sourceCredentials']['cifs'] = srcdetails['credentials']
     if dstdetails['type'] == 'cifs':
         del cloudsynccreate["settings"]['objectTagging']
@@ -615,6 +615,9 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["target"]['cifs']['version'] = dstdetails['version']
         cloudsynccreate["target"]['cifs']['credentials'] = srcdetails['credentials']
 
+        if not dstdetails['credentials']:
+            logging.error('no credentials found for dst: '+dst+' please add entry to:'+cloudsynccredentialsfile)  
+            exit(1)
         cloudsynccreate['targetCredentials']['cifs'] = dstdetails['credentials']
 
     if srcdetails['type'] == 'local': 
@@ -627,6 +630,10 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         del cloudsynccreate["source"]['s3']
         cloudsynccreate["source"]['s3'] = {}
         cloudsynccreate["source"]['s3'] = srcdetails
+        
+        if not srcdetails['credentials']:
+            logging.error('no keys found for src:'+src+' please add entry to:'+cloudsynccredentialsfile)           
+            exit(1)
         cloudsynccreate['sourceCredentials']['s3'] = srcdetails['credentials']
 
     if dstdetails['type'] == 's3': 
@@ -634,6 +641,9 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["target"]['s3'] = {}
         cloudsynccreate["target"]['s3'] = dstdetails
         cloudsynccreate['targetCredentials']['s3'] = dstdetails['credentials']
+        if not dstdetails['credentials']:
+            logging.error('no keys found for dst:'+dst+' please add entry to:'+cloudsynccredentialsfile)           
+            exit(1)        
 
         del cloudsynccreate["settings"]['objectTagging']
         del cloudsynccreate['encryption']
