@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 import requests
-import json 
+import json
 import pprint
 import argparse
 import sys,os
@@ -613,11 +613,10 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
         cloudsynccreate["target"]['cifs']['share'] = '/'+dstdetails['share']
         cloudsynccreate["target"]['cifs']['path'] = dstdetails['deeppath']
         cloudsynccreate["target"]['cifs']['version'] = dstdetails['version']
-        cloudsynccreate["target"]['cifs']['credentials'] = srcdetails['credentials']
-
         if not dstdetails['credentials']:
             logging.error('no credentials found for dst: '+dst+' please add entry to:'+cloudsynccredentialsfile)  
-            exit(1)
+            exit(1)        
+        cloudsynccreate["target"]['cifs']['credentials'] = dstdetails['credentials']
         cloudsynccreate['targetCredentials']['cifs'] = dstdetails['credentials']
 
     if srcdetails['type'] == 'local': 
