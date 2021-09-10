@@ -455,7 +455,8 @@ def parse_csv(csv_path):
 							logging.error("acl type: nfs4-acl is not supported for windows task")
 							exit(1)
 					
-					logging.debug("parsing entry for job:" + jobname	 + " src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool+" failbackuser:"+failbackuser+" failback group:"+failbackgroup+" exclude dir file:"+excludedirfile) 
+					#logging.debug("parsing entry for job:"+jobname+" src:" + src + " dst:" + dst + " ostype:" + ostype + " tool:"+tool+" failbackuser:"+failbackuser+" failback group:"+failbackgroup+" exclude dir file:"+excludedirfile) 
+					logging.debug(f"parsing entry for task:{jobname} src:{src} dst:{dst} ostype:{ostype} tool:{tool} failbackuser:{failbackuser} failbackgroup{failbackgroup} exclude dir file:{excludedirfile} aclcopy:{aclcopy}")
 
 					srcbase = src.replace(':/','-_')
 					srcbase = srcbase.replace('/','_')
@@ -495,6 +496,7 @@ def parse_csv(csv_path):
 						cloudsync_cmd = [cloudsyncscript,'validate','-s',escapestr(src),'-d',escapestr(dst)]
 						cloudsyncrel = {}
 						try:
+							logging.debug("running command: "+' '.join(cloudsync_cmd))
 							validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
 							cloudsyncrel = json.loads(validatejson.decode('utf-8'))							
 						except Exception as e:
@@ -869,6 +871,7 @@ def create_nomad_jobs():
 							if jobdetails['createcloudsync']:
 								cloudsync_cmd = [cloudsyncscript,'create','-s',escapestr(src),'-d',escapestr(dst)]
 								try:
+									logging.debug("running command: "+' '.join(cloudsync_cmd))
 									subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
 								except Exception as e:
 									logging.error("cannot create cloudsync relationship src:"+src+" dst:"+dst)
@@ -1080,6 +1083,7 @@ def start_nomad_jobs(action, force):
 						cloudsync_cmd = [cloudsyncscript,'validate','-s',src,'-d',dst]
 						cloudsyncrel = {}
 						try:
+							logging.debug("running command: "+' '.join(cloudsync_cmd))
 							validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
 							cloudsyncrel = json.loads(validatejson.decode('utf-8'))							
 						except Exception as e:
@@ -2748,6 +2752,7 @@ def delete_jobs(forceparam):
 						if tool == 'cloudsync':
 							cloudsync_cmd = [cloudsyncscript,'delete','-s',src,'-d',dst,'--force']
 							try:
+								logging.debug("running command: "+' '.join(cloudsync_cmd))
 								deleterel = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
 							except Exception as e:
 								os.system(' '.join(cloudsync_cmd))
@@ -4584,6 +4589,7 @@ def abort_jobs(jobtype, forceparam):
 										cloudsync_cmd = [cloudsyncscript,'abort','-s',src,'-d',dst]
 										cloudsyncrel = {}
 										try:
+											logging.debug("running command: "+' '.join(cloudsync_cmd))
 											validatejson = subprocess.check_output(cloudsync_cmd,stderr=subprocess.STDOUT)
 										except Exception as e:
 											logging.error("cannot abort cloudsync relationship src:"+src+" dst:"+dst)
