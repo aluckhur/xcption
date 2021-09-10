@@ -212,10 +212,9 @@ s3ontap:huge@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGb
 s3ontap:bucket2@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
 ```
 
+**2. assessment of existing filesystem (not supported for cloudsync)**
 
-**2. assessment of existing filesystem (not supported for cloudsync) **
-
-Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `asses` command.
+Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `assess` and `smartassess` subcommands.
 
 for example if our source file system directory structure up to depth of 2 levels look as follows (bellow the subfolders we have many other files and directories). 
 
@@ -233,7 +232,7 @@ for example if our source file system directory structure up to depth of 2 level
      ├── subfolder2
      └── file1
 ```
-we can use the `asses` command to build this initial directory structure on the destination volume and automatically create the XCPtion CSV file for us.
+we can use the `assess` command to build this initial directory structure on the destination volume and automatically create the XCPtion CSV file for us.
 XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).  
 
 **directory structure is created using `rsync` on linux and `robocopy` on windows will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs  
