@@ -7,7 +7,7 @@ robocopy.exe).
 XCPtion will be able to parallelly execute and manage multiple XCP jobs on more than one host in a distributed fashion. 
 This is done by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distributed scheduler. 
 
-XCPtion also include support for NetApp CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync relationships using various source and target endpoints (nfs, cifs, s3, s3ontap, sgws, local).
+XCPtion also include support for NetApp CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync relationships using various source and target endpoints (nfs, nfs-fsx, cifs, s3, s3ontap, sgws, local).
 
 ## Where do I get XCPtion?
 
