@@ -2816,7 +2816,7 @@ def nomadstatus():
 					exit(1)
 
 				clientdetails = json.loads(response.content)
-				usedmemory = str(round(float(clientdetails["Memory"]["Used"])/(clientdetails["Memory"]["Total"]),2)*100)+'%'
+				usedmemory = str(round(float(clientdetails["Memory"]["Used"])/(clientdetails["Memory"]["Total"])*100,2))+'%'
 				
 				usedcpupercent = 0
 				firstcpu = True 
