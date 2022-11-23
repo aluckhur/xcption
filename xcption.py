@@ -103,6 +103,12 @@ uploaddir = os.path.join(webtemplatedir,'upload')
 #cloudsync integration script 
 cloudsyncscript = os.path.join(root,'cloudsync','cloudsync.py')
 
+#rclone bin 
+rclonebin = os.path.join(root,'system','rclone_wrapper.sh')
+#rclone conf dir 
+rcloneconffile = os.path.join(xcprepopath,'rclone','rclone.conf')
+rcloneglobalflags = '--no-check-certificate --retries 1 --auto-confirm --multi-thread-streams 32 --checkers 32 --progress --metadata --transfers 16'
+
 #log file location
 logdirpath = os.path.join(root,'log') 
 logfilepath = os.path.join(logdirpath,'xcption.log')
@@ -511,6 +517,21 @@ def parse_csv(csv_path):
 
 						#set required params 
 						srchost=''; srcpath=''; dsthost=''; dstpath=''; 
+					elif tool == 'rclone':
+						rclone_cmd = [rclonebin,'--config', rcloneconffile] + rcloneglobalflags.split(' ') + ['lsd',src+'/xcption_check_connectivity_to_bucket']
+						print(rclone_cmd)
+						logging.debug("running command: "+' '.join(rclone_cmd))
+						if subprocess.call(rclone_cmd):
+							logging.error("cannot alidate src using rclone: " + src+ " ,check config file: "+rcloneconffile)
+							exit(1)
+						rclone_cmd = [rclonebin,'--config', rcloneconffile] + rcloneglobalflags.split(' ') + ['lsd',dst+'/xcption_check_connectivity_to_bucket']
+						logging.debug("running command: "+' '.join(rclone_cmd))
+						if subprocess.call(rclone_cmd):
+							logging.error("cannot alidate dst using rclone: " + dst+ " ,check config file: "+rcloneconffile)
+							exit(1)
+						#set required params 
+						srchost=''; srcpath=''; dsthost=''; dstpath='';
+
 					else:
 						if ostype == 'linux':
 							if not re.search("\S+\:\/\S+", src):
@@ -860,10 +881,11 @@ def create_nomad_jobs():
 					if ostype == 'linux': xcpbinpath = xcppath
 					if ostype == 'windows': xcpbinpath = 'powershell'
 					if tool == 'cloudsync': xcpbinpath = cloudsyncscript
+					if tool == 'rclone': xcpbinpath = rclonebin
 					
 					#creating baseline job 
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
-					logging.info("creating/updating relationship configs for src:"+src)
+					logging.info("creating/updating relationship configs for src: "+src)
 					logging.debug("creating baseline job file: " + baseline_job_file)				
 
 					if tool == 'cloudsync':
@@ -878,8 +900,10 @@ def create_nomad_jobs():
 									os.system(' '.join(cloudsync_cmd))
 															
 						cmdargs = "baseline\",\"-s\",\""+src+"\",\"-d\",\""+dst
-
-					if ostype == 'linux' and tool != 'cloudsync':
+					elif tool == 'rclone':
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\",\""+src+"\",\""+dst
+						
+					if ostype == 'linux' and tool not in ['cloudsync','rclone']:
 						aclcopyarg = ''
 						if aclcopy == 'nfs4-acl':  
 							aclcopyarg = "\"-acl4\","
@@ -954,8 +978,10 @@ def create_nomad_jobs():
 
 					if tool == 'cloudsync':
 						cmdargs = "sync\",\"-s\",\""+src+"\",\"-d\",\""+dst								
-					
-					if ostype == 'linux' and tool != 'cloudsync':
+					elif tool == 'rclone':
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\",\""+src+"\",\""+dst
+											
+					if ostype == 'linux' and tool not in['cloudsync','rclone']:
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
 
 					if ostype == 'windows' and tool == 'xcp': 
