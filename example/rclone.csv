@@ -1,2 +1,6 @@
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIRS,ACL COPY
-job1,src:src,dst:dst,0 0 * * * *,3000,800,rclone,,,,
+s3,src:src1,dst:dst1,0 0 * * * *,3000,800,rclone,,,src1.exclude,
+s3,src:src1/2020,dst:dst1/2020,0 0 * * * *,3000,800,rclone,,,,
+s3,src:src1/2021,dst:dst1/2021,0 0 * * * *,3000,800,rclone,,,,
+s3,src:src2,dst:dst2,0 0 * * * *,3000,800,rclone,,,,
+s3,src:src3,dst:dst3,0 0 * * * *,3000,800,rclone,,,,

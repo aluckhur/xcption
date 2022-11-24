@@ -881,7 +881,23 @@ def create_nomad_jobs():
 					if ostype == 'windows': xcpbinpath = 'powershell'
 					if tool == 'cloudsync': xcpbinpath = cloudsyncscript
 					if tool == 'rclone': xcpbinpath = rclonebin
-					
+
+					rcloneexcludedirs = ''
+					if tool == 'rclone' and excludedirfile != '':
+						try:
+							f = open(excludedirfile)
+							excludepaths = f.readlines()
+							excludepaths = [x.strip() for x in excludepaths]
+							excludepaths = ['"--exclude","' + escapestr(path) for path in excludepaths] 
+							excludepaths = [path + '"' for path in excludepaths] 
+							rcloneexcludedirs =  ','+','.join(excludepaths)
+							f.close()                        
+							logging.debug("exclude directories for rclone: " + rcloneexcludedirs)
+						except Exception as e:
+							logging.error("exclude directories file for rclone cannot be parsed: " + rcloneexcludedirs)	
+							exit(1)
+
+
 					#creating baseline job 
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
 					logging.info("creating/updating relationship configs for src: "+src)
@@ -900,7 +916,7 @@ def create_nomad_jobs():
 															
 						cmdargs = "baseline\",\"-s\",\""+src+"\",\"-d\",\""+dst
 					elif tool == 'rclone':
-						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"copy\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
 						
 					if ostype == 'linux' and tool not in ['cloudsync','rclone']:
 						aclcopyarg = ''
@@ -954,7 +970,7 @@ def create_nomad_jobs():
 								f.close()                        
 								logging.debug("exclude directories for robocopy: " + robocopyexcludedirs)
 							except Exception as e:
-								logging.error("exclude directories file cannot be parsed: " + robocopylogpath)	
+								logging.error("exclude directories file cannot be parsed: " + robocopyexcludedirs)	
 								exit(1)
 
 							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath+robocopyexcludedirs)
@@ -978,7 +994,7 @@ def create_nomad_jobs():
 					if tool == 'cloudsync':
 						cmdargs = "sync\",\"-s\",\""+src+"\",\"-d\",\""+dst								
 					elif tool == 'rclone':
-						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
 
 					if ostype == 'linux' and tool not in['cloudsync','rclone']:
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
@@ -1014,7 +1030,7 @@ def create_nomad_jobs():
 					if tool=='cloudsync':
 						cmdargs = "validate\",\"-s\",\""+src+"\",\"-d\",\""+dst
 					elif tool == 'rclone':
-						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\",\"--error\",\"/dev/stdout\",\""+src+"\",\""+dst						
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\""+rcloneexcludedirs+",\"--error\",\"/dev/stdout\",\""+src+"\",\""+dst						
 
 					if ostype == 'linux' and tool not in ['cloudsync','rclone']:  
 						if excludedirfile == '':
@@ -1390,6 +1406,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if not lastline and logtype == 'stdout':
 			for match in re.finditer(r"Checks:\s+([-+]?[0-9]*\.?[0-9])\s*\/\s*([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
 				results['scanned'] = match.group(1)	
+				#results['found'] = '?'
 				results['reviewed'] = match.group(2)
 			for match in re.finditer(r"Elapsed time:\s+(\S+)",results['content'],re.M|re.I):
 				results['time'] = match.group(1)
@@ -1402,14 +1419,27 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['bwout'] = match.group(1)
 			for match in re.finditer(r"Errors:\s+([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
 				results['errors'] = match.group(1)	
-				#results['failure'] = True
+				results['found'] = results['scanned']
+			
+			if "0 differences found" in results['content']:
+				if 'scanned' in results:
+					results['found'] = results['scanned']
+				else:
+					results['found'] = '-'
+					results['scanned'] = '-'
+			#2022-11-24 15:16:47 NOTICE: S3 bucket dst1 path 2020: 0 differences found
+
 			
 			#try to check stderr log for rclone verify output 
 			if results['contentotherlog'] != '':
 				for match in re.finditer(r"Failed to check with ([-+]?[0-9]*\.?[0-9]) errors.+last error was: (.+)",results['contentotherlog'],re.M|re.I):
 					results['found'] = str(int(results['scanned']) - int(match.group(1)))
-			else:
-				results['found'] = results['scanned']
+
+				if 'scanned' in results:
+					results['found'] = results['scanned']
+				else:
+					results['scanned'] = '?'
+					results['found'] = '?'
 			#2022/11/24 09:26:06 Failed to check with 6 errors: last error was: 6 differences found
 
 
@@ -2087,7 +2117,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									verifytime = verifystatsresults['time']
 								if 'bwout' in list(verifystatsresults.keys()): 
 									verifysent = verifystatsresults['bwout']
-								if 'found' in list(verifystatsresults.keys()): 
+								if 'found' in list(verifystatsresults.keys()) and 'scanned' in list(verifystatsresults.keys()): 
 									verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']	
 								if 'logs' not in verifyjobsstructure:
 									verifyjobsstructure['logs'] = {}
@@ -5175,7 +5205,7 @@ def monitored_copy(src,dst,nfs4acl):
 def monitored_delete (src,force):
 	#validate provided paths are unix based 
 	if not re.search("^\S+\:\/\S+", src):
-		logging.error("source format is incorrect: " + src) 
+		logging.error("fs format is incorrect: " + src) 
 		exit(1)	    
 
 	if not force:
