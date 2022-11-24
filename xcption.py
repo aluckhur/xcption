@@ -1,11 +1,11 @@
 #!/usr/bin/python3
 
-# XCPtion - NetApp XCP,robocopy and cloudsync wrapper 
+# XCPtion - NetApp XCP,robocopy,cloudsync and rclone wrapper 
 # Written by Haim Marko 
 # Enjoy
 
 #version 
-version = '3.1.1.10'
+version = '3.2.0.0'
 
 import csv
 import argparse
@@ -103,6 +103,12 @@ uploaddir = os.path.join(webtemplatedir,'upload')
 #cloudsync integration script 
 cloudsyncscript = os.path.join(root,'cloudsync','cloudsync.py')
 
+#rclone bin 
+rclonebin = os.path.join(root,'system','rclone_wrapper.sh')
+#rclone conf dir 
+rcloneconffile = os.path.join(xcprepopath,'rclone','rclone.conf')
+rcloneglobalflags = '--no-check-certificate --retries 1 --auto-confirm --multi-thread-streams 32 --checkers 32 --progress --metadata --transfers 16'
+
 #log file location
 logdirpath = os.path.join(root,'log') 
 logfilepath = os.path.join(logdirpath,'xcption.log')
@@ -150,8 +156,8 @@ parser_nodestatus   = subparser.add_parser('nodestatus', help='display cluster n
 parser_status       = subparser.add_parser('status',     help='display status',parents=[parent_parser])	
 parser_assess       = subparser.add_parser('assess',     help='assess filesystem and create csv file',parents=[parent_parser])
 parser_load         = subparser.add_parser('load',       help='load/update configuration from csv file',parents=[parent_parser])
-parser_baseline     = subparser.add_parser('baseline',   help='start baseline (xcp copy)',parents=[parent_parser])
-parser_sync         = subparser.add_parser('sync',       help='start schedule updates (xcp sync)',parents=[parent_parser])
+parser_baseline     = subparser.add_parser('baseline',   help='start initial baseline',parents=[parent_parser])
+parser_sync         = subparser.add_parser('sync',       help='start scheduled sync',parents=[parent_parser])
 parser_syncnow      = subparser.add_parser('syncnow',    help='initiate sync now',parents=[parent_parser])
 parser_pause        = subparser.add_parser('pause',      help='disable sync schedule',parents=[parent_parser])
 parser_resume       = subparser.add_parser('resume',     help='resume sync schedule',parents=[parent_parser])
@@ -226,7 +232,7 @@ parser_abort.add_argument('-f','--force',help="force abort", required=False,acti
 parser_verify.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_verify.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_verify.add_argument('-q','--quick',help="perform quicker verify by using xcp random file verify (1 out of 1000)", required=False,action='store_true')
-parser_verify.add_argument('-w','--withdata',help="perform deep data verification (xcp verify without the -nodata flag)", required=False,action='store_true')
+parser_verify.add_argument('-w','--withdata',help="perform deep data verification (full content verification)", required=False,action='store_true')
 parser_verify.add_argument('-r','--reverse',help="perform reverse verify (dst will be compared to the src)", required=False,action='store_true')
 
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
@@ -511,6 +517,20 @@ def parse_csv(csv_path):
 
 						#set required params 
 						srchost=''; srcpath=''; dsthost=''; dstpath=''; 
+					elif tool == 'rclone':
+						rclone_cmd = [rclonebin,'--config', rcloneconffile] + rcloneglobalflags.split(' ') + ['lsd',src+'/xcption_check_connectivity_to_bucket']
+						logging.debug("running command: "+' '.join(rclone_cmd))
+						if subprocess.call(rclone_cmd,stderr=subprocess.STDOUT,stdout=subprocess.DEVNULL):
+							logging.error("cannot alidate src using rclone: " + src+ " ,check config file: "+rcloneconffile)
+							exit(1)
+						rclone_cmd = [rclonebin,'--config', rcloneconffile] + rcloneglobalflags.split(' ') + ['lsd',dst+'/xcption_check_connectivity_to_bucket']
+						logging.debug("running command: "+' '.join(rclone_cmd))
+						if subprocess.call(rclone_cmd,stderr=subprocess.STDOUT,stdout=subprocess.DEVNULL):
+							logging.error("cannot alidate dst using rclone: " + dst+ " ,check config file: "+rcloneconffile)
+							exit(1)
+						#set required params 
+						srchost=''; srcpath=''; dsthost=''; dstpath='';
+
 					else:
 						if ostype == 'linux':
 							if not re.search("\S+\:\/\S+", src):
@@ -646,10 +666,10 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 			nomadjobdict={}
 			nomadjobdict['Job'] = json.loads(response.content)
 			try:
-			 	nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
+				nomadout = n.job.plan_job(nomadjobname, nomadjobdict)
 			except Exception as e:
-			 	logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+hclpath+ " for more details") 
-			 	exit(1)
+				logging.error("job planning failed for job:"+nomadjobname+" please run: nomad job plan "+hclpath+ " for more details") 
+				exit(1)
 			logging.debug("starting job:"+nomadjobname)
 			try:
 				nomadout = n.job.register_job(nomadjobname, nomadjobdict)
@@ -860,10 +880,27 @@ def create_nomad_jobs():
 					if ostype == 'linux': xcpbinpath = xcppath
 					if ostype == 'windows': xcpbinpath = 'powershell'
 					if tool == 'cloudsync': xcpbinpath = cloudsyncscript
-					
+					if tool == 'rclone': xcpbinpath = rclonebin
+
+					rcloneexcludedirs = ''
+					if tool == 'rclone' and excludedirfile != '':
+						try:
+							f = open(excludedirfile)
+							excludepaths = f.readlines()
+							excludepaths = [x.strip() for x in excludepaths]
+							excludepaths = ['"--exclude","' + escapestr(path) for path in excludepaths] 
+							excludepaths = [path + '"' for path in excludepaths] 
+							rcloneexcludedirs =  ','+','.join(excludepaths)
+							f.close()                        
+							logging.debug("exclude directories for rclone: " + rcloneexcludedirs)
+						except Exception as e:
+							logging.error("exclude directories file for rclone cannot be parsed: " + rcloneexcludedirs)	
+							exit(1)
+
+
 					#creating baseline job 
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
-					logging.info("creating/updating relationship configs for src:"+src)
+					logging.info("creating/updating relationship configs for src: "+src)
 					logging.debug("creating baseline job file: " + baseline_job_file)				
 
 					if tool == 'cloudsync':
@@ -878,8 +915,10 @@ def create_nomad_jobs():
 									os.system(' '.join(cloudsync_cmd))
 															
 						cmdargs = "baseline\",\"-s\",\""+src+"\",\"-d\",\""+dst
-
-					if ostype == 'linux' and tool != 'cloudsync':
+					elif tool == 'rclone':
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"copy\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
+						
+					if ostype == 'linux' and tool not in ['cloudsync','rclone']:
 						aclcopyarg = ''
 						if aclcopy == 'nfs4-acl':  
 							aclcopyarg = "\"-acl4\","
@@ -931,7 +970,7 @@ def create_nomad_jobs():
 								f.close()                        
 								logging.debug("exclude directories for robocopy: " + robocopyexcludedirs)
 							except Exception as e:
-								logging.error("exclude directories file cannot be parsed: " + robocopylogpath)	
+								logging.error("exclude directories file cannot be parsed: " + robocopyexcludedirs)	
 								exit(1)
 
 							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath+robocopyexcludedirs)
@@ -954,8 +993,10 @@ def create_nomad_jobs():
 
 					if tool == 'cloudsync':
 						cmdargs = "sync\",\"-s\",\""+src+"\",\"-d\",\""+dst								
-					
-					if ostype == 'linux' and tool != 'cloudsync':
+					elif tool == 'rclone':
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
+
+					if ostype == 'linux' and tool not in['cloudsync','rclone']:
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
 
 					if ostype == 'windows' and tool == 'xcp': 
@@ -988,8 +1029,10 @@ def create_nomad_jobs():
 					
 					if tool=='cloudsync':
 						cmdargs = "validate\",\"-s\",\""+src+"\",\"-d\",\""+dst
+					elif tool == 'rclone':
+						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\""+rcloneexcludedirs+",\"--error\",\"/dev/stdout\",\""+src+"\",\""+dst						
 
-					if ostype == 'linux' and tool != 'cloudsync':  
+					if ostype == 'linux' and tool not in ['cloudsync','rclone']:  
 						if excludedirfile == '':
 							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
 						else:
@@ -1038,9 +1081,6 @@ def check_baseline_job_status (baselinejobname):
 		return('baseline not complete')
 	else:
 		return('baseline is complete')
-	
-
-
 
 #start nomand job
 def start_nomad_jobs(action, force):
@@ -1145,7 +1185,7 @@ def start_nomad_jobs(action, force):
 							logging.info("starting/updating "+action+" job for src:" + src+ " dst:"+dst) 
 
 
-							#if action is verify recreate job file based on the quick option
+							#if action is verify recreate job file based on the provided options
 							if action == 'verify':
 								logging.debug("recreting job:"+nomadjobname+" to support quick verify") 
 								#recreating verify job to support the quick option 
@@ -1153,6 +1193,7 @@ def start_nomad_jobs(action, force):
 								excludedirfile  = jobdetails['excludedirfile']
 								memory          = jobdetails['memory']
 								cpu             = jobdetails['cpu'] 
+								tool 			= jobdetails['tool'] 
 
 								verify_job_file = os.path.join(jobdir,verify_job_name+'.hcl')	
 								logging.debug("recreating verify job file: " + verify_job_file)	
@@ -1167,14 +1208,21 @@ def start_nomad_jobs(action, force):
 									srcverify = dst
 									dstverify = src
 								
-								if ostype == 'linux' and not args.quick:  
+								if tool == 'xcp' and not args.quick:  
 									xcpbinpath = xcppath
 									if excludedirfile == '':
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\""+srcverify+"\",\""+dstverify
 									else:
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"')\",\""+srcverify+"\",\""+dstverify
 								
-								if ostype == 'linux' and args.quick:  
+								if tool == 'rclone': 
+									withdata = ''
+									if args.withdata:
+										withdata = ',"--download"'
+									xcpbinpath = rclonebin
+									cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\",\"--error\",\"/dev/stdout\""+withdata+",\""+src+"\",\""+dst	
+
+								if tool == 'xcp' and args.quick:  
 									xcpbinpath = xcppath
 									if excludedirfile == '':
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
@@ -1256,22 +1304,6 @@ def start_nomad_jobs(action, force):
 									logging.error("job:"+nomadjobname+" force start failed") 
 									exit(1)
 
-#tail n lines of a file 
-# def tail(file, n=1, bs=1024):
-#     f = open(file)
-#     f.seek(0,2)
-#     l = 1-f.read(1).count('\n')
-#     B = f.tell()
-#     while n >= l and B > 0:
-#             block = min(bs, B)
-#             B -= block
-#             f.seek(B, 0)
-#             l += f.read(block).count('\n')
-#     f.seek(B, 0)
-#     l = min(l,n)
-#     lines = f.readlines()[-l:]
-#     f.close()
-#     return lines
 
 def tail (file,n=1):
 	tailfile = ''
@@ -1286,8 +1318,6 @@ def tail (file,n=1):
 
 #parse stats from xcp logs, logs can be retrived from api or file in the repo
 def parse_stats_from_log (type,name,logtype,task='none'):
-#def parse_stats_from_log (type,name,task='none',jobstatus='unknow'):
-	#output dict
 	logging.debug("starting log parsing type:"+type+" name:"+name+" type:"+type)
 	results = {}
 	results['content'] = ''
@@ -1351,6 +1381,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		else:
 			logging.debug("log for job:"+allocid+" is not available using api")																								
 
+
 	if results['content'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['content'],re.M|re.I):
 			lastline = match.group(0)
@@ -1363,13 +1394,55 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['content'],re.M|re.I):
 				results['bwout'] = match.group(1)
 		
-		# for cases when xcp failed buy did not return exit code 
+		# for cases when xcp failed but did not return exit code 
 		# example: Cannot start sync: 0.6 GiB memory available, 5.0 total, at least 2 GiB required
 		if not lastline and logtype == 'stderr':
 			for match in re.finditer(r"Cannot start ?(\bcopy\b|\bsync\b|\bverify\b)\:",results['content'],re.M|re.I):
 				results['failure'] = True
 			for match in re.finditer(r"xcp: ERROR: License file",results['content'],re.M|re.I):
 				results['failure'] = True
+
+		#try to parse rclone log file 
+		if not lastline and logtype == 'stdout':
+			for match in re.finditer(r"Checks:\s+([-+]?[0-9]*\.?[0-9])\s*\/\s*([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
+				results['scanned'] = match.group(1)	
+				#results['found'] = '?'
+				results['reviewed'] = match.group(2)
+			for match in re.finditer(r"Elapsed time:\s+(\S+)",results['content'],re.M|re.I):
+				results['time'] = match.group(1)
+			for match in re.finditer(r"Transferred:\s+([-+]?[0-9]*\.?[0-9])\s*\/\s*[-+]?[0-9]*\.?[0-9],",results['content'],re.M|re.I):
+				results['copied'] = match.group(1)	
+			for match in re.finditer(r"Deleted:\s+([-+]?[0-9]*\.?[0-9])\s*\(files\),\s+([-+]?[0-9]*\.?[0-9])\s*\(dirs",results['content'],re.M|re.I):
+				results['gone'] = match.group(1)	
+				results['rmdirs'] = match.group(2)			
+			for match in re.finditer(r"Transferred:\s+([-+]?[0-9]*\.?[0-9]*\s+.*B)\s+\/",results['content'],re.M|re.I):
+				results['bwout'] = match.group(1)
+			for match in re.finditer(r"Errors:\s+([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
+				results['errors'] = match.group(1)	
+				results['found'] = results['scanned']
+			
+			if "0 differences found" in results['content']:
+				if 'scanned' in results:
+					results['found'] = results['scanned']
+				else:
+					results['found'] = '-'
+					results['scanned'] = '-'
+			#2022-11-24 15:16:47 NOTICE: S3 bucket dst1 path 2020: 0 differences found
+
+			
+			#try to check stderr log for rclone verify output 
+			if results['contentotherlog'] != '':
+				for match in re.finditer(r"Failed to check with ([-+]?[0-9]*\.?[0-9]) errors.+last error was: (.+)",results['contentotherlog'],re.M|re.I):
+					results['found'] = str(int(results['scanned']) - int(match.group(1)))
+
+				if 'scanned' in results:
+					results['found'] = results['scanned']
+				else:
+					results['scanned'] = '?'
+					results['found'] = '?'
+			#2022/11/24 09:26:06 Failed to check with 6 errors: last error was: 6 differences found
+
+
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
@@ -1386,7 +1459,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		if otherloglastline != '':
 			lastline = otherloglastline	
 	
-	#for xcp logs 	
+	#for xcp/robocopy/cloudsync logs 
 	if lastline:
 		matchObj = re.search("\s+(\S*\d+[s|m|h])(\.)?$", lastline, re.M|re.I)
 		if matchObj: 
@@ -1621,7 +1694,7 @@ def create_csv_status (jsondict):
 						phase['phase'],phase['starttime'],phase['endtime'],phase['duration'],phase['scanned'],phase['reviewed'],phase['copied'],phase['modified'],
 						phase['deleted'],phase['errors'],phase['sent'],phase['nodename'],phase['status'],phase['stderrlogpath'],phase['stdoutlogpath']])
 	except Exception as e:
-		logging.error("error creating csv file:"+csvfile)
+		logging.error("error creating csv output")
 		exit(1)
 
 
@@ -1671,10 +1744,10 @@ def create_verbose_status (jsondict, displaylogs=False):
 
 			print(("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'))
 
-			if jobdetails['ostype'] =='linux' and jobdetails['tool'] != 'cloudsync': print(("XCP INDEX NAME: "+jobdetails['xcpindexname']))
+			if jobdetails['ostype'] =='linux' and jobdetails['tool'] == 'xcp': print(("XCP INDEX NAME: "+jobdetails['xcpindexname']))
 			if jobdetails['excludedirfile'] != '': print(("EXCLUDE DIRS FILE: "+jobdetails['excludedirfile']))
 			if jobdetails['tool'] != 'cloudsync': print(("OS: "+jobdetails['ostype'].upper()))
-			if jobdetails['ostype']=='windows' or jobdetails['tool']=='cloudsync': print(("TOOL NAME: "+jobdetails['tool']))
+			print(("TOOL NAME: "+jobdetails['tool']))
 			print("")
 
 			if len(jobdetails['phases']) > 0:
@@ -1788,6 +1861,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					#xcp logs for linux are in stderr for windows they are in stdout 
 					if ostype=='windows': logtype = 'stdout'
 					if ostype=='linux': logtype = 'stderr'
+					
+					if tool=="rclone": logtype = 'stdout'
 
 					#baseline job information
 					baselinejobstatus = '-'
@@ -2031,6 +2106,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 							logtype = 'stdout'
 							if ostype == 'linux': logtype = 'stderr'
+							if tool == 'rclone': logtype = 'stdout'
 
 							if file.startswith(logtype+"log_"):
 								verifylogcachefile = os.path.join(verifycachedir,file)
@@ -2041,14 +2117,12 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									verifytime = verifystatsresults['time']
 								if 'bwout' in list(verifystatsresults.keys()): 
 									verifysent = verifystatsresults['bwout']
-								if 'found' in list(verifystatsresults.keys()): 
+								if 'found' in list(verifystatsresults.keys()) and 'scanned' in list(verifystatsresults.keys()): 
 									verifyratio = verifystatsresults['found']+'/'+verifystatsresults['scanned']	
 								if 'logs' not in verifyjobsstructure:
 									verifyjobsstructure['logs'] = {}
 								verifyjobsstructure['logs'][logallocid] = {}										
 								verifyjobsstructure['logs'][logallocid] = verifystatsresults
-
-
 
 					if not verifyjobfound: verifysched = '-'
 			
@@ -2069,17 +2143,21 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						if verifyjoblastdetails['Status'] == 'dead' and verifyjoblastdetails['Stop']: verifystatus = 'aborted'
 
 						try:
-
 							if verifystatus == 'complete': verifystatus = 'idle'
-
+							
 							#linux
 							if verifystatus == 'failed' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
 							if verifystatus == 'failed' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
-
-							#windows
-							if verifystatus != 'running' and ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'
 							
+							#windows
+							if verifystatus != 'running' and ostype == 'windows' and (verifystatsresults['found'] != verifystatsresults['scanned']): verifystatus =  'diff'							
 							if verifystatus == 'idle' and (verifystatsresults['found'] == verifystatsresults['scanned']): verifystatus =  'equal'
+							
+							#rclone
+							if tool == 'rclone':
+								if verifystatsresults['found'] != verifystatsresults['scanned']: verifystatus =  'diff'
+								if verifystatsresults['found'] == verifystatsresults['scanned']: verifystatus =  'equal'
+
 						except Exception as e:
 							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
 
@@ -2107,12 +2185,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					except Exception as e:
 						logging.debug("filter was not passed")
 				
-
 					if addrow:		
 						jsongeneraldict = addtogeneralstatusjson([jobname,src,dst,baselinestatus,baselinetime,baselinesentshort,syncstatus,syncsched,synctime,syncsentshort,synccounter,verifystatus,verifystarttime,verifyratio,verifycounter],jsongeneraldict)
 						jsondict = addtostatusjson(jobname,src,[],jsondict)
 						rowcount += 1
-
 
 					#printing verbose information
 					if reporttype == 'verbose':
@@ -2228,24 +2304,24 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								logging.debug("filter was not passed")
 
 							if addrow:								
-				 				stdoutkey = 'content'; stderrkey = 'contentotherlog'
-				 				if logtype == 'stderr': 
-				 					stdoutkey = 'contentotherlog'
-				 					stderrkey = 'content'
+								stdoutkey = 'content'; 
+								stderrkey = 'contentotherlog'
+								if logtype == 'stderr': 
+									stdoutkey = 'contentotherlog'
+									stderrkey = 'content'
 
 				 				#prevent excption if current log is not avaialble yet
-				 				if not 'stdoutlogpath' in baselinestatsresults: baselinestatsresults['stdoutlogpath'] = ''
-				 				if not 'stderrlogpath' in baselinestatsresults: baselinestatsresults['stderrlogpath'] = ''
-			 					if not 'stdoutlogexists' in baselinestatsresults: baselinestatsresults['stdoutlogexists'] = ''
-			 					if not 'stderrlogexists' in baselinestatsresults: baselinestatsresults['stderrlogexists'] = ''
-			 					if not stdoutkey in baselinestatsresults: baselinestatsresults[stdoutkey] = ''
-			 					if not stderrkey in baselinestatsresults: baselinestatsresults[stderrkey] = ''
-
-				 				jsondict = addtostatusjson(jobname,src,[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus,
-				 												baselinestatsresults['stdoutlogpath'],baselinestatsresults['stderrlogpath'],
-				 												baselinestatsresults['stdoutlogexists'],baselinestatsresults['stderrlogexists'],
-				 												baselinestatsresults[stdoutkey],baselinestatsresults[stderrkey]],jsondict)
-
+								if not 'stdoutlogpath' in baselinestatsresults: baselinestatsresults['stdoutlogpath'] = ''
+								if not 'stderrlogpath' in baselinestatsresults: baselinestatsresults['stderrlogpath'] = ''
+								if not 'stdoutlogexists' in baselinestatsresults: baselinestatsresults['stdoutlogexists'] = ''
+								if not 'stderrlogexists' in baselinestatsresults: baselinestatsresults['stderrlogexists'] = ''
+								if not stdoutkey in baselinestatsresults: baselinestatsresults[stdoutkey] = ''
+								if not stderrkey in baselinestatsresults: baselinestatsresults[stderrkey] = ''
+								
+								jsondict = addtostatusjson(jobname,src,[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,baselinestatus,
+															baselinestatsresults['stdoutlogpath'],baselinestatsresults['stderrlogpath'],
+															baselinestatsresults['stdoutlogexists'],baselinestatsresults['stderrlogexists'],
+															baselinestatsresults[stdoutkey],baselinestatsresults[stderrkey]],jsondict)
 
 
 						#get the last sync number will be used for lastsync filter 
@@ -2358,7 +2434,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 										try:
 											errors = currentlog['errors']
-											if tasktype == 'verify':
+											if tasktype == 'verify' and tool != 'rclone':
 												try:
 													diffattr = currentlog['diffattr']
 												except Exception as e:
@@ -2393,12 +2469,18 @@ def create_status (reporttype,displaylogs=False, output='text'):
 											if currentperiodic['Status'] in ['pending','running']: jobstatus =  currentperiodic['Status']
 
 											if tasktype == 'verify' and jobstatus != 'running':
+												#linux
 												if jobstatus == 'failed' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 												if jobstatus == 'failed' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
 												if jobstatus == 'complete': jobstatus = 'idle'
 												#windows
 												if ostype == 'windows' and (currentlog['found'] != currentlog['scanned']): jobstatus =  'diff'
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
+
+												if tool == 'rclone':
+													if currentlog['found'] != currentlog['scanned']: jobstatus =  'diff'
+													if currentlog['found'] == currentlog['scanned']: jobstatus =  'equal'													
+
 											
 											if tasktype == 'sync':
 												#check to see if the log file includes warnings
@@ -2445,43 +2527,37 @@ def create_status (reporttype,displaylogs=False, output='text'):
 										addrow = False
 								except Exception as e:
 									logging.debug("filter was not passed")
-													
+
 								if addrow:
+									stdoutkey = 'content'; stderrkey = 'contentotherlog'
+									if logtype == 'stderr': 
+										stdoutkey = 'contentotherlog'
+										stderrkey = 'content'
 
-					 				stdoutkey = 'content'; stderrkey = 'contentotherlog'
-					 				if logtype == 'stderr': 
-					 					stdoutkey = 'contentotherlog'
-					 					stderrkey = 'content'
+									#prevent excption if current log is not avaialble yet
+									if not 'stdoutlogpath' in currentlog: currentlog['stdoutlogpath'] = ''
+									if not 'stderrlogpath' in currentlog: currentlog['stderrlogpath'] = ''
+									if not 'stdoutlogexists' in currentlog: currentlog['stdoutlogexists'] = ''
+									if not 'stderrlogexists' in currentlog: currentlog['stderrlogexists'] = ''
+									if not stdoutkey in currentlog: currentlog[stdoutkey] = ''
+									if not stderrkey in currentlog: currentlog[stderrkey] = ''
 
-					 				#prevent excption if current log is not avaialble yet
-					 				if not 'stdoutlogpath' in currentlog: currentlog['stdoutlogpath'] = ''
-					 				if not 'stderrlogpath' in currentlog: currentlog['stderrlogpath'] = ''
-				 					if not 'stdoutlogexists' in currentlog: currentlog['stdoutlogexists'] = ''
-				 					if not 'stderrlogexists' in currentlog: currentlog['stderrlogexists'] = ''
-				 					if not stdoutkey in currentlog: currentlog[stdoutkey] = ''
-				 					if not stderrkey in currentlog: currentlog[stderrkey] = ''
+									jsondict = addtostatusjson(jobname,src, [task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus,currentlog['stdoutlogpath'],
+									currentlog['stderrlogpath'],currentlog['stdoutlogexists'],currentlog['stderrlogexists'],currentlog[stdoutkey],currentlog[stderrkey]],jsondict)						
 
-
-			 						jsondict = addtostatusjson(jobname,src,
-			 													[task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus,
-			 													 currentlog['stdoutlogpath'],currentlog['stderrlogpath'],
-				 												 currentlog['stdoutlogexists'],currentlog['stderrlogexists'],
-				 												 currentlog[stdoutkey],currentlog[stderrkey]],
-				 												jsondict)			 						
-
-			 						task = ''
-			 						starttime='-'
-			 						endtime='-'
-			 						duration='-'
-			 						scanned='-'
-			 						reviewed='-'
-			 						copied='-'
-			 						modified='-'
-			 						deleted='-'
-			 						errors='-'
-			 						sent='-'
-			 						nodename='-'
-			 						jobstatus='-'
+									task = ''
+									starttime='-'
+									endtime='-'
+									duration='-'
+									scanned='-'
+									reviewed='-'
+									copied='-'
+									modified='-'
+									deleted='-'
+									errors='-'
+									sent='-'
+									nodename='-'
+									jobstatus='-'
 
 	if reporttype == 'verbose':
 		if output == 'text':
@@ -2702,10 +2778,11 @@ def delete_jobs(forceparam):
 
 					force = forceparam
 					if not force: 
-						if tool != 'cloudsync':
-							force = query_yes_no("delete job for source:"+src,'no')
-						else:
+						if tool == 'cloudsync':
 							force = query_yes_no("delete xcption and cloudsync job for src:"+src+' dst:'+dst+' ?','no')
+						else:
+							force = query_yes_no("delete job for source:"+src,'no')
+							
 					if force:
 						logging.info("delete job for source:"+src) 
 						#delete baseline jobs 
@@ -3015,8 +3092,8 @@ def parse_nomad_jobs_to_files (parselog=True):
 			continue
 		try:
 			with open(jobjsonfile, 'w') as fp:
-			    json.dump(job, fp)
-			    logging.debug("dumping job to json file:"+jobjsonfile)		
+				json.dump(job, fp)
+				logging.debug("dumping job to json file:"+jobjsonfile)		
 		except Exception as e:
 			logging.error("cannot create file:"+jobjsonfile)
 			#exit(1)
@@ -3028,8 +3105,8 @@ def parse_nomad_jobs_to_files (parselog=True):
 				allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')				
 				try:
 					with open(allocjsonfile, 'w') as fp:
-					    json.dump(alloc, fp)
-					    logging.debug("dumping alloc to json file:"+allocjsonfile)		
+						json.dump(alloc, fp)
+						logging.debug("dumping alloc to json file:"+allocjsonfile)		
 				except Exception as e:
 					logging.error("cannot create file:"+allocjsonfile)
 					exit(1)
@@ -3217,8 +3294,8 @@ def check_verbose_job_status (jobname, task='smartassess'):
 					logging.debug('loading cached info alloc file:'+alloccachefile)
 					allocdata = json.load(f)
 					try:
-				 		starttime = allocdata['TaskStates'][task]['StartedAt']
-				 		starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
+						starttime = allocdata['TaskStates'][task]['StartedAt']
+						starttime = starttime.split('T')[0]+' '+starttime.split('T')[1].split('.')[0]				
 					except Exception as e:
 						starttime = '-'
 					results['starttime'] = starttime
@@ -3310,7 +3387,7 @@ def createhardlinkmatches(dirtree,inputfile):
 		exit(1)
 
 	with open(inputfile) as f:
-	    content = f.readlines()
+		content = f.readlines()
 
 	hardlinks ={}
 	crosstaskcount = 0 
@@ -3758,7 +3835,7 @@ def smartassess_parse_log_to_tree (basepath, inputfile):
 		exit(1)
 
 	with open(inputfile) as f:
-	    content = f.readlines()
+		content = f.readlines()
 
 	content = [x.strip() for x in content] 
 	for line in content:
@@ -4107,12 +4184,12 @@ def assess_fs_linux(csvfile,src,dst,depth,acl,jobname):
 		
 		if not end:
 			try:
-			    with open(csvfile, 'w') as c:
-			        writer = csv.DictWriter(c, fieldnames=csv_columns)
-			        writer.writeheader()
-			        for data in csv_data:
-			            writer.writerow(data)
-			        logging.info("job csv file:"+csvfile+" created")
+				with open(csvfile, 'w') as c:
+					writer = csv.DictWriter(c, fieldnames=csv_columns)
+					writer.writeheader()
+					for data in csv_data:
+						writer.writerow(data)
+					logging.info("job csv file:"+csvfile+" created")
 			except IOError:
 				logging.error("could not write data to csv file:"+csvfile)
 				unmountdir(tempmountpointsrc)
@@ -4367,12 +4444,12 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 
 	if not end:
 		try:
-		    with open(csvfile, 'w') as c:
-		        writer = csv.DictWriter(c, fieldnames=csv_columns)
-		        writer.writeheader()
-		        for data in csv_data:
-		            writer.writerow(data)
-		        logging.info("job csv file:"+csvfile+" created")
+			with open(csvfile, 'w') as c:
+				writer = csv.DictWriter(c, fieldnames=csv_columns)
+				writer.writeheader()
+				for data in csv_data:
+					writer.writerow(data)
+				logging.info("job csv file:"+csvfile+" created")
 		except IOError:
 			logging.error("could not write data to csv file:"+csvfile)
 			exit(1)	
@@ -4965,7 +5042,7 @@ def upload_file (path, linuxpath, windowspath):
 			logging.debug("delete job:"+jobname)
 			response = requests.delete(nomadapiurl+'job/'+jobname+'?purge=true')				
 			if not response.ok:
-				logging.debug("can't delete job:"+psjobname) 
+				logging.debug("can't delete job:"+jobname) 
 				
 	if os.path.isfile(os.path.join(uploaddir,os.path.basename(path))):
 		logging.debug("delete temp upload file:"+os.path.join(uploaddir,os.path.basename(path)))
@@ -5128,7 +5205,7 @@ def monitored_copy(src,dst,nfs4acl):
 def monitored_delete (src,force):
 	#validate provided paths are unix based 
 	if not re.search("^\S+\:\/\S+", src):
-		logging.error("source format is incorrect: " + src) 
+		logging.error("fs format is incorrect: " + src) 
 		exit(1)	    
 
 	if not force:

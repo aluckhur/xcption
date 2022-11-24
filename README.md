@@ -9,6 +9,8 @@ This is done by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distr
 
 XCPtion also include support for NetApp CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync relationships using various source and target endpoints (nfs, nfs-fsx, cifs, s3, s3ontap, sgws, local).
 
+Also added support for rclone (https://rclone.org/) which can be used for cloud storage such as s3, google drive, ondrive and many more. 
+
 ## Where do I get XCPtion?
 
 XCPtion is currently available at [GitLab Repository](https://gitlab.com/haim.marko/xcption)
@@ -58,6 +60,8 @@ Updates to the xcp binary can be done by replacing the existing file in the foll
 linux hosts `/usr/local/bin/xcp`  
 windows hosts `c:\NetApp\XCP\xcp.exe`  
 
+For offline installation where rclone is required it need to be installed manual using the installation insturctions avaialble here: https://rclone.org/downloads/ 
+The rclone bnary should be available on all nodes in /usr/bin/rclone
 
 ## How To Use
 
@@ -138,7 +142,7 @@ a CSV file with the jobs should be created with the following columns:
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
 `CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
 `RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
-`TOOL` (optional) - The toll that will be used: xcp(default),robocopy (only for CIFS tasks), cloudsync (requires special src/dst format)
+`TOOL` (optional) - The toll that will be used: xcp(default),robocopy (only for CIFS tasks), cloudsync (requires special src/dst format), rclone (required remotes to be configured)
 `FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user 
 (see xcp.exe help copy for details)  
 
@@ -152,7 +156,7 @@ SOURCE and DEST paths format are as follows:
 
 - CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
 
-- CloudSync job includes accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
+- CloudSync job accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
   - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,nfs-fsx,cifs,local,s3,sgws,s3ontap 
   - path - the following formats are supported paths:
         nfs path format: nfsserver:/export[/path]
@@ -165,6 +169,7 @@ SOURCE and DEST paths format are as follows:
   - account_name - name of the cloud sync multitenancy account name 
   - username - the username provided should corelate to entry in the xcption installdir/system/xcp_repo/cloudsync/accounts with corelation to valid cloudsync API key created according to the procedure https://docs.netapp.com/us-en/occm/api_sync.html. Each line in the file should use the following format: username:apikey 
 
+- rclone job accoridng to the following format: remote:path[/folder]. remotes should be confiugred according to rclone documentation in installdir/system/xcp_repo/rclone/rclone.conf
 
 CSV file example:
 ```
@@ -186,6 +191,8 @@ cloudsync1,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@gr
 cloudsync2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 cloudsync2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 cloudsync2,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+rclone,s3source:bucket1,s3dest:bucket1,0 0 * * * *,50,50,rclone,,,
+rclone,s3source:src,s3dest:dst,0 0 * * * *,50,50,rclone,,,rclone.exclude
 ```
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
@@ -198,6 +205,12 @@ ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_
 \\192.168.0.200\src$\dir4\old_not_required_files_dir
 \\192.168.0.200\src$\dir4\subdir1\files_not_needed
 unused_files #name of specific directory to exclude
+```
+RCLONE EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/rclone.exclude for the above example)
+```
+/folder1/**
+/folder2/**
+
 ```
 cloudsync accounts file example (<installdir>/system/xcp_repo/cloudsync/accounts for the above example)
 ```

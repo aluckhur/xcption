@@ -151,6 +151,8 @@ if [ "$ONLINE" == "true" ]; then
   curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip
   echo "Installing Nomad windows version ${NOMAD_VERSION} ..."
   unzip -o windows/nomad_windows.zip -d ${SCRIPT_DIR}/../windows
+  echo "Installing rclone"
+  curl https://rclone.org/install.sh | sudo bash
 fi
 
 if [ -f ${SCRIPT_DIR}/../windows/xcp_windows.zip.00 ]; then
@@ -309,6 +311,10 @@ if grep -qs ${REPO_MOUNT_POINT} /proc/mounts; then
   if [ ! -d "${REPO_MOUNT_POINT}/excludedir" ]; then
     mkdir ${REPO_MOUNT_POINT}/excludedir
   fi
+  if [ ! -d "${REPO_MOUNT_POINT}/rclone" ]; then
+    mkdir ${REPO_MOUNT_POINT}/rclone
+  fi  
+  cp -r ${SCRIPT_DIR}/../rclone/* ${REPO_MOUNT_POINT}/rclone
   exit 0 
 else
   echo "ERROR: could not mount XCP repo:${REPO_MOUNT_POINT}"
