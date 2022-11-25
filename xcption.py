@@ -165,8 +165,8 @@ parser_abort        = subparser.add_parser('abort',      help='abort running tas
 parser_verify       = subparser.add_parser('verify',     help='start verify to validate consistency between source and destination (xcp verify)')
 parser_delete       = subparser.add_parser('delete',     help='delete existing config',parents=[parent_parser])
 parser_modify       = subparser.add_parser('modify',     help='modify task job',parents=[parent_parser])
-parser_copydata     = subparser.add_parser('copy-data',  help='perfored monitored copy of source to destination (nfs only)',parents=[parent_parser])
-parser_deletedata   = subparser.add_parser('delete-data',help='perfored monitored delete of data using xcp (nfs only)',parents=[parent_parser])
+parser_copydata     = subparser.add_parser('copy-data',  help='monitored copy of source to destination (nfs only)',parents=[parent_parser])
+parser_deletedata   = subparser.add_parser('delete-data',help='monitored delete of data using xcp (nfs only)',parents=[parent_parser])
 parser_nomad        = subparser.add_parser('nomad',      description='hidden command, usded to update xcption nomad cache',parents=[parent_parser])
 parser_export       = subparser.add_parser('export',     help='export existing jobs to csv',parents=[parent_parser])
 parser_web          = subparser.add_parser('web',        help='start web interface to display status',parents=[parent_parser])
@@ -201,9 +201,10 @@ parser_copydata.add_argument('-f','--force',help="force copy event if destinatio
 parser_copydata.add_argument('-a','--nfs4acl',help="use to include nfs4-acl", required=False,action='store_true')
 
 parser_deletedata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
+parser_deletedata.add_argument('-t','--tool',help="tool to use (default is xcp)",choices=['xcp','rclone'],required=False,default='xcp',type=str,metavar='tool')
 parser_deletedata.add_argument('-f','--force',help="force delete data without confirmation", required=False,action='store_true')
 
-parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: Job Name,SRC Path,DST Path,Schedule,CPU,Memory",required=True,type=str)
+parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIR FILE",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_load.add_argument('-v','--novalidation',help="load can be faster for windows paths since valaidation is prevented", required=False,action='store_true')
@@ -1403,7 +1404,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['failure'] = True
 
 		#try to parse rclone log file 
-		if not lastline and logtype == 'stdout':
+		if not lastline and logtype in  ['stdout','xcpdelete']:
 			for match in re.finditer(r"Checks:\s+([-+]?[0-9]*\.?[0-9])\s*\/\s*([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
 				results['scanned'] = match.group(1)	
 				#results['found'] = '?'
@@ -1414,6 +1415,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['copied'] = match.group(1)	
 			for match in re.finditer(r"Deleted:\s+([-+]?[0-9]*\.?[0-9])\s*\(files\),\s+([-+]?[0-9]*\.?[0-9])\s*\(dirs",results['content'],re.M|re.I):
 				results['gone'] = match.group(1)	
+				results['removes'] = match.group(1)
 				results['rmdirs'] = match.group(2)			
 			for match in re.finditer(r"Transferred:\s+([-+]?[0-9]*\.?[0-9]*\s+.*B)\s+\/",results['content'],re.M|re.I):
 				results['bwout'] = match.group(1)
@@ -5202,35 +5204,43 @@ def monitored_copy(src,dst,nfs4acl):
 		exit(1)
 
 #start monitored delete job 
-def monitored_delete (src,force):
-	#validate provided paths are unix based 
-	if not re.search("^\S+\:\/\S+", src):
-		logging.error("fs format is incorrect: " + src) 
-		exit(1)	    
+def monitored_delete (src,force,tool):
+	if tool == 'xcp':
+		#validate provided paths are unix based 
+		if not re.search("^\S+\:\/\S+", src):
+			logging.error("fs format is incorrect: " + src) 
+			exit(1)	    
 
-	if not force:
-		if not query_yes_no("are you sure you want to delete all data from:"+src,'no'):
-			logging.info("delete aborted by user")
+		if not force:
+			if not query_yes_no("are you sure you want to delete all data from:"+src,'no'):
+				logging.info("delete aborted by user")
+				exit(1)
+
+		#check if src can be mounted
+		tempmountpointsrc = '/tmp/src_'+str(os.getpid())
+		DEVNULL = open(os.devnull, 'wb')
+		if os.path.exists(tempmountpointsrc):
+			#clearing possiable previous mounts 
+			subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
+		else:	
+			os.mkdir(tempmountpointsrc)
+			logging.debug("validating src:"+src+" is mountable")
+		
+		if subprocess.call( ['mount','-t','nfs','-o','vers=3',src, tempmountpointsrc],stderr=subprocess.STDOUT):
+			logging.error("cannot mount src using nfs:" + src)
 			exit(1)
-
-    #check if src can be mounted
-	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
-	DEVNULL = open(os.devnull, 'wb')
-	if os.path.exists(tempmountpointsrc):
-        #clearing possiable previous mounts 
-		subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
-	else:	
-		os.mkdir(tempmountpointsrc)
-		logging.debug("validating src:"+src+" is mountable")
-	
-	if subprocess.call( ['mount','-t','nfs','-o','vers=3',src, tempmountpointsrc],stderr=subprocess.STDOUT):
-		logging.error("cannot mount src using nfs:" + src)
-		exit(1)
-	subprocess.call( ['umount',tempmountpointsrc],stderr=subprocess.STDOUT)
-	os.rmdir(tempmountpointsrc) 
+		subprocess.call( ['umount',tempmountpointsrc],stderr=subprocess.STDOUT)
+		os.rmdir(tempmountpointsrc) 
+	elif tool == 'rclone':
+		rclone_cmd = [rclonebin,'--config', rcloneconffile] + rcloneglobalflags.split(' ') + ['lsd',src+'/xcption_check_connectivity_to_bucket']
+		logging.debug("running command: "+' '.join(rclone_cmd))
+		if subprocess.call(rclone_cmd,stderr=subprocess.STDOUT,stdout=subprocess.DEVNULL):
+			logging.error("cannot validate src using rclone: " + src+ " ,check config file: "+rcloneconffile)
+			exit(1)
 
 	logging.debug("starting xcp delete job for src:"+src) 
 	xcp_delete_job_name = 'xcpdelete_'+src.replace(':/','-_')
+	xcp_delete_job_name = 'xcpdelete_'+src.replace(':','_')
 	xcp_delete_job_name = xcp_delete_job_name.replace('/','_')
 	xcp_delete_job_name = xcp_delete_job_name.replace(' ','-')
 	xcp_delete_job_name = xcp_delete_job_name.replace('\\','_')
@@ -5266,10 +5276,15 @@ def monitored_delete (src,force):
 
 	defaultprocessor = defaultcpu
 	defaultram = defaultmemory
-	ostype = 'linux'	
-	if ostype == 'linux': xcpbinpath = xcppath
-	cmdargs = "delete\",\"-force\",\""+src
-
+	if tool == 'xcp':
+		ostype = 'linux'	
+		xcpbinpath = xcppath
+		cmdargs = "delete\",\"-force\",\""+src
+	elif tool == 'rclone':
+		ostype = 'linux'
+		xcpbinpath = rclonebin
+		cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"purge\",\""+src
+	
 	with open(delete_job_file, 'w') as fh:
 		fh.write(xcp_delete_template.render(
 			dcname=dcname,
@@ -5300,14 +5315,18 @@ def monitored_delete (src,force):
 			parse_nomad_jobs_to_files()
 			jobresults = check_verbose_job_status(xcp_delete_job_name,'xcpdelete')
 			jobstatus = jobresults['status']
-			jobstderrlogpath = jobresults['stderrlog']
+			if tool == 'xcp':
+				logpath = jobresults['stderrlog']
+			elif tool == 'rclone':
+				logpath = jobresults['stdoutlog']
+
 			scanned = "-"
 			errors = "-"
 			removes = "-"
 			rmdirs = '-'
 			duration = '-'
-			if os.path.isfile(jobstderrlogpath):
-				logstats = parse_stats_from_log('file',jobstderrlogpath,'xcpdelete')	
+			if os.path.isfile(logpath):
+				logstats = parse_stats_from_log('file',logpath,'xcpdelete')	
 				if 'scanned'  in logstats: scanned = logstats['scanned']
 				if 'removes'  in logstats: removes = logstats['removes']
 				if 'rmdirs'   in logstats: rmdirs = logstats['rmdirs']
@@ -5338,13 +5357,13 @@ def monitored_delete (src,force):
 				if int(errors) > 0 and not cont:
 					failed = True 				
 			if not cont:
-				errlogpath, errlogfile = os.path.split(jobstderrlogpath)
+				errlogpath, errlogfile = os.path.split(logpath)
 				logfilecopy = os.path.join(logdirpath,errlogfile)
-				if os.path.isfile(jobstderrlogpath) and os.path.isdir(logdirpath):
+				if os.path.isfile(logpath) and os.path.isdir(logdirpath):
 					try:
-						shutil.copyfile(jobstderrlogpath, logfilecopy)
+						shutil.copyfile(logpath, logfilecopy)
 					except:
-						logging.error("could not copy log file from:"+jobstderrlogpath+' to:'+logfilecopy)
+						logging.error("could not copy log file from:"+logpath+' to:'+logfilecopy)
 						exit(1)
 				if failed:
 					logging.error("job failed or completed with errors, please check the log file:"+logfilecopy)
@@ -5465,7 +5484,7 @@ if args.subparser_name == 'copy-data':
 	monitored_copy(args.source,args.destination,args.nfs4acl)
 
 if args.subparser_name == 'delete-data':
-	monitored_delete(args.source,args.force)
+	monitored_delete(args.source,args.force,args.tool)
 
 #load jobs from json file
 load_jobs_from_json(jobdictjson)
