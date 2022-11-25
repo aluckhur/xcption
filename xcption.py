@@ -5335,7 +5335,7 @@ def monitored_delete (src,force,tool):
 
 			if not counter or counter%10==0:
 				print(('-' * 100))
-				print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format('status','scanned','file-delete','dir-delete','errors','duration')))
+				print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format('status','scanned','file-delete' if tool=='xcp' else 'object-delete','dir-delete','errors','duration')))
 				print(('-' * 100))
 			if jobstatus in ['completed','failed','aborted']: 
 				cont = False
