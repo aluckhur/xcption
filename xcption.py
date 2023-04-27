@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '3.2.0.0'
+version = '3.3.0.0'
 
 import csv
 import argparse
@@ -109,6 +109,9 @@ rclonebin = os.path.join(root,'system','rclone_wrapper.sh')
 rcloneconffile = os.path.join(xcprepopath,'rclone','rclone.conf')
 rcloneglobalflags = '--no-check-certificate --retries 1 --auto-confirm --multi-thread-streams 32 --checkers 32 --progress --metadata --transfers 16'
 
+#ndmpcopy bin 
+ndmpcopybin = os.path.join(root,'system','ndmpcopy_wrapper.sh')
+
 #log file location
 logdirpath = os.path.join(root,'log') 
 logfilepath = os.path.join(logdirpath,'xcption.log')
@@ -156,6 +159,7 @@ parser_nodestatus   = subparser.add_parser('nodestatus', help='display cluster n
 parser_status       = subparser.add_parser('status',     help='display status',parents=[parent_parser])	
 parser_assess       = subparser.add_parser('assess',     help='assess filesystem and create csv file',parents=[parent_parser])
 parser_load         = subparser.add_parser('load',       help='load/update configuration from csv file',parents=[parent_parser])
+parser_create       = subparser.add_parser('create',     help='create ad-hock task',parents=[parent_parser])
 parser_baseline     = subparser.add_parser('baseline',   help='start initial baseline',parents=[parent_parser])
 parser_sync         = subparser.add_parser('sync',       help='start scheduled sync',parents=[parent_parser])
 parser_syncnow      = subparser.add_parser('syncnow',    help='initiate sync now',parents=[parent_parser])
@@ -194,6 +198,15 @@ parser_assess.add_argument('-g','--failbackgroup',help="failback group required 
 parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 parser_assess.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
 parser_assess.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
+
+parser_create.add_argument('-j','--job',help="xcption job name", required=True, type=str,metavar='jobname')
+parser_create.add_argument('-s','--source',help="source nfs/cifs path",required=True,type=str)
+parser_create.add_argument('-d','--destination',help="destination nfs/cifs path",required=True,type=str)
+parser_create.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
+parser_create.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
+parser_create.add_argument('-t','--tool',help="tool to use as part of the task", choices=['xcp','robocopy','rclone','ndmpcopy'],required=False,default='xcp',type=str,metavar='tool')
+parser_create.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
+parser_create.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
 
 parser_copydata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_copydata.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
@@ -383,6 +396,117 @@ def load_jobs_from_json (jobdictjson):
 		except Exception as e:
 			logging.debug("could not load existing json file:"+jobdictjson)
 
+#run ssh to remore host
+def ssh (hostname:str, cmd: list = []):
+    cmdarr =  ['ssh','-oStrictHostKeyChecking=no','-oBatchMode=yes',hostname] + cmd
+
+    result = subprocess.run(cmdarr, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    output = {'returncode': result.returncode,
+              'stdout': result.stdout.decode('utf-8'),
+              'stderr': result.stderr.decode('utf-8'),
+              'stdoutlines': result.stdout.decode('utf-8').splitlines()
+             }   
+    matchObj = re.search(" jobId \'(\d+)\'",output['stdout'])
+    if matchObj:
+        output['jobid'] = matchObj.group(1) 
+
+    for line in output['stdoutlines']:
+        if line.startswith("ERROR:"):
+            output['error'] = line
+
+    return(output) 
+
+#validate ontap ndmp 
+def validate_ontap_ndmp(ontappath, return_info:bool = False ):
+	matchObj = re.match("^([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+):\/(\w+)\/(\w+)(.*)$",ontappath)
+	if matchObj:
+		ontapuser = matchObj.group(1)
+		ontaphost = matchObj.group(2)
+		svm = matchObj.group(3)
+		vol = matchObj.group(4)
+		dir = matchObj.group(5)
+		
+
+	if not matchObj or (dir and not dir.startswith('/')):
+		logging.error("invalid ontap ndmp path:"+ontappath+" should be in the following format: user@cluster:/svm/vol[/dir]")
+		exit(1)	
+	
+
+	out = ssh(ontapuser+'@'+ontaphost,['node','run','-node','*','-command','version'])	
+	if out['returncode']:
+		if 'is not a recognized command' in out['stdout']:
+			# could not run node run command - will not work if using vserver level login 
+			logging.error("could not validtae:" + ontapuser+'@'+ontaphost+" is ontap cluster level login")
+		else:
+			logging.error("could not connect to:" + ontapuser+'@'+ontaphost+ " using SSH: "+out['stderr']+' '+out['stdout'])
+		exit(1)	
+	
+	out = ssh(ontapuser+'@'+ontaphost,"network interface show -role cluster-mgmt -instance".split(" "))
+	if out['returncode']:
+		logging.error("could not identify ontap cluster name")
+		exit(1)
+
+	matchObj = re.search("Vserver Name:\s(\w+)",out['stdout'])
+	if matchObj:
+		clustername = matchObj.group(1)
+	else:
+		logging.error("could not identify ontap cluster name")
+		exit(1)		
+
+
+	out = ssh(ontapuser+'@'+ontaphost,['vserver','services','ndmp','show','-vserver',clustername])
+	if out['returncode']:
+		logging.error("could not connect to:" + ontapuser+'@'+ontaphost+ " using SSH: "+out['stderr']+' '+out['stdout'])
+		exit(1)	
+
+	if 'Enable NDMP on Vserver: false' in out['stdout']:
+		logging.warning("NDMP is not active on OnTap SVM: "+svm+" please start it using: vserver services ndmp on -vserver "+clustername)	
+	elif 'Enable NDMP on Vserver: true' in out['stdout']:
+		logging.info("SSH connectivity and NDMP readiness validated to ontap cluster: "+clustername)	
+
+
+	if return_info:
+		ndmpinfo = {}
+		ndmpinfo['user'] = ontapuser
+		ndmpinfo['path'] = '/'+svm+'/'+vol+dir 
+
+		cmd = 'vserver services ndmp generate-password -vserver '+clustername+' -user '+ontapuser
+		out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
+		matchObj = re.search("Password:\s(\w+)",out['stdout'])
+		if matchObj:
+			ndmpinfo['ndmppass'] = matchObj.group(1)
+
+		print(ndmpinfo)		
+
+		return(ndmpinfo)
+
+
+#create ad-hock task 
+def create_job(job,source,destination,tool,cron,cpu,ram):
+
+	# set default args 
+	if not cpu:
+		cpu = defaultcpu
+	if not ram:
+		ram = defaultmemory
+	if not cron:
+		cron = defaultjobcron
+	# create task structure 
+	taskinfo = (job,source,destination,cron,cpu,ram,tool)
+
+	csvlines = "#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIRS,ACL COPY\n"
+	csvlines += ",".join(str(x) for x in taskinfo)+"\n"
+
+	csvfile = '/tmp/xcptionjob.'+str(os.getpid())
+	try:
+		with open(csvfile, 'w') as f:
+			f.write(csvlines)
+	except:
+		logging.error("ERROR: could not create file:"+csvfile)
+		exit(1)	
+	
+	parse_csv(csvfile)
+		
 #parse input csv file
 def parse_csv(csv_path):
 	global jobsdict
@@ -403,6 +527,7 @@ def parse_csv(csv_path):
 			if line_count == 0 or re.search("^\s*\#",line) or re.search("^\s*$",line):
 				line_count += 1
 			else:
+				
 				logging.debug("parsing csv line:"+line)
 				jobname = row[0]
 				src     = row[1]
@@ -522,7 +647,7 @@ def parse_csv(csv_path):
 						rclone_cmd = [rclonebin,'--config', rcloneconffile] + rcloneglobalflags.split(' ') + ['lsd',src+'/xcption_check_connectivity_to_bucket']
 						logging.debug("running command: "+' '.join(rclone_cmd))
 						if subprocess.call(rclone_cmd,stderr=subprocess.STDOUT,stdout=subprocess.DEVNULL):
-							logging.error("cannot alidate src using rclone: " + src+ " ,check config file: "+rcloneconffile)
+							logging.error("cannot validate src using rclone: " + src+ " ,check config file: "+rcloneconffile)
 							exit(1)
 						rclone_cmd = [rclonebin,'--config', rcloneconffile] + rcloneglobalflags.split(' ') + ['lsd',dst+'/xcption_check_connectivity_to_bucket']
 						logging.debug("running command: "+' '.join(rclone_cmd))
@@ -531,9 +656,16 @@ def parse_csv(csv_path):
 							exit(1)
 						#set required params 
 						srchost=''; srcpath=''; dsthost=''; dstpath='';
-
+					
+					elif tool == 'ndmpcopy':
+						validate_ontap_ndmp(src)
+						validate_ontap_ndmp(dst)
+						#set required params 
+						srchost=''; srcpath=''; dsthost=''; dstpath='';
 					else:
+						
 						if ostype == 'linux':
+						
 							if not re.search("\S+\:\/\S+", src):
 								logging.error("src path format is incorrect: " + src) 
 								exit(1)	
@@ -542,7 +674,7 @@ def parse_csv(csv_path):
 								exit(1)	
 
 							
-							if args.subparser_name == 'load':
+							if args.subparser_name in  ['load','create']:
 								#check if src/dst can be mounted
 								subprocess.call( [ 'mkdir', '-p','/tmp/temp_mount' ] )
 								logging.info("validating src:" + src + " and dst:" + dst+ " are mountable") 
@@ -878,10 +1010,11 @@ def create_nomad_jobs():
 					excludedirfile    = jobdetails['excludedirfile']
 					aclcopy           = jobdetails['aclcopy']
 
-					if ostype == 'linux': xcpbinpath = xcppath
-					if ostype == 'windows': xcpbinpath = 'powershell'
-					if tool == 'cloudsync': xcpbinpath = cloudsyncscript
-					if tool == 'rclone': xcpbinpath = rclonebin
+					if ostype == 'linux': utilitybinpath = xcppath
+					if ostype == 'windows': utilitybinpath = 'powershell'
+					if tool == 'cloudsync': utilitybinpath = cloudsyncscript
+					if tool == 'rclone': utilitybinpath = rclonebin
+					if tool == 'ndmpcopy': utilitybinpath = ndmpcopybin
 
 					rcloneexcludedirs = ''
 					if tool == 'rclone' and excludedirfile != '':
@@ -918,8 +1051,12 @@ def create_nomad_jobs():
 						cmdargs = "baseline\",\"-s\",\""+src+"\",\"-d\",\""+dst
 					elif tool == 'rclone':
 						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"copy\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
+					elif tool == 'ndmpcopy':
+						ndmpsrcinfo = validate_ontap_ndmp(src, return_info=True)
+
+						cmdargs = '-sa","user:pass","-da","user:pass","'+src+'","'+dst
 						
-					if ostype == 'linux' and tool not in ['cloudsync','rclone']:
+					if ostype == 'linux' and tool not in ['cloudsync','rclone','ndmpcopy']:
 						aclcopyarg = ''
 						if aclcopy == 'nfs4-acl':  
 							aclcopyarg = "\"-acl4\","
@@ -982,7 +1119,7 @@ def create_nomad_jobs():
 							dcname=dcname,
 							os=ostype,
 							baseline_job_name=baseline_job_name,
-							xcppath=xcpbinpath,
+							xcppath=utilitybinpath,
 							args=cmdargs,
 							memory=memory,
 							cpu=cpu
@@ -1018,7 +1155,7 @@ def create_nomad_jobs():
 							os=ostype,
 							sync_job_name=sync_job_name,
 							jobcron=jobcron,
-							xcppath=xcpbinpath,
+							xcppath=utilitybinpath,
 							args=cmdargs,
 							memory=memory,
 							cpu=cpu					
@@ -1045,7 +1182,7 @@ def create_nomad_jobs():
 							dcname=dcname,
 							os=ostype,
 							verify_job_name=verify_job_name,
-							xcppath=xcpbinpath,
+							xcppath=utilitybinpath,
 							args=cmdargs,
 							memory=memory,
 							cpu=cpu
@@ -1210,7 +1347,7 @@ def start_nomad_jobs(action, force):
 									dstverify = src
 								
 								if tool == 'xcp' and not args.quick:  
-									xcpbinpath = xcppath
+									utilitybinpath = xcppath
 									if excludedirfile == '':
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\""+srcverify+"\",\""+dstverify
 									else:
@@ -1220,18 +1357,18 @@ def start_nomad_jobs(action, force):
 									withdata = ''
 									if args.withdata:
 										withdata = ',"--download"'
-									xcpbinpath = rclonebin
+									utilitybinpath = rclonebin
 									cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\",\"--error\",\"/dev/stdout\""+withdata+",\""+src+"\",\""+dst	
 
 								if tool == 'xcp' and args.quick:  
-									xcpbinpath = xcppath
+									utilitybinpath = xcppath
 									if excludedirfile == '':
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
 									else:
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+src+"\",\""+dst
 									
 								if ostype == 'windows': 
-									xcpbinpath = 'powershell'
+									utilitybinpath = 'powershell'
 									verifyparam = xcpwinverifyparam
 									if args.withdata: verifyparam = xcpwinverifyparam.replace("-nodata ","")
 									if not args.quick:
@@ -1253,7 +1390,7 @@ def start_nomad_jobs(action, force):
 										dcname=dcname,
 										os=ostype,
 										verify_job_name=verify_job_name,
-										xcppath=xcpbinpath,
+										xcppath=utilitybinpath,
 										args=cmdargs,
 										memory=memory,
 										cpu=cpu
@@ -3982,7 +4119,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 	defaultprocessor = defaultcpu
 	defaultram = defaultmemory
 	ostype = 'linux'	
-	if ostype == 'linux': xcpbinpath = xcppath
+	if ostype == 'linux': utilitybinpath = xcppath
 	depth += 1
 	cmdargs = "diag\",\"find\",\"-v\",\"-branch-match\",\"depth<"+str(depth)+"\",\""+src
 
@@ -3991,7 +4128,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 			dcname=dcname,
 			os=ostype,
 			smartassess_job_name=smartassess_job_name,
-			xcppath=xcpbinpath,
+			xcppath=utilitybinpath,
 			args=cmdargs,
 			memory=defaultram,
 			cpu=defaultprocessor
@@ -4017,7 +4154,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 			dcname=dcname,
 			os=ostype,
 			smartassess_job_name=smartassess_hardlink_job_name,
-			xcppath=xcpbinpath,
+			xcppath=utilitybinpath,
 			args=cmdargs,
 			memory=defaultram,
 			cpu=defaultprocessor
@@ -5278,11 +5415,11 @@ def monitored_delete (src,force,tool):
 	defaultram = defaultmemory
 	if tool == 'xcp':
 		ostype = 'linux'	
-		xcpbinpath = xcppath
+		utilitybinpath = xcppath
 		cmdargs = "delete\",\"-force\",\""+src
 	elif tool == 'rclone':
 		ostype = 'linux'
-		xcpbinpath = rclonebin
+		utilitybinpath = rclonebin
 		cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"purge\",\""+src
 	
 	with open(delete_job_file, 'w') as fh:
@@ -5290,7 +5427,7 @@ def monitored_delete (src,force,tool):
 			dcname=dcname,
 			os=ostype,
 			delete_job_name=xcp_delete_job_name,
-			xcppath=xcpbinpath,
+			xcppath=utilitybinpath,
 			args=cmdargs,
 			memory=defaultram,
 			cpu=defaultprocessor
@@ -5479,6 +5616,10 @@ if args.subparser_name == 'assess':
 			logging.error('invalid acl copy option')
 			exit(1)		
 		assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+
+if args.subparser_name == 'create':
+	create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram)
+	create_nomad_jobs()
 
 if args.subparser_name == 'copy-data':
 	monitored_copy(args.source,args.destination,args.nfs4acl)
