@@ -1094,7 +1094,7 @@ def create_nomad_jobs():
 						ndmpsrcinfo = validate_ontap_ndmp(src)
 						ndmpdstinfo = validate_ontap_ndmp(dst)
 						
-						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
+						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
 						
 						
 					if ostype == 'linux' and tool not in ['cloudsync','rclone','ndmpcopy']:
@@ -1174,8 +1174,12 @@ def create_nomad_jobs():
 						cmdargs = "sync\",\"-s\",\""+src+"\",\"-d\",\""+dst								
 					elif tool == 'rclone':
 						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
+					elif tool == 'ndmpcopy':						
+						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"set\",\"d\",\";\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\",\"-i\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
+						
+												
 
-					if ostype == 'linux' and tool not in['cloudsync','rclone']:
+					if ostype == 'linux' and tool not in['cloudsync','rclone','ndmpcopy']:
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
 
 					if ostype == 'windows' and tool == 'xcp': 
@@ -1210,8 +1214,10 @@ def create_nomad_jobs():
 						cmdargs = "validate\",\"-s\",\""+src+"\",\"-d\",\""+dst
 					elif tool == 'rclone':
 						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\""+rcloneexcludedirs+",\"--error\",\"/dev/stdout\",\""+src+"\",\""+dst						
+					elif tool == 'ndmpcopy':
+						cmdargs = 'verify'
 
-					if ostype == 'linux' and tool not in ['cloudsync','rclone']:  
+					if ostype == 'linux' and tool not in ['cloudsync','rclone','ndmpcopy']:  
 						if excludedirfile == '':
 							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
 						else:
@@ -1283,7 +1289,7 @@ def start_nomad_jobs(action, force):
 					xcpindexname        = jobdetails['xcpindexname']	
 					ostype              = jobdetails['ostype']
 					tool                = jobdetails['tool']
-                    
+
 					try:	
 						job = n.job.get_job(nomadjobname)
 					except Exception as e:
@@ -1400,6 +1406,11 @@ def start_nomad_jobs(action, force):
 										withdata = ',"--download"'
 									utilitybinpath = rclonebin
 									cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\",\"--error\",\"/dev/stdout\""+withdata+",\""+src+"\",\""+dst	
+
+								if tool == 'ndmpcopy': 
+									utilitybinpath = ndmpcopybin 
+									cmdargs = 'verify'
+
 
 								if tool == 'xcp' and args.quick:  
 									utilitybinpath = xcppath
@@ -1627,6 +1638,10 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			matchObj = re.search(r"DUMP: Debug: (\d+) KB",results['content'],re.M|re.I)
 			if matchObj:
 				results['bwout'] = k_to_hr(int(matchObj.group(1)))
+
+			matchObj = re.search(r"Transfer failed",results['content'],re.M|re.I)
+			if matchObj:
+				results['failure'] = True
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
