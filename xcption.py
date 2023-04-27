@@ -1581,7 +1581,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			for match in re.finditer(r"xcp: ERROR: License file",results['content'],re.M|re.I):
 				results['failure'] = True
 
-		#try to parse rclone log file 
+		#try to parse rclone or NDMPcopy log file 
 		if not lastline and logtype in  ['stdout','xcpdelete']:
 			for match in re.finditer(r"Checks:\s+([-+]?[0-9]*\.?[0-9])\s*\/\s*([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
 				results['scanned'] = match.group(1)	
@@ -1607,8 +1607,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				else:
 					results['found'] = '-'
 					results['scanned'] = '-'
-			#2022-11-24 15:16:47 NOTICE: S3 bucket dst1 path 2020: 0 differences found
-
 			
 			#try to check stderr log for rclone verify output 
 			if results['contentotherlog'] != '':
@@ -1620,9 +1618,15 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				else:
 					results['scanned'] = '?'
 					results['found'] = '?'
-			#2022/11/24 09:26:06 Failed to check with 6 errors: last error was: 6 differences found
 
+			#ndmpcopy session time
+			matchObj = re.search(r"Transfer successful.+(\d+) hours.+(\d+) minutes.+(\d+) seconds",results['content'],re.M|re.I)
+			if matchObj:
+				results['time'] = f"{matchObj.group(1)}h{matchObj.group(2)}m{matchObj.group(3)}s"			
 
+			matchObj = re.search(r"DUMP: Debug: (\d+) KB",results['content'],re.M|re.I)
+			if matchObj:
+				results['bwout'] = k_to_hr(int(matchObj.group(1)))
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
