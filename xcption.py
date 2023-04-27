@@ -417,7 +417,7 @@ def ssh (hostname:str, cmd: list = []):
     return(output) 
 
 #validate ontap ndmp 
-def validate_ontap_ndmp(ontappath, return_info:bool = False ):
+def validate_ontap_ndmp(ontappath):
 	matchObj = re.match("^([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+):\/(\w+)\/(\w+)(.*)$",ontappath)
 	if matchObj:
 		ontapuser = matchObj.group(1)
@@ -461,24 +461,63 @@ def validate_ontap_ndmp(ontappath, return_info:bool = False ):
 
 	if 'Enable NDMP on Vserver: false' in out['stdout']:
 		logging.warning("NDMP is not active on OnTap SVM: "+svm+" please start it using: vserver services ndmp on -vserver "+clustername)	
-	elif 'Enable NDMP on Vserver: true' in out['stdout']:
-		logging.info("SSH connectivity and NDMP readiness validated to ontap cluster: "+clustername)	
+	# elif 'Enable NDMP on Vserver: true' in out['stdout']:
+	# 	logging.info("SSH connectivity and NDMP readiness validated to ontap cluster: "+clustername)	
 
 
-	if return_info:
-		ndmpinfo = {}
-		ndmpinfo['user'] = ontapuser
-		ndmpinfo['path'] = '/'+svm+'/'+vol+dir 
+	ndmpinfo = {}
+	ndmpinfo['host'] = ontaphost
+	ndmpinfo['user'] = ontapuser
+	ndmpinfo['path'] = '/'+svm+'/'+vol+dir 
 
-		cmd = 'vserver services ndmp generate-password -vserver '+clustername+' -user '+ontapuser
-		out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
-		matchObj = re.search("Password:\s(\w+)",out['stdout'])
-		if matchObj:
-			ndmpinfo['ndmppass'] = matchObj.group(1)
+	# get ndmp password 
+	cmd = 'vserver services ndmp generate-password -vserver '+clustername+' -user '+ontapuser
+	out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
+	matchObj = re.search("Password:\s(\w+)",out['stdout'])
+	if matchObj:
+		ndmpinfo['ndmppass'] = matchObj.group(1)
 
-		print(ndmpinfo)		
+	# get volume details  
+	cmd = 'volume show -vserver '+svm+' -volume '+vol+' -fields state,junction-path,type,node'
+	out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
+	matchObj = re.search(f"\s{vol}\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*",out['stdout'])
+	if matchObj:
+		ndmpinfo['atate'] = matchObj.group(1)	
+		ndmpinfo['junction'] = matchObj.group(2)	
+		ndmpinfo['type'] = matchObj.group(3)	
+		ndmpinfo['node'] = matchObj.group(4)
+	else:
+		logging.error(f"could not find ontap volume: {svm}:{vol}")
+		exit(1)
+	
+	if ndmpinfo['atate'] != 'online':
+		logging.error(f"ontap volume: {svm}:{vol} is not online")
+		exit(1)
 
-		return(ndmpinfo)
+	#when volume is mounted validate path exists 
+	if ndmpinfo['junction'].startswith('/'):
+		cmd = 'vserver security file-directory show -vserver '+svm+' -path'
+		out = ssh(ontapuser+'@'+ontaphost,cmd.split(' ')+['"'+ndmpinfo['junction']+dir+'/.'+'"'])
+		matchObj = re.search(f"File Path:\s+{ndmpinfo['junction']}",out['stdout'])
+		if not matchObj:
+			logging.error(f"ontap path: {svm}:{vol}{dir} does not exists")
+			exit(1)
+	else:
+		logging.warning(f"could not validate path because ontap volume: {svm}:{vol} is not mounted on the svm")	
+
+	#look for intercluster IP address we will use for NDMP on the owning node 
+	cmd = 'network interface show -vserver '+clustername+' -role intercluster -curr-node '+ndmpinfo['node']+' -status-admin up -status-oper up -fields curr-node,address'
+	out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
+	matchObj = re.search(f"\s+([0-9.]+)\s+{ndmpinfo['node']}\s*",out['stdout'])
+	if matchObj:
+		ndmpinfo['ndmpip'] = matchObj.group(1)
+	else:
+		logging.error(f"could not find ip address to use for ontap NDMP for: {svm}:{vol}, make sure intercluster lif is avaialble on node:{ndmpinfo['node']}")
+		exit(1)		
+
+	ndmpinfo['ndmppath'] = ndmpinfo['ndmpip']+':'+ndmpinfo['path']
+
+	return(ndmpinfo)
 
 
 #create ad-hock task 
@@ -1052,9 +1091,11 @@ def create_nomad_jobs():
 					elif tool == 'rclone':
 						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"copy\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
 					elif tool == 'ndmpcopy':
-						ndmpsrcinfo = validate_ontap_ndmp(src, return_info=True)
-
-						cmdargs = '-sa","user:pass","-da","user:pass","'+src+'","'+dst
+						ndmpsrcinfo = validate_ontap_ndmp(src)
+						ndmpdstinfo = validate_ontap_ndmp(dst)
+						
+						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
+						
 						
 					if ostype == 'linux' and tool not in ['cloudsync','rclone','ndmpcopy']:
 						aclcopyarg = ''
@@ -2002,6 +2043,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					if ostype=='linux': logtype = 'stderr'
 					
 					if tool=="rclone": logtype = 'stdout'
+					if tool=="ndmpcopy": logtype = 'stdout'
 
 					#baseline job information
 					baselinejobstatus = '-'
@@ -2246,6 +2288,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 							logtype = 'stdout'
 							if ostype == 'linux': logtype = 'stderr'
 							if tool == 'rclone': logtype = 'stdout'
+							if tool == 'robocopy': logtype = 'stdout'
 
 							if file.startswith(logtype+"log_"):
 								verifylogcachefile = os.path.join(verifycachedir,file)
