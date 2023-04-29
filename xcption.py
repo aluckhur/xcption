@@ -206,7 +206,8 @@ parser_create.add_argument('-p','--cpu',help="CPU allocation in MHz for each job
 parser_create.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
 parser_create.add_argument('-t','--tool',help="tool to use as part of the task", choices=['xcp','robocopy','rclone','ndmpcopy'],required=False,default='xcp',type=str,metavar='tool')
 parser_create.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
-parser_create.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
+parser_create.add_argument('-e','--exclude',help="comma seperated exclude paths",required=False,type=str)
+#parser_create.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
 
 parser_copydata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
 parser_copydata.add_argument('-d','--destination',help="destination nfs path (nfssrv:/mount)",required=True,type=str)
@@ -521,7 +522,7 @@ def validate_ontap_ndmp(ontappath):
 
 
 #create ad-hock task 
-def create_job(job,source,destination,tool,cron,cpu,ram):
+def create_job(job,source,destination,tool,cron,cpu,ram,exclude):
 
 	# set default args 
 	if not cpu:
@@ -530,8 +531,19 @@ def create_job(job,source,destination,tool,cron,cpu,ram):
 		ram = defaultmemory
 	if not cron:
 		cron = defaultjobcron
+
+	#build exlude file dir 
+	excludefile = ''
+	if exclude:
+		excludearr = exclude.split(',')
+		excludearr = ["{}\n".format(i) for i in excludearr]
+		excludefile = os.path.join(excludedir,job+'.exclude')
+		logging.debug(f"creating exludefile:{excludefile} for src:{source}") 
+		with open(excludefile, 'w') as fp:
+			fp.writelines(excludearr)
+
 	# create task structure 
-	taskinfo = (job,source,destination,cron,cpu,ram,tool)
+	taskinfo = (job,source,destination,cron,cpu,ram,tool,'','',excludefile)
 
 	csvlines = "#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIRS,ACL COPY\n"
 	csvlines += ",".join(str(x) for x in taskinfo)+"\n"
@@ -1067,8 +1079,23 @@ def create_nomad_jobs():
 							f.close()                        
 							logging.debug("exclude directories for rclone: " + rcloneexcludedirs)
 						except Exception as e:
-							logging.error("exclude directories file for rclone cannot be parsed: " + rcloneexcludedirs)	
+							logging.error("exclude directories file for rclone cannot be parsed: " + excludedirfile)	
 							exit(1)
+
+
+					ndmpcopyexcludedirs = ''
+					if tool == 'ndmpcopy' and excludedirfile != '':
+						try:
+							f = open(excludedirfile)
+							excludepaths = f.readlines()
+							excludepaths = [x.strip() for x in excludepaths]
+							ndmpcopyexcludedirs =  ',"-exclude","'+','.join(excludepaths)+'"'
+							f.close()                        
+							logging.debug("exclude directories for rclone: " + ndmpcopyexcludedirs)
+						except Exception as e:
+							logging.error("exclude directories file for ndmpcopy cannot be parsed: " + excludedirfile)	
+							exit(1)
+					
 
 
 					#creating baseline job 
@@ -1094,7 +1121,7 @@ def create_nomad_jobs():
 						ndmpsrcinfo = validate_ontap_ndmp(src)
 						ndmpdstinfo = validate_ontap_ndmp(dst)
 						
-						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
+						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\"{ndmpcopyexcludedirs},\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
 						
 						
 					if ostype == 'linux' and tool not in ['cloudsync','rclone','ndmpcopy']:
@@ -1175,7 +1202,7 @@ def create_nomad_jobs():
 					elif tool == 'rclone':
 						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
 					elif tool == 'ndmpcopy':						
-						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"set\",\"d\",\";\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\",\"-i\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
+						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"set\",\"d\",\";\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\"{ndmpcopyexcludedirs},\"-i\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
 												
 
 					if ostype == 'linux' and tool not in['cloudsync','rclone','ndmpcopy']:
@@ -5689,7 +5716,7 @@ if args.subparser_name == 'assess':
 		assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
 
 if args.subparser_name == 'create':
-	create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram)
+	create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram,args.exclude)
 	create_nomad_jobs()
 
 if args.subparser_name == 'copy-data':
