@@ -11,6 +11,8 @@ XCPtion also include support for NetApp CloudSync (https://cloudmanager.netapp.c
 
 Also added support for rclone (https://rclone.org/) which can be used for cloud storage such as s3, google drive, ondrive and many more. 
 
+And now it is also includes support for OnTap ndmpcopy that enables NetApp filer to filer volume/subvolume NDMP copy 
+
 ## Where do I get XCPtion?
 
 XCPtion is currently available at [GitLab Repository](https://gitlab.com/haim.marko/xcption)
@@ -70,25 +72,19 @@ The interaction is done using the following python CLI command (need root access
 ```
 [root@centos1 xcption]# ./xcption.py -h
 usage: xcption.py [-h] [-v] [-d]
-                  
-  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy,delete-data,nomad,export,web,fileupload,smartassess}
-
-positional arguments:
-  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy,delete-data,nomad,export,web,fileupload,smartassess}
-usage: xcption.py [-h] [-v] [-d]
-                  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
+                  {nodestatus,status,assess,load,create,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                   ...
 
 positional arguments:
-  {nodestatus,status,assess,load,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,
-    fileupload,smartassess}
+  {nodestatus,status,assess,load,create,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                         sub commands that can be used
     nodestatus          display cluster nodes status
     status              display status
     assess              assess filesystem and create csv file
     load                load/update configuration from csv file
-    baseline            start baseline (xcp copy)
-    sync                start schedule updates (xcp sync)
+    create              create ad-hock task
+    baseline            start initial baseline
+    sync                activate scheduled sync
     syncnow             initiate sync now
     pause               disable sync schedule
     resume              resume sync schedule
@@ -97,8 +93,8 @@ positional arguments:
                         and destination (xcp verify)
     delete              delete existing config
     modify              modify task job
-    copy-data           perfored monitored copy of source to destination (nfs only)
-    delete-data         perfored monitored delete of data using xcp (nfs only)
+    copy-data           monitored copy of source to destination (nfs only)
+    delete-data         monitored delete of data using xcp (nfs only)
     export              export existing jobs to csv
     web                 start web interface to display status
     fileupload          transfer files to all nodes, usefull for xcp license
@@ -142,7 +138,7 @@ a CSV file with the jobs should be created with the following columns:
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
 `CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
 `RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
-`TOOL` (optional) - The toll that will be used: xcp(default),robocopy (only for CIFS tasks), cloudsync (requires special src/dst format), rclone (required remotes to be configured)
+`TOOL` (optional) - The tool to be used be used: `xcp`(default) nfs of CIFS,`robocopy` (only for CIFS tasks), `cloudsync` (requires special src/dst format), `rclone` (required remotes to be configured), `ndmpcopy` for inta/inter OnTap cluster (requires ssh public copy to be configred to from xcption nodes to ontap clusters)
 `FAILBACKUSER` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback user 
 (see xcp.exe help copy for details)  
 
@@ -171,6 +167,8 @@ SOURCE and DEST paths format are as follows:
 
 - rclone job accoridng to the following format: remote:path[/folder]. remotes should be confiugred according to rclone documentation in installdir/system/xcp_repo/rclone/rclone.conf
 
+- ndmpcopy job job according to the following format ontapuser@cluster:/svm/vol[/path]. ssh public key authentication should be configured to allow unauthenticated ssh conectivity from XCPtion linux hosts to the involved clusters. 
+
 CSV file example:
 ```
 #JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIR FILE
@@ -191,8 +189,12 @@ cloudsync1,local:///etc@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir9@gr
 cloudsync2,s3ontap://192.168.0.200:huge@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 cloudsync2,sgws://192.168.0.200:bucket1:4443@grp1@XCPtion@hmarko,s3ontap://192.168.0.200:bucket2@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
 cloudsync2,s3://us-east-1:bucket@grp1@XCPtion@hmarko,nfs://192.168.0.200:/unixdst/dir5@grp1@XCPtion@hmarko,0 0 * * * *,50,50,cloudsync
+#CloudSync Jobs
 rclone,s3source:bucket1,s3dest:bucket1,0 0 * * * *,50,50,rclone,,,
 rclone,s3source:src,s3dest:dst,0 0 * * * *,50,50,rclone,,,rclone.exclude
+#ndmpcopy Jobs
+ndmpcopy,admin@cluster1:/svm/srcvol/folder1,admin@cluster2:/svm/dstvol/folder1,0 0 * * * *,50,50,ndmpcopy
+ndmpcopy,admin@cluster1:/svm/srcvol/qtree1,admin@cluster2:/svm/dstvol/qtree1,0 0 * * * *,50,50,ndmpcopy,,,ndmpcopy.exclude
 ```
 
 XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
@@ -212,6 +214,13 @@ RCLONE EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/rclone.
 /folder2/**
 
 ```
+NDMPCOPY EXCLUDE PATHS file example (<installdir>/system/xcp_repo/excluedir/ndmpcopy.exclude for the above example)
+```
+*.pst
+*folder*
+/folder/file 
+```
+
 cloudsync accounts file example (<installdir>/system/xcp_repo/cloudsync/accounts for the above example)
 ```
 hmarko:eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik5rSXlPVFUzUWpZek1ESkRPVGd5TlRJMU1EUkZNVFpFUTBFd1JEUkJRVGxFT1VFMU5UUkNOZyJ9.eyJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9mdWxsX25hbWUiOiJIYWltIE1hcmtvIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vY29ubmVjdGlvbl9pZCI6ImNvbl92TkN2N2x2MEpra3k5bExkIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vaXNfZmVkZXJhdGVkIjp0cnVlLCJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9pbnRlcm5hbCI6Ik5ldEFwcCIsImlzcyI6Imh0dHBzOi8vbmV0YXBwLWNsb3VkLWFjY291bnQuYXV0aDAuY29tLyIsInN1YiI6InNhbWxwfE5ldEFwcFNBTUx8aG1hcmtvIiwiYXVkIjoiaHR0cHM6Ly9hcGkuY2xvdWQubmV0YXBwLmNvbSIsImlhdCI6MTYzMDc0NzIwNiwiZXhwIjoxNjMwODMzNjA2LCJhenAiOiJNdTBWMXl3Z1l0ZUk2dzFNYkQxNWZLZlZJVXJOWEdXQyIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.rO45_dYtwWpQhZAps2vM46wHlsBpZ_lEJE7QTE7P331fOC7ks5oipmr6apngRblAn-KcftdVRsBmL0iOtByr8ERlct2VNmtb1RH2T5sN5LpXjvd9hZQxgDJlzRnUFj-V_S_JjPVXEaEF857VQouO99uJj581us8DXoREl1Sel3h5MxLp7NNDkpCfW1kcogeF1GEKbo9cJJDgpXlJp-XTrwSLGOyhEizoumJKBuxkV-3bj0orZcjH8UYVzEpB-ps_nLTwnlmSluwzvtkrJIqDHtkBQOwqs4QKZVrIb_OzfLIj-r05nLrYWiOW_kFgY3ecgSAo9H2L92tVuF8oRon3oA

@@ -161,7 +161,7 @@ parser_assess       = subparser.add_parser('assess',     help='assess filesystem
 parser_load         = subparser.add_parser('load',       help='load/update configuration from csv file',parents=[parent_parser])
 parser_create       = subparser.add_parser('create',     help='create ad-hock task',parents=[parent_parser])
 parser_baseline     = subparser.add_parser('baseline',   help='start initial baseline',parents=[parent_parser])
-parser_sync         = subparser.add_parser('sync',       help='start scheduled sync',parents=[parent_parser])
+parser_sync         = subparser.add_parser('sync',       help='activate scheduled sync',parents=[parent_parser])
 parser_syncnow      = subparser.add_parser('syncnow',    help='initiate sync now',parents=[parent_parser])
 parser_pause        = subparser.add_parser('pause',      help='disable sync schedule',parents=[parent_parser])
 parser_resume       = subparser.add_parser('resume',     help='resume sync schedule',parents=[parent_parser])
@@ -432,7 +432,6 @@ def validate_ontap_ndmp(ontappath):
 		logging.error("invalid ontap ndmp path:"+ontappath+" should be in the following format: user@cluster:/svm/vol[/dir]")
 		exit(1)	
 	
-
 	out = ssh(ontapuser+'@'+ontaphost,['node','run','-node','*','-command','version'])	
 	if out['returncode']:
 		if 'is not a recognized command' in out['stdout']:
