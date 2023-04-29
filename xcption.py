@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-# XCPtion - NetApp XCP,robocopy,cloudsync and rclone wrapper 
+# XCPtion - NetApp XCP,robocopy,cloudsync, rclone and ndmpcopy wrapper 
 # Written by Haim Marko 
 # Enjoy
 
@@ -1176,7 +1176,6 @@ def create_nomad_jobs():
 						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
 					elif tool == 'ndmpcopy':						
 						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"set\",\"d\",\";\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\",\"-i\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
-						
 												
 
 					if ostype == 'linux' and tool not in['cloudsync','rclone','ndmpcopy']:
@@ -1642,6 +1641,8 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			matchObj = re.search(r"Transfer failed",results['content'],re.M|re.I)
 			if matchObj:
 				results['failure'] = True
+
+			
 	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
@@ -2295,7 +2296,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								verifyalloccachefile = os.path.join(verifycachedir,file)
 								with open(verifyalloccachefile) as f:
 									logging.debug('loading cached info alloc file:'+verifyalloccachefile)
-									allocdata = json.load(f)
+									allocdata = json.load(f)									
 									if int(allocdata['CreateTime']) > verifyallocperiodiccounter:
 										verifyallocperiodiccounter = allocdata['CreateTime'] 
 										verifyalloclastdetails = allocdata
@@ -2307,7 +2308,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 							logtype = 'stdout'
 							if ostype == 'linux': logtype = 'stderr'
 							if tool == 'rclone': logtype = 'stdout'
-							if tool == 'robocopy': logtype = 'stdout'
+							if tool == 'ndmpcopy': logtype = 'stdout'
 
 							if file.startswith(logtype+"log_"):
 								verifylogcachefile = os.path.join(verifycachedir,file)
@@ -2361,6 +2362,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 						except Exception as e:
 							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
+
+						#ndmpcopy 
+						if tool == 'ndmpcopy':
+							verifystatus =  'no-support'
 
 						try:
 							verifystarttime = verifyalloclastdetails['TaskStates']['verify']['StartedAt']
@@ -2635,7 +2640,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 										try:
 											errors = currentlog['errors']
-											if tasktype == 'verify' and tool != 'rclone':
+											if tasktype == 'verify' and tool not in ['rclone','ndmpcopy']:
 												try:
 													diffattr = currentlog['diffattr']
 												except Exception as e:
@@ -2695,6 +2700,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 										except Exception as e:
 											jobstatus = '-'
+
+										#for ndmpcopy verify task ar unsuported
+										if tool == 'ndmpcopy' and tasktype == 'verify':
+											jobstatus =  'no-support'											
 
 										try:
 											#job failed but did not exit with error 
