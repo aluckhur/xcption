@@ -101,3 +101,10 @@
 3.1.0.10
 - cloudsync integration added 
 - upgrade xcp to 1.7 
+
+3.2.0.0 
+- add support for rclone 
+
+3.3.0.0 
+- add support for ontap ndmpcopy 
+
