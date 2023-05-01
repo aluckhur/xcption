@@ -556,6 +556,7 @@ def create_job(job,source,destination,tool,cron,cpu,ram,exclude):
 		exit(1)	
 	
 	parse_csv(csvfile)
+	os.remove(csvfile)
 		
 #parse input csv file
 def parse_csv(csv_path):
@@ -1667,6 +1668,11 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			matchObj = re.search(r"Transfer failed",results['content'],re.M|re.I)
 			if matchObj:
 				results['failure'] = True
+			
+			matchObj = re.search(r"protocol failure in circuit setup",results['content'],re.M|re.I)
+			if matchObj:
+				results['failure'] = True
+
 
 			
 	

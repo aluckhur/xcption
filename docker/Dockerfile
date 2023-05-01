@@ -14,6 +14,4 @@ RUN apt install -y nfs-common
 RUN apt install -y unzip 
 
 RUN python3 -m pip install -r requirments.txt
-RUN rm -rf /usr/bin/python
-RUN ln -s /usr/local/bin/pythonr3 /usr/bin/python
 
