@@ -3,6 +3,7 @@ chardet
 click
 croniter
 dataclasses
+markupsafe
 Flask
 future
 hurry.filesize

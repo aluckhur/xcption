@@ -5038,17 +5038,20 @@ def normalizedict (jsondict):
 
 #def start web server using flask
 def start_flask(tcpport):
-	from flask import Flask,render_template, send_file, send_from_directory, request, Markup
+	from flask import Flask,render_template, send_file, send_from_directory, request
+	from markupsafe import Markup	
 
 	#disable flask logging
 	cli = sys.modules['flask.cli']
 	cli.show_server_banner = lambda *x: None
 
+
 	app = Flask(__name__, static_url_path=webtemplatedir, template_folder=webtemplatedir)
 	app.config['SEND_FILE_MAX_AGE_DEFAULT'] = 0
 	env = app.jinja_env
-	env.add_extension('jinja2.ext.do')
-	env.add_extension('jinja2.ext.autoescape')
+	# env.add_extension('jinja2.ext.do')
+	# env.add_extension('jinja2.ext.autoescape')
+
 
 	_js_escapes = {
         '\\': '\\u005C',
