@@ -3377,7 +3377,8 @@ def parse_nomad_jobs_to_files (parselog=True):
 										fp.close()
 								else:
 									#this is used to be able to add delta to the cache file to enable tail to work
-									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')
+									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')[:200]
+									
 									with open(tmpalloclogfile, 'wb') as fp:
 										logging.debug("dumping log to temp log file:"+tmpalloclogfile)
 										fp.write(response.content)
