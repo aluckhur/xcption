@@ -1,0 +1,1 @@
+./parse_xcp_scan_csv_stats.py /mnt/c/Temp/XCP/3rd/ | jq '.[]|.path+","+."Maximum Values".Dirsize+","+."Maximum Values".Depth+","+."Total space used"+","+."Total count"'
