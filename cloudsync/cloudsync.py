@@ -683,6 +683,7 @@ def synccloudsyncrelationship(user,account,group,src,dst):
         #check sync status 
         count = 0
         prevbytes = 0 
+        newbytes = 0
         fatalerror = False
         while True:
             count+=1
@@ -714,7 +715,9 @@ def synccloudsyncrelationship(user,account,group,src,dst):
             dirsremove = relinfo['activity']['dirsRemoved']
             bytescopied = relinfo['activity']['bytesCopied']
 
-            newbytes = bytescopied-prevbytes
+            if bytescopied > prevbytes:
+                newbytes = bytescopied-prevbytes
+
             bw = round(newbytes/1024/1024,2)
             bwqunatifier = 'MiB'
             bws = round(bw/timespan,2)

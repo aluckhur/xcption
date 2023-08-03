@@ -290,7 +290,7 @@
     "settings": {
       "gracePeriod": 0,
       "deleteOnSource": false,
-      "deleteOnTarget": false,
+      "deleteOnTarget": true,
       "objectTagging": true,
       "copyAcl": false,
       "retries": 0,
@@ -304,7 +304,7 @@
           "string"
         ],
         "minSize": 0,
-        "maxSize": 0,
+        "maxSize": 9007199254740991,
         "minDate": "string",
         "maxDate": "string"
       },
