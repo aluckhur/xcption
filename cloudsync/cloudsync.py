@@ -715,8 +715,7 @@ def synccloudsyncrelationship(user,account,group,src,dst):
             dirsremove = relinfo['activity']['dirsRemoved']
             bytescopied = relinfo['activity']['bytesCopied']
 
-            if bytescopied > prevbytes:
-                newbytes = bytescopied-prevbytes
+            newbytes = bytescopied
 
             bw = round(newbytes/1024/1024,2)
             bwqunatifier = 'MiB'
