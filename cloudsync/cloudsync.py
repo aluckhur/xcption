@@ -38,6 +38,9 @@ grouphash = {}
 accounthash = {}
 #dictionary for protocol credentials for
 credshash = {}
+#token cache 
+token = None 
+
 
 parent_parser = argparse.ArgumentParser(add_help=False)
 parser = argparse.ArgumentParser()
@@ -175,7 +178,20 @@ def cloudsyncapicall(user,account,api,method='GET',requestheaders={},body={}):
         logging.error("api key for user:"+user+" could not be found in:"+cloudsyncapikeysfile)
         exit(1)    
     authkey = apiaccounts[user]
-    headers = {'authorization': 'Bearer '+authkey,'accept': 'application/json'}
+
+    global token
+    if not token:
+        logging.debug("generating cloudsync token from oauth")    
+        tokenoutput = requests.request('POST','https://netapp-cloud-account.auth0.com/oauth/token', 
+                                    headers={'Content-Type': 'application/json'}, 
+                                    json={"grant_type": "refresh_token","refresh_token": authkey, "client_id": "Mu0V1ywgYteI6w1MbD15fKfVIUrNXGWC"})
+        try :
+            token = json.loads(tokenoutput.content)['access_token']
+        except:
+            logging.error("cloudsync authentication token could not be created")
+            exit(1)                                    
+    
+    headers = {'authorization': 'Bearer '+token,'accept': 'application/json'}
     for requestheader in requestheaders.keys():
         headers[requestheader] =  requestheaders[requestheader]
 
@@ -237,16 +253,26 @@ def parsepath(path, validatecreds=False):
         exit(1)        
     
     if 'nfs' in type:
-        if allpath.count(':') != 1:
-            logging.error('path:'+path+' is in unsupported format ('+type+'://server:/export/path)')
+        if allpath.count(':') > 2 or allpath.count(':') < 1:
+            logging.error('path:'+path+' is in unsupported format ('+type+'://server:/export[:folder])')
             exit(1)            
-        nfsserver,fullpath=allpath.split(':')
-        dirs = fullpath.split('/')
-        export = dirs[1]
-        del dirs[1]
-        deeppath =''
-        if len(dirs) > 1:
-            deeppath = '/'.join(dirs)
+        elif allpath.count(':') == 1:
+            nfsserver,export,deeppath=(allpath+":").split(':')
+        elif allpath.count(':') == 2:
+            nfsserver,export,deeppath=allpath.split(':')         
+        #remove trailing /
+        export = export[1:]
+        
+        fullpath = export
+        if deeppath:
+            fullpath = export + "/" + deeppath 
+        # dirs = fullpath.split('/')
+        # export = dirs[1]
+        # del dirs[1]
+        # deeppath =''
+        # if len(dirs) > 1:
+        #     deeppath = '/'.join(dirs)
+
         
         version = '3'
         if type in ['nfs','nfs3']:
