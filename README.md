@@ -155,7 +155,7 @@ SOURCE and DEST paths format are as follows:
 - CloudSync job accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
   - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,nfs-fsx,cifs,local,s3,sgws,s3ontap 
   - path - the following formats are supported paths:
-        nfs path format: nfsserver:/export[/path]
+        nfs path format: nfsserver:/export[:path]
         local (local storage on the broker) path format : /path
         cifs path format: cifsserver:/share[/path] - username, password and domain for cifs can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: cifs:cifsserver:username:password[:domain]. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
         s3ontap (ontap s3 server) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: s3ontap:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
@@ -223,15 +223,13 @@ NDMPCOPY EXCLUDE PATHS file example (<installdir>/system/xcp_repo/excluedir/ndmp
 
 cloudsync accounts file example (<installdir>/system/xcp_repo/cloudsync/accounts for the above example)
 ```
-hmarko:eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6Ik5rSXlPVFUzUWpZek1ESkRPVGd5TlRJMU1EUkZNVFpFUTBFd1JEUkJRVGxFT1VFMU5UUkNOZyJ9.eyJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9mdWxsX25hbWUiOiJIYWltIE1hcmtvIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vY29ubmVjdGlvbl9pZCI6ImNvbl92TkN2N2x2MEpra3k5bExkIiwiaHR0cDovL2Nsb3VkLm5ldGFwcC5jb20vaXNfZmVkZXJhdGVkIjp0cnVlLCJodHRwOi8vY2xvdWQubmV0YXBwLmNvbS9pbnRlcm5hbCI6Ik5ldEFwcCIsImlzcyI6Imh0dHBzOi8vbmV0YXBwLWNsb3VkLWFjY291bnQuYXV0aDAuY29tLyIsInN1YiI6InNhbWxwfE5ldEFwcFNBTUx8aG1hcmtvIiwiYXVkIjoiaHR0cHM6Ly9hcGkuY2xvdWQubmV0YXBwLmNvbSIsImlhdCI6MTYzMDc0NzIwNiwiZXhwIjoxNjMwODMzNjA2LCJhenAiOiJNdTBWMXl3Z1l0ZUk2dzFNYkQxNWZLZlZJVXJOWEdXQyIsInNjb3BlIjoib3BlbmlkIHByb2ZpbGUgZW1haWwifQ.rO45_dYtwWpQhZAps2vM46wHlsBpZ_lEJE7QTE7P331fOC7ks5oipmr6apngRblAn-KcftdVRsBmL0iOtByr8ERlct2VNmtb1RH2T5sN5LpXjvd9hZQxgDJlzRnUFj-V_S_JjPVXEaEF857VQouO99uJj581us8DXoREl1Sel3h5MxLp7NNDkpCfW1kcogeF1GEKbo9cJJDgpXlJp-XTrwSLGOyhEizoumJKBuxkV-3bj0orZcjH8UYVzEpB-ps_nLTwnlmSluwzvtkrJIqDHtkBQOwqs4QKZVrIb_OzfLIj-r05nLrYWiOW_kFgY3ecgSAo9H2L92tVuF8oRon3oA
+hmarko:<refresh token from https://services.cloud.netapp.com/refresh-token>
 ```
 cloudsync creds file example (<installdir>/system/xcp_repo/cloudsync/creds for the above example)
 ```
-cifs:192.168.0.200:administrator:Netapp1!:demo
-s3:bucket:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
-sgws:bucket1@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
-s3ontap:huge@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
-s3ontap:bucket2@192.168.0.200:n3gu49k02casPz6880O55_03__zT_pxj5xPPt9W2DXj8OLLxjZcGbZTsAx7cdrGhX2jPyxdsqZwQYsCF117yncm2g1nj5_z_m2ixB_e6A7jjcj92r761Ppb_FvVr53Q9:cgsgg9Zd192LYf7UBB2_Z_95YTawT30pi_283_ss4P_p0tW39Y82s1c6P144cIX_0_c0SBnU8QKUFB38pkc649Es8AxpS9DzUj0Nrc6081agQ21cc9Jxh4zVT_72Xvno
+cifs:192.168.0.200:<user>:<passwd>!:demo
+s3:bucket:<accesskey>:<secretkey>
+sgws:<bucket>@<endpoint>:<accesskey>:<secretkey>
 ```
 
 **2. assessment of existing filesystem (not supported for cloudsync)**
