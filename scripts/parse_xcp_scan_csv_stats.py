@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-import csv, json, os, sys
+import csv, json, os, sys, re
 
 def parse_xcp_scan(csvpath):
     
@@ -34,6 +34,17 @@ def parse_xcp_scan(csvpath):
             stats['path'] = linearr[0].replace('scan ','')
             stats['export'] = stats['path'].split(':')[1]
             stats['nfsserver'] = stats['path'].split(':')[0]
+        elif linearr[0].startswith('summary'):
+            time = linearr[1].replace('"','').split()[-1].replace(".","")
+            matchObj = re.search("(\d+)m(\d+)s",time)
+            if matchObj:
+                stats['time'] = int(matchObj.group(1))*60+int(matchObj.group(2))
+            matchObj = re.search("(\d+)h(\d+)m",time)
+            if matchObj:
+                stats['time'] = int(matchObj.group(1))*60*60+int(matchObj.group(2))*60                          
+            matchObj = re.search("^(\d+)s",time) 
+            if matchObj:
+                stats['time'] = int(matchObj.group(1))
         elif linearr[0] in dual_lines:
             stats[linearr[0]] = {}
             count2 = 1
