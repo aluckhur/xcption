@@ -1636,7 +1636,10 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['bwout'] = match.group(1)
 			for match in re.finditer(r"Errors:\s+([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
 				results['errors'] = match.group(1)	
-				results['found'] = results['scanned']
+				if 'scanned' in results:
+					results['found'] = results['scanned']
+				else:
+					results['found'] = '-'
 			
 			if "0 differences found" in results['content']:
 				if 'scanned' in results:
