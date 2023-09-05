@@ -3601,9 +3601,16 @@ def parse_nomad_jobs_to_files (parselog=True):
 					for logtype in ['stderr','stdout']:
 						#try to get the log file using api
 						startoffset = offsetconfig[logtype]['offset']
+						prevoffset = startoffset
+						logging.debug(f"collecting alloc:{alloc['ID']} logs typr:{logtype} offset:{startoffset}")
 						response2 = requests.get(f"{nomadapiurl}client/fs/logs/{alloc['ID']}?task={task}&type={logtype}&origin=start&offset={startoffset}")
 						loginc = ''
 						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
+						nextoffset = 0
+						logstringlen = 0
+						logstring = ''
+
+						# test = True 
 						if response2.ok:
 							if re.search(rb"(\d|\S)", response2.content, re.M|re.I):
 								logging.debug("log for job:"+alloc['ID']+" is available using api")
@@ -3616,11 +3623,21 @@ def parse_nomad_jobs_to_files (parselog=True):
 									logstring = ''
 									if 'Data' in jsonobj:
 										logstring = str(base64.b64decode(jsonobj['Data']),encoding='utf-8')
-									nextoffset = startoffset
-									if 'Offset' in jsonobj:
-										nextoffset = jsonobj['Offset']
+									logstringlen = len(logstring)
 									loginc += logstring.replace("\\n","\n")
-									logging.debug(f"parsing log for type:{logtype} job:{alloc['ID']} offset:{startoffset} end:{nextoffset-1}")
+									# if test: 
+									# 	logging.debug("==========================================================================")
+									# 	logging.debug(loginc.partition("\n")[0])
+									# 	logging.debug("==========================================================================")
+									# 	test=False
+									if 'Offset' in jsonobj:
+										
+										nextoffset = jsonobj['Offset']
+										if logstringlen<65536 and nextoffset-prevoffset > 65536:
+											nextoffset -= 65536-logstringlen
+
+									
+									logging.debug(f"parsing log for type:{logtype} job:{alloc['ID']} offset:{nextoffset} len:{logstringlen}")
 
 								offsetconfig[logtype]['offset'] = nextoffset
 								
