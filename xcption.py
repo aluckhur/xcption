@@ -3622,7 +3622,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 									pos += json_len
 									logstring = ''
 									if 'Data' in jsonobj:
-										logstring = str(base64.b64decode(jsonobj['Data']),encoding='utf-8')
+										logstring = base64.b64decode(jsonobj['Data']).dencode('utf-8','ignore')
 									logstringlen = len(logstring)
 									loginc += logstring.replace("\\n","\n")
 									# if test: 
