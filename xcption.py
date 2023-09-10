@@ -3661,55 +3661,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 					except Exception as e:					
 						logging.error(f"cannot load data from file:{cacherunningfile} - {e}") 
 						exit(1)
-
-							
-							#if os.isfile(alloclogfile):
-								
-
-
-						# response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+'&type='+logtype+'&plain=true')						
-						# if response.ok and re.search(rb"(\d|\S)", response.content, re.M|re.I):
-							
-						# 	alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
-						# 	try:
-						# 		#for smartassess and xcp delete jobs always pull a full file 
-						# 		if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess') or job['ID'].startswith('xcpdelete'):
-						# 			with open(alloclogfile, 'w') as fp:
-						# 				logging.debug("dumping log to log file:"+alloclogfile)
-						# 				fp.write(response.content.decode('utf-8'))
-						# 				fp.close()
-						# 		else:
-						# 			#this is used to be able to add delta to the cache file to enable tail to work
-						# 			tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')[:200]
-									
-						# 			with open(tmpalloclogfile, 'wb') as fp:
-						# 				logging.debug("dumping log to temp log file:"+tmpalloclogfile)
-						# 				fp.write(response.content)
-						# 				fp.close()								
-									
-						# 			tmpalloclogfilenobin = tmpalloclogfile+".nobin"
-						# 			DEVNULL = open(os.devnull, 'wb')
-						# 			tr = "tr -cd '"+'\11\12\15\40-\176'+"' < "+tmpalloclogfile+" > "+tmpalloclogfilenobin
-
-						# 			logging.debug("running tr:"+tr)
-						# 			subprocess.call(tr,shell=True,stdout=DEVNULL,stderr=DEVNULL)
-
-						# 			logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfilenobin)
-						# 			apendtologfile = open(alloclogfile, 'a')
-						# 			DEVNULL = open(os.devnull, 'wb')
-						# 			#subprocess.call( ['comm','-13','--nocheck-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
-						# 			diff = "diff "+alloclogfile+" "+tmpalloclogfilenobin+" | grep '^>' | cut -c 3-"
-						# 			logging.debug("running diff:"+diff)
-						# 			subprocess.call(diff,shell=True,stdout=apendtologfile,stderr=DEVNULL)
-
-						# 			apendtologfile.close()
-						# 			os.remove(tmpalloclogfile)	
-						# 			os.remove(tmpalloclogfilenobin)	
-						# 			logging.debug("diff ended and new entries merged into the old cached log file")
-						# 	except Exception as e:
-						# 		print (e)
-						# 		logging.error("cannot create file:"+alloclogfile)
-						# 		exit(1)
+						
 				else:
 					logging.debug("skpping log cache update for:"+job['ID'])
 				
@@ -5609,6 +5561,7 @@ def upload_file (path, linuxpath, windowspath):
 #delete syncs from cache exceding the number provided 
 def rotate_sync_count_in_cache(maxsyncsperjob):
 	if maxsyncsperjob<1: return
+	
 	for fileprefix in ['periodic','alloc']:
 		cmd = "find "+cachedir+"/job_sync_* -type d | awk '{system(\"find \"$1\"/"+fileprefix+"* -printf "+'\\"%T@ %p\\n\\" | sort -r | tail -n +'+str(maxsyncsperjob+1)+'")}'+"' | awk '{system(\"rm -rf \"$2)}'"
 		logging.debug("removing old syncs exceeding "+str(maxsyncsperjob)+" from cache using the cmd:"+cmd)
