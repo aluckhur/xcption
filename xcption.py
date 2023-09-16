@@ -3439,7 +3439,9 @@ def parse_nomad_jobs_to_files_orig (parselog=True):
 		# mark jobs as completed only as part of nomad subcommand and not status
 		if jobcomplete and not cachecomplete and parselog:
 			logging.debug("creating file:"+cachecompletefile+" to prevent further caching for the job")
-			subprocess.call(['touch', cachecompletefile])
+			with open(cachecompletefile, 'w') as cf:
+				cf.write("done")
+			
 
 
 			
@@ -3622,7 +3624,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 									pos += json_len
 									logstring = ''
 									if 'Data' in jsonobj:
-										logstring = base64.b64decode(jsonobj['Data']).dencode('utf-8','ignore')
+										logstring = base64.b64decode(jsonobj['Data']).decode('utf-8','ignore')
 									logstringlen = len(logstring)
 									loginc += logstring.replace("\\n","\n")
 									# if test: 
