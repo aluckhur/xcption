@@ -40,6 +40,7 @@ accounthash = {}
 credshash = {}
 #token cache 
 token = None 
+tokencounter = 0
 
 
 parent_parser = argparse.ArgumentParser(add_help=False)
@@ -179,8 +180,13 @@ def cloudsyncapicall(user,account,api,method='GET',requestheaders={},body={}):
         exit(1)    
     authkey = apiaccounts[user]
 
+    #get global token variables 
     global token
-    if not token:
+    global tokencounter 
+
+    #refresh api token when 
+    if not token and tokencounter > 10:
+        tokencounter = 0
         logging.debug("generating cloudsync token from oauth")    
         tokenoutput = requests.request('POST','https://netapp-cloud-account.auth0.com/oauth/token', 
                                     headers={'Content-Type': 'application/json'}, 
@@ -189,7 +195,10 @@ def cloudsyncapicall(user,account,api,method='GET',requestheaders={},body={}):
             token = json.loads(tokenoutput.content)['access_token']
         except:
             logging.error("cloudsync authentication token could not be created")
-            exit(1)                                    
+            exit(1)      
+
+    #increase token counter by 10, when it will be 10 the token will be refreshed 
+    tokencounter += 1                              
     
     headers = {'authorization': 'Bearer '+token,'accept': 'application/json'}
     for requestheader in requestheaders.keys():
