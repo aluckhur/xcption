@@ -1642,6 +1642,9 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				else:
 					results['found'] = '-'
 			
+			for match in re.finditer(r"\d ERROR :",results['content'],re.M|re.I):
+				results['failure'] = True				
+			
 			if "0 differences found" in results['content']:
 				if 'scanned' in results:
 					results['found'] = results['scanned']
@@ -3439,9 +3442,7 @@ def parse_nomad_jobs_to_files_orig (parselog=True):
 		# mark jobs as completed only as part of nomad subcommand and not status
 		if jobcomplete and not cachecomplete and parselog:
 			logging.debug("creating file:"+cachecompletefile+" to prevent further caching for the job")
-			with open(cachecompletefile, 'w') as cf:
-				cf.write("done")
-			
+			subprocess.call(['touch', cachecompletefile])
 
 
 			
