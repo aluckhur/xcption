@@ -307,14 +307,18 @@ if grep -qs ${REPO_MOUNT_POINT} /proc/mounts; then
   if [ ! -d "${REPO_MOUNT_POINT}/cloudsync" ]; then
     mkdir ${REPO_MOUNT_POINT}/cloudsync
   fi
-  cp -r ${SCRIPT_DIR}/../cloudsync/* ${REPO_MOUNT_POINT}/cloudsync
+  if [ "$INSTALLTYPE" == "server" ]; then
+    cp -r ${SCRIPT_DIR}/../cloudsync/* ${REPO_MOUNT_POINT}/cloudsync
+  fi
   if [ ! -d "${REPO_MOUNT_POINT}/excludedir" ]; then
     mkdir ${REPO_MOUNT_POINT}/excludedir
   fi
   if [ ! -d "${REPO_MOUNT_POINT}/rclone" ]; then
     mkdir ${REPO_MOUNT_POINT}/rclone
   fi  
-  cp -r ${SCRIPT_DIR}/../rclone/* ${REPO_MOUNT_POINT}/rclone
+  if [ "$INSTALLTYPE" == "server" ]; then
+    cp -r ${SCRIPT_DIR}/../rclone/* ${REPO_MOUNT_POINT}/rclone
+  fi
   exit 0 
 else
   echo "ERROR: could not mount XCP repo:${REPO_MOUNT_POINT}"
