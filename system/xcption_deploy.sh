@@ -286,8 +286,9 @@ if [ -f ${SCRIPT_DIR}/xcp.zip ]; then
 fi
 
 
-mkdir -p ${SCRIPT_DIR}/xcp_repo
+mkdir -p ${SCRIPT_DIR}/xcp_repo/jobs
 chmod 770 ${SCRIPT_DIR}/xcp_repo
+chmod 770 ${SCRIPT_DIR}/xcp_repo/jobs
 
 if [ ! -L "${SCRIPT_DIR}/../webtemplates/nomadcache" ]; then
   ln -s ${SCRIPT_DIR}/xcp_repo/nomadcache ${SCRIPT_DIR}/../webtemplates/nomadcache
