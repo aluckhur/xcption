@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '3.3.1.3'
+version = '3.3.1.4'
 
 import csv
 import argparse
@@ -28,6 +28,7 @@ import fnmatch
 import socket
 import string
 import base64
+import random
 
 from hurry.filesize import size
 from prettytable import PrettyTable
@@ -402,6 +403,8 @@ def load_jobs_from_json (jobdictjson):
 def ssh (hostname:str, cmd: list = []):
     cmdarr =  ['ssh','-oStrictHostKeyChecking=no','-oBatchMode=yes',hostname] + cmd
 
+    logging.debug ("ssh command: ssh "+hostname+" "+" ".join(cmd))
+
     result = subprocess.run(cmdarr, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     output = {'returncode': result.returncode,
               'stdout': result.stdout.decode('utf-8'),
@@ -420,7 +423,7 @@ def ssh (hostname:str, cmd: list = []):
 
 #validate ontap ndmp 
 def validate_ontap_ndmp(ontappath):
-	matchObj = re.match("^([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+):\/(\w+)\/(\w+)(.*)$",ontappath)
+	matchObj = re.match("^([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+):\/([a-zA-Z0-9.-]+)\/([a-zA-Z0-9.-]+)(.*)$",ontappath)
 	if matchObj:
 		ontapuser = matchObj.group(1)
 		ontaphost = matchObj.group(2)
@@ -444,10 +447,10 @@ def validate_ontap_ndmp(ontappath):
 	
 	out = ssh(ontapuser+'@'+ontaphost,"network interface show -role cluster-mgmt -instance".split(" "))
 	if out['returncode']:
-		logging.error("could not identify ontap cluster name")
+		logging.error("could not identify ontap cluste-mgmt lif")
 		exit(1)
 
-	matchObj = re.search("Vserver Name:\s(\w+)",out['stdout'])
+	matchObj = re.search("Vserver Name:\s([a-zA-Z0-9_-]+)",out['stdout'])
 	if matchObj:
 		clustername = matchObj.group(1)
 	else:
@@ -787,7 +790,16 @@ def parse_csv(csv_path):
 					
 					baseline_job_name = 'baseline_'+'_'+srcbase
 					sync_job_name     = 'sync_'+'_'+srcbase
-					verify_job_name     = 'verify_'+'_'+srcbase
+					verify_job_name   = 'verify_'+'_'+srcbase
+
+					#address situations where file name exceed 250 bytes
+					randnum = str(random.randint(1000000,9000000))
+					if len(baseline_job_name) > 150: 
+						baseline_job_name = 'baseline_'+'_'+srcbase[:100]+randnum
+					if len(sync_job_name) > 150: 
+						sync_job_name = 'sync_'+'_'+srcbase[:100]+randnum
+					if len(verify_job_name) > 150: 
+						verify_job_name = 'verify_'+'_'+srcbase[:100]+randnum						
 					
 					xcpindexname = srcbase +'-'+dstbase	
 					
@@ -1092,7 +1104,7 @@ def create_nomad_jobs():
 							excludepaths = [x.strip() for x in excludepaths]
 							ndmpcopyexcludedirs =  ',"-exclude","'+','.join(excludepaths)+'"'
 							f.close()                        
-							logging.debug("exclude directories for rclone: " + ndmpcopyexcludedirs)
+							logging.debug("exclude directories for ndmpcopy: " + ndmpcopyexcludedirs)
 						except Exception as e:
 							logging.error("exclude directories file for ndmpcopy cannot be parsed: " + excludedirfile)	
 							exit(1)
@@ -1102,7 +1114,7 @@ def create_nomad_jobs():
 					#creating baseline job 
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
 					logging.info("creating/updating relationship configs for src: "+src)
-					logging.debug("creating baseline job file: " + baseline_job_file)				
+					logging.debug("creating baseline job file: " + baseline_job_file)			
 
 					if tool == 'cloudsync':
 						if 'createcloudsync' in jobdetails:
@@ -1122,8 +1134,7 @@ def create_nomad_jobs():
 						ndmpsrcinfo = validate_ontap_ndmp(src)
 						ndmpdstinfo = validate_ontap_ndmp(dst)
 						
-						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\"{ndmpcopyexcludedirs},\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
-						
+						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\"{ndmpcopyexcludedirs},\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\'"+ndmpsrcinfo['ndmppath']+'\'","\''+ndmpdstinfo['ndmppath']+"\'"
 						
 					if ostype == 'linux' and tool not in ['cloudsync','rclone','ndmpcopy']:
 						aclcopyarg = ''
@@ -1203,7 +1214,7 @@ def create_nomad_jobs():
 					elif tool == 'rclone':
 						cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"sync\""+rcloneexcludedirs+",\""+src+"\",\""+dst+"\",\"--create-empty-src-dirs"
 					elif tool == 'ndmpcopy':						
-						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"set\",\"d\",\";\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\"{ndmpcopyexcludedirs},\"-i\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\\\""+ndmpsrcinfo['ndmppath']+'\\\"","\\\"'+ndmpdstinfo['ndmppath']+"\\\""
+						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"set\",\"d\",\";\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\"{ndmpcopyexcludedirs},\"-i\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\'"+ndmpsrcinfo['ndmppath']+'\'","\''+ndmpdstinfo['ndmppath']+"\'"
 												
 
 					if ostype == 'linux' and tool not in['cloudsync','rclone','ndmpcopy']:
