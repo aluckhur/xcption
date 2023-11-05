@@ -15,7 +15,7 @@ MarkupSafe
 prettytable
 python-dateutil
 python-nomad
-requests
+requests==2.20.1
 six
 treelib
 typing-extensions
