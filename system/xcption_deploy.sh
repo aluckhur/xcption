@@ -277,12 +277,14 @@ EONSU
 
 sysctl -p
 
-cat ${SCRIPT_DIR}/xcp.zip.* > ${SCRIPT_DIR}/xcp.zip
+if [ -f ${SCRIPT_DIR}/xcp.zip.00 ]; then
+  cat ${SCRIPT_DIR}/xcp.zip.* > ${SCRIPT_DIR}/xcp.zip
+fi
 
 if [ -f ${SCRIPT_DIR}/xcp.zip ]; then
-        unzip -o ${SCRIPT_DIR}/xcp.zip
-        chmod +x xcp
-        mv -f xcp /usr/local/bin/xcp
+  unzip -o ${SCRIPT_DIR}/xcp.zip
+  chmod +x xcp
+  mv -f xcp /usr/local/bin/xcp
 fi
 
 
