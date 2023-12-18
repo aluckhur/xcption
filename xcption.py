@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '3.3.1.4'
+version = '3.3.2.0'
 
 import csv
 import argparse
@@ -1141,9 +1141,9 @@ def create_nomad_jobs():
 						if aclcopy == 'nfs4-acl':  
 							aclcopyarg = "\"-acl4\","
 						if excludedirfile == '':
-							cmdargs = "copy\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+							cmdargs = "isync\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
 						else:
-							cmdargs = "copy\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+							cmdargs = "isync\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 
 					if ostype == 'windows' and tool == 'xcp': 
 						if aclcopy == 'no-win-acl':
@@ -1398,6 +1398,45 @@ def start_nomad_jobs(action, force):
 									syncjob1['Job']=syncjob
 									nomadout = n.job.register_job(syncjobname, syncjob1)
 
+								# recreate baseline job to run isync instead of copy for xcp 1.9.3 
+								# if ostype == 'linux' and (tool == 'xcp' or tool == '') and tool != 'cloudsync':
+								# 	logging.debug("recreting job:"+nomadjobname+" to support isync instead of copy for xcp 1.9.3") 
+
+								# 	baseline_job_file = jobdetails['baseline_job_name']+'.hcl'
+								# 	excludedirfile    = jobdetails['excludedirfile']
+								# 	aclcopy           = jobdetails['aclcopy']									
+								# 	memory            = jobdetails['memory']
+								# 	cpu               = jobdetails['cpu'] 
+								# 	tool 			  = jobdetails['tool'] 
+									 
+								# 	aclcopyarg = ''
+								# 	if aclcopy == 'nfs4-acl':  
+								# 		aclcopyarg = "\"-acl4\","  									
+								# 	if excludedirfile == '':
+								# 		cmdargs = "isync\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
+								# 	else:
+								# 		cmdargs = "isync\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+
+								# 	templates_dir = ginga2templatedir
+								# 	env = Environment(loader=FileSystemLoader(templates_dir) )
+
+								# 	try:
+								# 		baseline_template = env.get_template('nomad_baseline.txt')
+								# 	except Exception as e:
+								# 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_baseline.txt'))
+								# 		exit(1)
+
+								# 	with open(baseline_job_file, 'w') as fh:
+								# 		fh.write(baseline_template.render(
+								# 			dcname=dcname,
+								# 			os=ostype,
+								# 			baseline_job_name=baseline_job_name,
+								# 			xcppath=xcplocation,
+								# 			args=cmdargs,
+								# 			memory=memory,
+								# 			cpu=cpu
+								# 		))
+
 								forcebaseline=True
 
 					if (action != 'baseline' and job) or forcebaseline or not job:
@@ -1406,7 +1445,6 @@ def start_nomad_jobs(action, force):
 							logging.warning("job:"+nomadjobname+" could not be found, please load first") 
 						else:
 							logging.info("starting/updating "+action+" job for src:" + src+ " dst:"+dst) 
-
 
 							#if action is verify recreate job file based on the provided options
 							if action == 'verify':
@@ -1449,7 +1487,6 @@ def start_nomad_jobs(action, force):
 									utilitybinpath = ndmpcopybin 
 									cmdargs = 'verify'
 
-
 								if tool == 'xcp' and args.quick:  
 									utilitybinpath = xcppath
 									if excludedirfile == '':
@@ -1486,7 +1523,6 @@ def start_nomad_jobs(action, force):
 										cpu=cpu
 									))					
 							
-
 							nomadjobjson = subprocess.check_output([ nomadpath, 'run','-output',jobfile])
 							nomadjobdict = json.loads(nomadjobjson)
 
@@ -1691,9 +1727,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			if matchObj:
 				results['failure'] = True
 
-
-			
-	
 	if results['contentotherlog'] != '':
 		for match in re.finditer(r"(.*([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(\bscanned\b|\breviewed\b|\bcompared\b).+)",results['contentotherlog'],re.M|re.I):
 			otherloglastline = match.group(0)
@@ -1705,8 +1738,8 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['contentotherlog'],re.M|re.I):
 				results['bwout'] = match.group(1)
 		#if otherloglastline != '' and lastline == '':
-        #xcp for windiws displays the summary in the stderr when there are errors 
-		if otherloglastline != '':
+        #xcp for windows displays the summary in the stderr when there are errors + xcp 1.9.3 with isync prints 'target scan completed in the stdout and not stderr
+		if otherloglastline != '' and not 'target scan completed' in otherloglastline:
 			lastline = otherloglastline	
 	
 	#for xcp/robocopy/cloudsync logs 
@@ -1723,20 +1756,21 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj:
 			results['scanned'] = matchObj.group(1)	
+			print(f"{results['scanned']} haim haim haim {lastline}")
 
 		#in case of match filter being used the scanned files will used
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) matched", lastline, re.M|re.I)
 		if matchObj: 
 			if 	matchObj.group(1) != '0':		
 				results['scanned'] = matchObj.group(1)		
-	
+
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) copied", lastline, re.M|re.I)
 		if matchObj: 
 			results['copied'] = matchObj.group(1)
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) indexed", lastline, re.M|re.I)
 		if matchObj: 
 			results['indexed'] = matchObj.group(1)
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) gone", lastline, re.M|re.I)
+		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (gone|removed)", lastline, re.M|re.I)
 		if matchObj: 
 			results['gone'] = matchObj.group(1)	
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) modification", lastline, re.M|re.I)
