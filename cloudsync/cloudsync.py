@@ -185,7 +185,7 @@ def cloudsyncapicall(user,account,api,method='GET',requestheaders={},body={}):
     global tokencounter 
 
     #refresh api token when 
-    if not token and tokencounter > 10:
+    if not token or tokencounter > 10:
         tokencounter = 0
         logging.debug("generating cloudsync token from oauth")    
         tokenoutput = requests.request('POST','https://netapp-cloud-account.auth0.com/oauth/token', 

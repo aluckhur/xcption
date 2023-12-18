@@ -209,6 +209,7 @@ parser_create.add_argument('-m','--ram',help="RAM allocation in MB for each job"
 parser_create.add_argument('-t','--tool',help="tool to use as part of the task", choices=['xcp','robocopy','rclone','ndmpcopy'],required=False,default='xcp',type=str,metavar='tool')
 parser_create.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
 parser_create.add_argument('-e','--exclude',help="comma seperated exclude paths",required=False,type=str)
+parser_create.add_argument('-v','--novalidation',help="create can be faster for windows paths since valaidation is prevented", required=False,action='store_true')
 #parser_create.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
 
 parser_copydata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
