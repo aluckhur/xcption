@@ -322,6 +322,7 @@ if grep -qs ${REPO_MOUNT_POINT} /proc/mounts; then
   if [ "$INSTALLTYPE" == "server" ]; then
     cp -r ${SCRIPT_DIR}/../rclone/* ${REPO_MOUNT_POINT}/rclone
   fi
+  mkdir -p ${REPO_MOUNT_POINT}/xcplogs
   exit 0 
 else
   echo "ERROR: could not mount XCP repo:${REPO_MOUNT_POINT}"
