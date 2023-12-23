@@ -1757,7 +1757,6 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj:
 			results['scanned'] = matchObj.group(1)	
-			print(f"{results['scanned']} haim haim haim {lastline}")
 
 		#in case of match filter being used the scanned files will used
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) matched", lastline, re.M|re.I)
@@ -3217,8 +3216,8 @@ def nomadstatus():
 						alloccounter += 1
 						reservedcpu += alloc['Resources']['CPU']
 						reservedram += alloc['Resources']['MemoryMB']
-			cpuinfo = str(reservedcpu)+'/'+str(totalcpu) + ' ('+str(round(float(reservedcpu)/float(totalcpu)*100))+'%)'
-			raminfo = str(reservedram)+'/'+str(totalram) + ' ('+str(round(float(reservedram)/float(totalram)*100))+'%)'						
+			cpuinfo = str(reservedcpu)+'/'+str(totalcpu) + ' ('+str(round(float(reservedcpu)/(float(totalcpu)+1)*100))+'%)'
+			raminfo = str(reservedram)+'/'+str(totalram) + ' ('+str(round(float(reservedram)/(float(totalram)+1)*100))+'%)'						
 			table.add_row([name,ip,status,ostype,cpuinfo,usedcpu,raminfo,usedmemory,alloccounter])
 		
 		table.border = False
