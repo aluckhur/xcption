@@ -150,7 +150,7 @@ if [ "$ONLINE" == "true" ]; then
   echo "Fetching Nomad for windows version ${NOMAD_VERSION} ..."
   curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip
   echo "Installing Nomad windows version ${NOMAD_VERSION} ..."
-  unzip -o windows/nomad_windows.zip -d ${SCRIPT_DIR}/../windows
+  unzip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip -d ${SCRIPT_DIR}/../windows
   echo "Installing rclone"
   curl https://rclone.org/install.sh | sudo bash
 fi

@@ -1,4 +1,6 @@
 #!/bin/bash
+
+export XCP_LOG_DIR=/root/xcption/system/xcp_repo/xcplogs
 echo 0 >  /proc/self/loginuid
 
 if [[ " $@ " =~ "-acl4" ]]; then
