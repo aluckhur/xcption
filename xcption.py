@@ -1538,7 +1538,10 @@ def start_nomad_jobs(action, force):
 							
 							#if sync job and baseline was not started disable schedule for sync 
 							if action == 'sync':
-								if baselinestatus != 'baseline is complete':
+								# this if for situations where you want to start sync when baseline was not done/completed
+								if os.getenv('XCPTION_FORCE_SYNC') == "TRUE":
+									logging.info("XCPTION_FORCE_SYNC is TRUE, can start "+action)
+								elif baselinestatus != 'baseline is complete':
 									logging.warning(action+" will be paused for src:"+src+" to dst:"+dst+" - "+baselinestatus.lower())									
 									nomadjobdict["Job"]["Stop"] = True
 								else:
@@ -2944,7 +2947,7 @@ def update_nomad_job_status(action):
 							logging.info("job name:"+nomadjobname+" is already:"+action) 
 						elif action == 'syncnow':
 							already_running = False
-							if baselinestatus != 'baseline is complete':
+							if baselinestatus != 'baseline is complete' and not os.getenv('XCPTION_FORCE_SYNC') == "TRUE":
 								logging.warning("cannot syncnow for:"+src+" since "+baselinestatus.lower())
 							else:
 								try:
