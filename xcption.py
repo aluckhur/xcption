@@ -2237,7 +2237,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						logging.debug('cannot find job cache dir:'+synccachedir)
 					else:			
 						for file in os.listdir(synccachedir):
-							if file == 'job_'+sync_job_name+'.json':
+							if file == 'job_'+sync_job_name:
 								syncjobfound = True
 								synccachefile = os.path.join(synccachedir,file)
 								with open(synccachefile) as f:
@@ -2347,13 +2347,13 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					verifyjobfound = False
 					verifystarttime = '- '
 					#location for the cache dir for verify 
-					verifycachedir     = os.path.join(cachedir,'job_'+verify_job_name)					
+					verifycachedir     = os.path.join(cachedir,'job_'+verify_job_name)
 
 					if not os.path.exists(verifycachedir): 
 						logging.debug('cannot find job cache dir:'+verifycachedir)
 					else:			
 						for file in os.listdir(verifycachedir):
-							if file == 'job_'+verify_job_name+'.json':
+							if file == 'job_'+verify_job_name:
 								verifyjobfound = True
 								verifycachefile = os.path.join(verifycachedir,file)
 								with open(verifycachefile) as f:
@@ -2375,7 +2375,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 										verifyperiodiccounter = file.split('-')[1]
 									if 'periodics' not in verifyjobsstructure:
 										verifyjobsstructure['periodics'] = {}
-									verifyjobsstructure['periodics'][jobdata['ID']] = {}											
+									verifyjobsstructure['periodics'][jobdata['ID']] = {}
 									verifyjobsstructure['periodics'][jobdata['ID']] = jobdata
 									verifycounter+=1
 
@@ -3064,14 +3064,14 @@ def delete_jobs(forceparam):
 				if srcfilter == '' or fnmatch.fnmatch(src, srcfilter):
 					jobdetails = jobsdict[jobname][src]
 					
-					dst	          = jobdetails['dst']
-					srcbase       = jobdetails['srcbase']
-					dstbase       = jobdetails['dstbase']
-					syncnomadjobname  = jobdetails['sync_job_name']
+					dst	             = jobdetails['dst']
+					srcbase          = jobdetails['srcbase']
+					dstbase          = jobdetails['dstbase']
+					syncnomadjobname = jobdetails['sync_job_name']
 					baselinejobname  = jobdetails['baseline_job_name']
 					verifyjobname    = jobdetails['verify_job_name']
-					excludedirfile	 = jobdetails['excludedirfile']
-					tool			 = jobdetails['tool']
+					excludedirfile   = jobdetails['excludedirfile']
+					tool             = jobdetails['tool']
 
 					force = forceparam
 					if not force: 
@@ -3621,11 +3621,11 @@ def parse_nomad_jobs_to_files (parselog=True):
 
 		for alloc in allocs:		
 			if alloc['JobID'] == job['ID']:
-				allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')				
+				allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')
 				try:
 					with open(allocjsonfile, 'w') as fp:
 						json.dump(alloc, fp)
-						logging.debug("dumping alloc to json file:"+allocjsonfile)		
+						logging.debug("dumping alloc to json file:"+allocjsonfile)
 				except Exception as e:
 					logging.error("cannot create file:"+allocjsonfile)
 					exit(1)
