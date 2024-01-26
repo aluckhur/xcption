@@ -690,17 +690,32 @@ def createcloudsyncrelationship(user,account,group,src,dst,validate=False):
     accountid = getaccountid(user,account)
     createresult = cloudsyncapicall(user,account,'relationships-v2','POST',{'x-account-id':accountid},cloudsynccreate)
 
-def abortcloudsyncrelationship(user,account,group,src,dst):
-    logging.info('abort sync fo cloudsync relationship from src: '+src+' to dst: '+dst)
+def abortcloudsyncrelationship(user,account,group,src,dst, wait:bool=False):
+    logging.info('abort sync of cloudsync relationship from src: '+src+' to dst: '+dst)
     relinfo = getcloudsyncrelationship (user,account,group,src,dst)
 
     if relinfo:
         relid = relinfo['relationshipId']
         if relinfo['activity']['status'] != 'RUNNING':
             logging.info('sync is not currently running for src: '+src+' to dst: '+dst)
-            exit(0)
-        accountid = getaccountid(user,account)
-        abortcresult = cloudsyncapicall(user,account,'relationships/'+relid+'/abort','PUT',{'x-account-id':accountid}) 
+        else:
+            accountid = getaccountid(user,account)
+            logging.info('aborting job for src: '+src+' to dst: '+dst)
+            abortcresult = cloudsyncapicall(user,account,'relationships/'+relid+'/abort','PUT',{'x-account-id':accountid}) 
+            count = 0
+            if wait:
+                while True:
+                    time.sleep(5)
+                    relinfo = getcloudsyncrelationship (user,account,group,src,dst)
+                    logging.info(f"relation status: {relinfo['activity']['status']} {count}")
+                    if relinfo['activity']['status'] == 'RUNNING':
+                        count += 1                        
+                        if count > 40:
+                            logging.error(f"job could not be aborted ")
+                            exit(1)
+                    else:
+                        break
+                    
 
 def synccloudsyncrelationship(user,account,group,src,dst):
     logging.info('issue sync fo cloudsync relationship from src: '+src+' to dst: '+dst)
@@ -709,8 +724,15 @@ def synccloudsyncrelationship(user,account,group,src,dst):
     if relinfo:
         relid = relinfo['relationshipId']
         if relinfo['activity']['status'] == 'RUNNING':
-            logging.error('sync already running for src: '+src+' to dst: '+dst)
-            exit(1)
+            os.environ['XCPTION_ABORT_RUNNING_CLOUD_SYNC_JOBS'] = 'TRUE'
+            if os.getenv('XCPTION_ABORT_RUNNING_CLOUD_SYNC_JOBS') == "TRUE":
+                logging.info(f'sync already running for src: {src} to dst: {dst} but since XCPTION_ABORT_RUNNING_CLOUD_SYNC_JOBS is set to TRUE it will be aborted before running a new sync')
+                abortcloudsyncrelationship(user,account,group,src,dst,wait=True)
+                logging.info(f'sync aborted, starting new sync')
+            else:
+                logging.error('sync already running for src: '+src+' to dst: '+dst)
+                exit(1)
+
         accountid = getaccountid(user,account)
         starttime = time.time()
         syncresult = cloudsyncapicall(user,account,'relationships/'+relid+'/sync','PUT',{'x-account-id':accountid}) 
