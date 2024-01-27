@@ -22,6 +22,8 @@ def parse_xcp_status_shares(path):
     start_acl = False 
     current_share = ""
 
+    shares_info_keys = dict()
+
     all_shares = []
     while count1 < len(lines):
         line = lines[count1]
@@ -42,35 +44,43 @@ def parse_xcp_status_shares(path):
         
         if all(val > 0 for val in [share_start,path_start,share_end]):
             if not re.search("^\s*$",lines[count1]):
-                free_space = lines[count1].split(' ')[1]
-                used_space = lines[count1].split(' ')[2]
+                free_space = re.split(r'\s+',lines[count1])[1]
+                used_space = re.split(r'\s+',lines[count1])[2]
+                
                 share_path_name = lines[count1][share_start:share_end].rstrip() 
                 share_path_prefix = "\\\\"+out['server']+"\\"
                 share_name = share_path_name[len(share_path_prefix):]
                 share_folder_path = lines[count1][path_start:].rstrip() 
+                # for debug
+                # print(lines[count1])
+                # print(json.dumps({"name": share_name, "share_folder_path": share_folder_path, "free_space":free_space, "used_space": used_space}))
+                # exit(1)
                 all_shares.append(share_name)
 
                 if not 'shares_info' in out:
                     out['shares_info'] = {}
-                if share_name != 'IPC$':
+                if share_name.upper() != 'IPC$':
                     out['shares_info'][share_name] = {"share_folder_path": share_folder_path, "free_space":free_space, "used_space": used_space}
             else:
                 share_start = path_start = share_end = 0 
-
+        
         if re.search(r"^\s*Share\s+Types\s+Remark",lines[count1]):
             start_attributes = True
             count1 += 1
         
         if start_attributes:
+            if not shares_info_keys:
+                shares_info_keys = out['shares_info'].keys()
+
             if not re.search("^\s*$",lines[count1]):
-                for share_name in out['shares_info'].keys():
+                for share_name in shares_info_keys:
                     matchObj = re.search(f"{re.escape(share_name)}\s+(DISKTREE|SPECIAL)\s*(.*)$",lines[count1])
                     if matchObj:
-                       
                        out['shares_info'][share_name]['type'] = matchObj.group(1)
                        out['shares_info'][share_name]['comment'] = matchObj.group(2).rstrip()
             else:
                 start_attributes = False
+
         
         if re.search(r"^\s*Share\s+Entity\s+Type",lines[count1]):
             start_acl = True
@@ -107,10 +117,12 @@ def print_csv(obj):
     f = open('/tmp/out.csv', 'w')
     writer = csv.writer(f)
 
-    header = ['server','share','folder','comment','acl user','action action','acl permission']
+    header = ['server','share','folder','comment','acl user','action action','acl permission','free_space','used_space']
     writer.writerow(header)
 
     for fileserver in obj:
+        if not 'server' in fileserver:
+            continue
         server = fileserver['server']
         for share in fileserver['shares_info']:
             share_name = share 
@@ -121,10 +133,10 @@ def print_csv(obj):
                 comment = ''
             if 'acl' in fileserver['shares_info'][share_name]: 
                 for acl in fileserver['shares_info'][share_name]['acl']:
-                    raw = [server,share_name,share_folder_path,comment,acl['user'],acl['action'],acl['permission']]
+                    raw = [server,share_name,share_folder_path,comment,acl['user'],acl['action'],acl['permission'],fileserver['shares_info'][share_name]['free_space'],fileserver['shares_info'][share_name]['used_space']]
                     writer.writerow(raw)
             else:
-                raw = [server,share_name,share_folder_path,comment,'','','']
+                raw = [server,share_name,share_folder_path,comment,'','','',fileserver['shares_info'][share_name]['free_space'],fileserver['shares_info'][share_name]['used_space']]
                 writer.writerow(raw)
             
 
