@@ -40,17 +40,13 @@ Deployment of the next linux hosts in the cluster should be done using the comma
 
 `sudo ./xcption/system/xcption_deploy.sh -r <nfsserver:/xcp_repo_vol> -t client -s <server ip>`
 
-Deployment of windows hosts should be done by coping all files from the windows directory on the server **(must be done after deploying the server)** to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:  
-`PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServerInstallDir <Install DIR> -XCPtionServerUser <user> -XCPtionServerPWD <passwd> -XCPtionServiceUser <Domain\user> -XCPtionServicePWD <passwd>`
+Deployment of windows hosts should be done by coping all files from the ./xcption/windows directory on the server **(must be done after deploying the server)** to *C:\NetApp\XCP* directory on the windows host than running the following powershell script:  
+`PS C:\>C:\NetApp\XCP\xcption_deploy_windows.ps1 -XCPtionServer <Server IP> -XCPtionServiceUser <Domain\user> -XCPtionServicePWD <passwd>`
 
-`XCPtionServer` - IP address or resolvable name of the XCPtion Server  
-`XCPtionServerInstallDir` - The installation path of XCPtion on the server (Ex. /root/xcption)  
-`XCPtionServerUser` - username to access the XCPtion Server using scp to pull install files  
-`XCPtionServerPWD` - passwd for the XCPtion Server username  
+`XCPtionServer` - IP address or resolvable name of the XCPtion Server    
 `XCPtionServiceUser` - Domain Username (Domain\User) to start the XCPtionNomad service,   
                 This user will be used to access Source and Destination during the migration (This user need access to all files)  
 `XCPtionServicePWD` - Password for service user  
-
 
 After installing XCPtion xcp license file should be copied to the following location **on all hosts in the cluster**:  
 
