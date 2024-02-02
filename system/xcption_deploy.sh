@@ -49,7 +49,9 @@ if [ "$INSTALLTYPE" == "client" -a -z "$SERVERIP" ]; then
   exit 1
 fi
 
-wget -q --spider http://google.com
+#check if the computer is connected to the internet. 
+#wget -q --spider http://google.com
+nc -z -w 2 google.com 443 > /dev/null 2>&1
 if [ $? -eq 0 ]; then
   export ONLINE=true    
   echo "This is ONLINE installation"
@@ -97,21 +99,21 @@ fi
 
 if [ $INST_APP == "yum" ]; then
   yum install -y epel-release
-  yum install -y ${SCRIPT_DIR}/epel-release-latest-7.noarch.rpm
+  #yum install -y ${SCRIPT_DIR}/epel-release-latest-7.noarch.rpm
   yum install -y python-devel.x86_64
   yum install -y libpqxx-devel.x86_64
 fi
 
+$INST_APP install -y apt-transport-https software-properties-common
+
 $INST_APP install -y \
-    apt-transport-https \
     ca-certificates \
     curl \
-    software-properties-common \
     jq \
     unzip \
     python3 \
     rsync \
-    nfs-common \
+    nfs-utils \
     python3-pip 
 
 
@@ -132,10 +134,34 @@ if [ "$ONLINE" == "true" ]; then
 else
   mkdir -p /tmp/pip_unzip_loc
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
+  
   #pip3 install --no-index --find-links /tmp/pip_unzip_loc -r $SCRIPT_DIR/requirements.txt
-  find /tmp/pip_unzip_loc -name "*" -type f| awk '{system("pip3 install "$1)}'
-  find /tmp/pip_unzip_loc -name "*" -type f| awk '{system("pip3 install "$1)}'
-  find /tmp/pip_unzip_loc -name "*" -type f| awk '{system("pip3 install "$1)}'
+  pip3 install /tmp/pip_unzip_loc/certifi*
+  pip3 install /tmp/pip_unzip_loc/chardet*
+  pip3 install /tmp/pip_unzip_loc/typing_extensions*
+  pip3 install /tmp/pip_unzip_loc/zipp*
+  pip3 install /tmp/pip_unzip_loc/importlib_metadata*
+  pip3 install /tmp/pip_unzip_loc/click*
+  pip3 install /tmp/pip_unzip_loc/importlib_metadata-4.4.0-py3-none-any.whl
+  pip3 install /tmp/pip_unzip_loc/python_dateutil*
+  pip3 install /tmp/pip_unzip_loc/croniter*
+  pip3 install /tmp/pip_unzip_loc/dataclasses*
+  pip3 install /tmp/pip_unzip_loc/MarkupSafe*
+  pip3 install /tmp/pip_unzip_loc/Werkzeug*
+  pip3 install /tmp/pip_unzip_loc/itsdangerous*
+  pip3 install /tmp/pip_unzip_loc/Jinja2*
+  pip3 install /tmp/pip_unzip_loc/Flask*
+  pip3 install /tmp/pip_unzip_loc/future*
+  pip3 install /tmp/pip_unzip_loc/hurry.filesize*
+  pip3 install /tmp/pip_unzip_loc/idna*
+  pip3 install /tmp/pip_unzip_loc/MarkupSafe*
+  pip3 install /tmp/pip_unzip_loc/wcwidth*
+  pip3 install /tmp/pip_unzip_loc/prettytable*
+  pip3 install /tmp/pip_unzip_loc/urllib3*
+  pip3 install /tmp/pip_unzip_loc/requests*
+  pip3 install /tmp/pip_unzip_loc/python_nomad*
+  pip3 install /tmp/pip_unzip_loc/six*
+  pip3 install /tmp/pip_unzip_loc/treelib*
   rm -rf /tmp/pip_unzip_loc
 fi
 
