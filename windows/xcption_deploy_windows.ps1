@@ -1,9 +1,9 @@
 
  param (
     [string]$XCPtionServer = $(throw "-XCPtionServer is required."), 
-    [string]$XCPtionServerUser = $(throw "-XCPtionServerUser is required."), 
-	[string]$XCPtionServerPwd, 
-	[string]$XCPtionServerInstallDir = $(throw "-XCPtionServerInstallDir is required."), 
+    #[string]$XCPtionServerUser = $(throw "-XCPtionServerUser is required."), 
+	#[string]$XCPtionServerPwd, 
+	#[string]$XCPtionServerInstallDir = $(throw "-XCPtionServerInstallDir is required."), 
     [string]$XCPtionServiceUser = $(throw "-XCPtionServiceUser is required."),
 	[string]$XCPtionServicePwd
  )
@@ -131,50 +131,46 @@ if (-not (Test-Path $LogDir -Type Container)) {
 }
 
 
-Write-Host "Getting required Microsoft Visual C++ Redistributable Update (Required for XCP)"
-GetFile  -URL https://aka.ms/vs/16/release/vc_redist.x64.exe -DestinationFile vc_redist.x64.exe
-Write-Host "Installing Microsoft Visual C++ Redistributable Update"
-& $($TempDir+"vc_redist.x64.exe") "/q" "/log" $($LogDir+"vcredist_x64.log") "/norestarts"
+# Write-Host "Getting required Microsoft Visual C++ Redistributable Update (Required for XCP)"
+# GetFile  -URL https://aka.ms/vs/16/release/vc_redist.x64.exe -DestinationFile vc_redist.x64.exe
+# Write-Host "Installing Microsoft Visual C++ Redistributable Update"
+# & $($TempDir+"vc_redist.x64.exe") "/q" "/log" $($LogDir+"vcredist_x64.log") "/norestarts"
 
 
-Write-Host "Getting SCP client for windows to copy required files from XCP server"
-GetFile  -URL https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -DestinationFile pscp.exe
+# Write-Host "Getting SCP client for windows to copy required files from XCP server"
+# GetFile  -URL https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -DestinationFile pscp.exe
  
+# if (-not (Test-Path $($InstallDir+'xcp.exe') -Type Leaf)) {
+# 	Write-Host "Fetching xcp.exe from XCPtion server"
+# 	SCPfile -File xcp_windows.zip 
+# 	Unzip $($TempDir+"xcp_windows.zip") $InstallDir
+# }
+# if (-not (Test-Path $($InstallDir+'nomad.exe') -Type Leaf)) {
+# 	Write-Host "Fetching nomad.exe from XCPtion server"
+# 	SCPfile -File nomad_windows.zip
+# 	Unzip $($TempDir+"nomad_windows.zip") $InstallDir
+# }
+# if (-not (Test-Path $($InstallDir+'nssm.exe') -Type Leaf)) {
+# 	Write-Host "Fetching nssm.exe from XCPtion server"
+# 	SCPfile -File nssm.exe
+# }
 
-if (-not (Test-Path $($InstallDir+'xcp.exe') -Type Leaf)) {
-	Write-Host "Fetching xcp.exe from XCPtion server"
-	SCPfile -File xcp_windows.zip 
-	Unzip $($TempDir+"xcp_windows.zip") $InstallDir
-}
-if (-not (Test-Path $($InstallDir+'nomad.exe') -Type Leaf)) {
-	Write-Host "Fetching nomad.exe from XCPtion server"
-	SCPfile -File nomad_windows.zip
-	Unzip $($TempDir+"nomad_windows.zip") $InstallDir
-}
-if (-not (Test-Path $($InstallDir+'nssm.exe') -Type Leaf)) {
-	Write-Host "Fetching nssm.exe from XCPtion server"
-	SCPfile -File nssm.exe
-}
-
-
-Write-Host "Featching required files from XCPtion server"
-SCPfile -File license 
-SCPfile -File nomad_service.cmd
-SCPfile -File robocopy_wrapper.cmd
-SCPfile -File Robocopy_Errors.txt
-SCPfile -File Robocopy-Get-FailedFiles.ps1
-SCPfile -File robocopy_log_file_dir.txt
-
-
+# Write-Host "Featching required files from XCPtion server"
+# SCPfile -File license 
+# SCPfile -File nomad_service.cmd
+# SCPfile -File robocopy_wrapper.cmd
+# SCPfile -File Robocopy_Errors.txt
+# SCPfile -File Robocopy-Get-FailedFiles.ps1
+# SCPfile -File robocopy_log_file_dir.txt
 
 $NomadClientHCLFile = $InstallDir+'client.hcl'
 Write-Host "Creating nomad client configuration file:$NomadClientHCLFile"
 
-Set-Content -Value "bind_addr = ""0.0.0.0""" -Path $NomadClientHCLFile
-Add-Content -Value "region             = ""DC1""" -Path $NomadClientHCLFile 
-Add-Content -Value "datacenter         = ""DC1""" -Path $NomadClientHCLFile 
-Add-Content -Value "data_dir           = ""$(($InstallDir -Replace "\\","/")+'lib')""" -Path $NomadClientHCLFile 
-#Add-Content -Value "log_level          = ""DEBUG""" -Path $NomadClientHCLFile 
+Set-Content -Value "bind_addr    = ""0.0.0.0""" -Path $NomadClientHCLFile
+Add-Content -Value "region       = ""DC1""" -Path $NomadClientHCLFile 
+Add-Content -Value "datacenter   = ""DC1""" -Path $NomadClientHCLFile 
+Add-Content -Value "data_dir     = ""$(($InstallDir -Replace "\\","/")+'lib')""" -Path $NomadClientHCLFile 
+#Add-Content -Value "log_level   = ""DEBUG""" -Path $NomadClientHCLFile 
 Add-Content -Value "leave_on_interrupt = true" -Path $NomadClientHCLFile 
 Add-Content -Value "leave_on_terminate = true" -Path $NomadClientHCLFile 
 Add-Content -Value "client {" -Path $NomadClientHCLFile 
