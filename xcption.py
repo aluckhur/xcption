@@ -6060,6 +6060,56 @@ def parse_xcp_status_shares(lines):
 
     return(out)	
 	
+#parse xcp show host 
+def parse_xcp_status_exports(lines):
+    
+    #this will host the parsed output stas 
+    out = {}
+
+    count1 = 0
+    
+    #used to flag start of general export information 
+    export_start = False
+
+    all_exports = []
+    while count1 < len(lines):
+        line = lines[count1]
+        if "Mounts  Errors  Server" in line: 
+            count1 += 1
+            matchObj = re.search("(\d+)\s+(\d+)\s+(\S+)",lines[count1])
+            if matchObj:
+                out['mounts'] = matchObj.group(1) 
+                out['errors'] = matchObj.group(2) 
+                out['server'] = matchObj.group(3) 
+        
+        #get export names
+        if re.search(r"Free\s+Free\s+Used\s+Used Export",lines[count1]):
+            export_start = True 
+			
+        if export_start:
+            matchObj = re.search("^\s+([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))\s+(.iB).+\s+(\S+)\:\/?(\S+)\s*$",lines[count1])
+            
+            if matchObj:
+                details = lines[count1].split()
+                free_space = f"{details[0]}{details[1]}"
+                used_space = f"{details[3]}{details[4]}"
+                free_files = details[2]
+                used_files = details[5]
+                if matchObj.group(6) == '/':
+                    export = matchObj.group(5)+':/'
+                else:
+                    export = matchObj.group(5)+':/'+matchObj.group(6)
+
+                if not 'exports_info' in out:
+                    out['exports_info'] = {}    
+                out['exports_info'][export] = {"free_space":free_space, "used_space": used_space, "free_files": free_files, "used_files": used_files}
+        
+        #go to next line
+        count1+=1
+
+    return(out)
+
+
 def map_host(hosts,protocol,output):
 
 	if protocol == 'cifs':
@@ -6077,8 +6127,8 @@ def map_host(hosts,protocol,output):
 		if output=='json':
 			print(json.dumps(hosts_share_info))
 		elif output=='csv':
-			writer = csv.writer(sys.stdout,delimiter="\t")
-			writer.writerow(['Server','Share','Folder','Comment','ACL user','Action','ACL permission','VOL Free Space','VOL Used Space'])
+			writer = csv.writer(sys.stdout,delimiter=",")
+			writer.writerow(['Server','Share','Folder','Comment','ACL User','Action','ACL Permission','VOL Free Space','VOL Used Space'])
 
 			for fileserver in hosts_share_info:
 				if not 'server' in fileserver:
@@ -6129,10 +6179,50 @@ def map_host(hosts,protocol,output):
 			table.align = 'l'
 			print(table)			
 
+	elif protocol == 'nfs':
+		hosts_export_info = list()
+		for host in hosts.split(','):
+			logging.info(f"gathering NFS exports information on host: {host}") 
+			xcpcmd = [xcplocation,'show',host]
+			xcp_show_nfs = subprocess.check_output(xcpcmd,stderr=subprocess.STDOUT)
+			share_info = parse_xcp_status_exports(xcp_show_nfs.decode('utf-8').splitlines())
+			hosts_export_info.append(share_info)
 
+		if output=='json':
+			print(json.dumps(hosts_export_info))
 
-	
-	#haim
+		elif output=='csv':
+			writer = csv.writer(sys.stdout,delimiter=",")
+			writer.writerow(['Server','Export','Free Space','Used Space','Free Files','Used Files'])
+
+			for fileserver in hosts_export_info:
+				if not 'server' in fileserver:
+					continue
+				server = fileserver['server']
+				for export in fileserver['exports_info']:
+					export_name = export 
+					row = [server,export_name,fileserver['exports_info'][export]['free_space'],fileserver['exports_info'][export]['used_space'],fileserver['exports_info'][export]['free_files'],fileserver['exports_info'][export]['used_space']]
+					writer.writerow(row)			
+		else:
+			if len(hosts_export_info) == 0:
+				print("no data found")
+				return
+
+			#build the table object
+			table = PrettyTable()
+			table.field_names = ['Server','Export','Free Space','Used Space','Free Files','Used Files']
+			for fileserver in hosts_export_info:
+				if not 'server' in fileserver:
+					continue
+				server = fileserver['server']
+				for export in fileserver['exports_info']:
+					export_name = export 
+					row = [server,export_name,fileserver['exports_info'][export]['free_space'],fileserver['exports_info'][export]['used_space'],fileserver['exports_info'][export]['free_files'],fileserver['exports_info'][export]['used_space']]
+					table.add_row(row)
+		
+			table.border = False
+			table.align = 'l'
+			print(table)			
 
 
 #####################################################################################################
