@@ -5,7 +5,7 @@
 # Enjoy
 
 #version 
-version = '3.3.2.0'
+version = '3.3.3.0'
 
 import csv
 import argparse
@@ -160,6 +160,7 @@ subparser = parser.add_subparsers(dest='subparser_name', help='sub commands that
 parser_nodestatus   = subparser.add_parser('nodestatus', help='display cluster nodes status',parents=[parent_parser])	
 parser_status       = subparser.add_parser('status',     help='display status',parents=[parent_parser])	
 parser_assess       = subparser.add_parser('assess',     help='assess filesystem and create csv file',parents=[parent_parser])
+parser_map          = subparser.add_parser('map',        help='map shares/exports',parents=[parent_parser])
 parser_load         = subparser.add_parser('load',       help='load/update configuration from csv file',parents=[parent_parser])
 parser_create       = subparser.add_parser('create',     help='create ad-hock task',parents=[parent_parser])
 parser_baseline     = subparser.add_parser('baseline',   help='start initial baseline',parents=[parent_parser])
@@ -200,6 +201,10 @@ parser_assess.add_argument('-g','--failbackgroup',help="failback group required 
 parser_assess.add_argument('-j','--job',help="xcption job name", required=False,type=str,metavar='jobname')
 parser_assess.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
 parser_assess.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
+
+parser_map.add_argument('-s','--hosts',help="comma seperated servers to map shares or exportrts",required=True,type=str)
+parser_map.add_argument('-p','--protocol',help="server protocol: [cifs|nfs]",choices=['cifs','nfs'],required=True,type=str,metavar='type')
+parser_map.add_argument('-o','--output',help="output type: [csv|json]",choices=['table','csv','json'],required=False,default='table',type=str,metavar='output')
 
 parser_create.add_argument('-j','--job',help="xcption job name", required=True, type=str,metavar='jobname')
 parser_create.add_argument('-s','--source',help="source nfs/cifs path",required=True,type=str)
@@ -932,12 +937,8 @@ def check_job_status (jobname,log=False):
 
 	return results
 	
-
-
 #run powershell commnad on windows agent
 def run_powershell_cmd_on_windows_agent (pscmd,log=False):
-
-
 	results = {}
 
 	psjobname = pscmd[:15]+str(os.getpid())
@@ -985,9 +986,7 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 			cmd=pscmd
 		))
 
-
 	#start job and monitor status'
-
 	psjobstatus = 'not started'
 	if start_nomad_job_from_hcl(powershell_job_file, psjobname):
 		retrycount = 50
@@ -998,7 +997,6 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 				retrycount = 0
 			else:
 				time.sleep(1)
-
 
 	logging.debug("delete job:"+psjobname)
 	response = requests.delete(nomadapiurl+'job/'+psjobname+'?purge=true')				
@@ -4900,7 +4898,6 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 			logging.error("cpu allocation is illegal:"+defaultram)
 			exit(1)	
 
-
 	tool = defaultwintool
 	if args.robocopy:
 		tool = 'robocopy'
@@ -5965,11 +5962,177 @@ def monitored_delete (src,force,tool):
 	# 			logging.error("could not delete cache dir:"+jobcachedir)
 	# 	logging.error("delete job canceled due to an error")#
 	# 	exit(1)
+
+#parse xcp.exe show shares config 
+def parse_xcp_status_shares(lines):
+    
+    #this will host the parsed output stas 
+    out = {}
+    #this will host the phase1 initial parsing 
+    phase1_parse = []
+
+    count1 = 0
+    
+    #used to flag start of general share information 
+    share_start = path_start = share_end = 0 
+    #used to flag start of share attributes 
+    start_attributes = False 
+    #used to flag start share acl 
+    start_acl = False 
+    current_share = ""
+
+    all_shares = []
+    while count1 < len(lines):
+        line = lines[count1]
+        if "Shares  Errors  Server" in line: 
+            count1 += 1
+            matchObj = re.search("(\d+)\s+(\d+)\s+(\S+)",lines[count1])
+            if matchObj:
+                out['shares'] = matchObj.group(1) 
+                out['errors'] = matchObj.group(2) 
+                out['server'] = matchObj.group(3) 
+        
+        #get share names
+        if re.search(r"Free\s+Used\s+Connections\s+Share Path\s+Folder Path",lines[count1]):
+            share_start = line.find("Share Path ")
+            path_start = line.find("Folder Path")
+            share_end = path_start-1
+            count1 += 1
+        
+        if all(val > 0 for val in [share_start,path_start,share_end]):
+            if not re.search("^\s*$",lines[count1]):
+                free_space = re.split(r'\s+',lines[count1])[1]
+                used_space = re.split(r'\s+',lines[count1])[2]
+                share_path_name = lines[count1][share_start:share_end].rstrip() 
+                share_path_prefix = "\\\\"+out['server']+"\\"
+                share_name = share_path_name[len(share_path_prefix):]
+                share_folder_path = lines[count1][path_start:].rstrip() 
+                all_shares.append(share_name)
+
+                if not 'shares_info' in out:
+                    out['shares_info'] = {}
+                if share_name.upper() != 'IPC$':
+                    out['shares_info'][share_name] = {"share_folder_path": share_folder_path, "free_space":free_space, "used_space": used_space}
+            else:
+                share_start = path_start = share_end = 0 
+
+        if re.search(r"^\s*Share\s+Types\s+Remark",lines[count1]):
+            start_attributes = True
+            count1 += 1
+        
+        if start_attributes:
+            if not re.search("^\s*$",lines[count1]):
+                for share_name in out['shares_info'].keys():
+                    matchObj = re.search(f"{re.escape(share_name)}\s+(DISKTREE|SPECIAL)\s*(.*)$",lines[count1])
+                    if matchObj:
+                       
+                       out['shares_info'][share_name]['type'] = matchObj.group(1)
+                       out['shares_info'][share_name]['comment'] = matchObj.group(2).rstrip()
+            else:
+                start_attributes = False
+        
+        if re.search(r"^\s*Share\s+Entity\s+Type",lines[count1]):
+            start_acl = True
+            count1 += 1        
+        
+        if start_acl and len(lines)!=count1:
+            if re.search(r"^\s\S+\s+.+$",lines[count1].rstrip()):
+                for share_name in out['shares_info'].keys():
+                    matchObj = re.search(f"\s{re.escape(share_name)}\s+(.+)\s+(\S+\/.+)",lines[count1])
+                    if matchObj:
+                        if not 'acl' in out['shares_info'][share_name]:
+                            out['shares_info'][share_name]['acl'] = []
+                        out['shares_info'][share_name]['acl'].append({"user": matchObj.group(1).rstrip(), 
+                                                                      "action": matchObj.group(2).rstrip().split('/')[0], 
+                                                                      "permission": matchObj.group(2).rstrip().split('/')[1]
+                                                                     })
+                        current_share = share_name
+            elif re.search("\s+(.+)\s+(\S+\/.+)",lines[count1].rstrip()) and current_share:  
+                matchObj = re.search("\s+(.+)\s+(\S+\/.+)",lines[count1].rstrip())
+                out['shares_info'][current_share]['acl'].append({"user": matchObj.group(1).rstrip(), 
+                                                                "action": matchObj.group(2).rstrip().split('/')[0], 
+                                                                "permission": matchObj.group(2).rstrip().split('/')[1]
+                                                                })
+           
+
+        #go to next line
+        count1+=1
+
+    return(out)	
 	
+def map_host(hosts,protocol,output):
 
-		
-		
+	if protocol == 'cifs':
+		hosts_share_info = list()
+		for host in hosts.split(','):
+			logging.info(f"gathering CIFS shares information on host: {host}") 
+			pscmd = f"c:\\NetApp\\XCP\\xcp.exe show \\\\{host}"
+			results = run_powershell_cmd_on_windows_agent(pscmd,True)
+			if  results['status']!= 'complete':
+				logging.error(f"cannot not map CIFS shares information on host: {host} using XCP.exe, discovery: {results['status']}")
+				exit(1)	
+			
+			share_info = parse_xcp_status_shares(results['stdout'].splitlines())
+			hosts_share_info.append(share_info)
+		if output=='json':
+			print(json.dumps(hosts_share_info))
+		elif output=='csv':
+			writer = csv.writer(sys.stdout,delimiter="\t")
+			writer.writerow(['Server','Share','Folder','Comment','ACL user','Action','ACL permission','VOL Free Space','VOL Used Space'])
 
+			for fileserver in hosts_share_info:
+				if not 'server' in fileserver:
+					continue
+				server = fileserver['server']
+				for share in fileserver['shares_info']:
+					share_name = share 
+					share_folder_path = fileserver['shares_info'][share_name]['share_folder_path']
+					if 'comment' in fileserver['shares_info'][share_name]:
+						comment = fileserver['shares_info'][share_name]['comment']
+					else:
+						comment = ''
+					if 'acl' in fileserver['shares_info'][share_name]: 
+						for acl in fileserver['shares_info'][share_name]['acl']:
+							raw = [server,share_name,share_folder_path,comment,acl['user'],acl['action'],acl['permission'],fileserver['shares_info'][share_name]['free_space'],fileserver['shares_info'][share_name]['used_space']]
+							writer.writerow(raw)
+					else:
+						raw = [server,share_name,share_folder_path,comment,'','','',fileserver['shares_info'][share_name]['free_space'],fileserver['shares_info'][share_name]['used_space']]
+						writer.writerow(raw)			
+		else:
+			if len(hosts_share_info) == 0:
+				print("no data found")
+				return
+
+			#build the table object
+			table = PrettyTable()
+			table.field_names = ['Server','Share','Folder','Comment','ACL User','Action','ACL Permission','VOL Free Space','VOL Used Space']
+			for fileserver in hosts_share_info:
+				if not 'server' in fileserver:
+					continue
+				server = fileserver['server']
+				for share in fileserver['shares_info']:
+					share_name = share 
+					share_folder_path = fileserver['shares_info'][share_name]['share_folder_path']
+					if 'comment' in fileserver['shares_info'][share_name]:
+						comment = fileserver['shares_info'][share_name]['comment']
+					else:
+						comment = ''
+					if 'acl' in fileserver['shares_info'][share_name]: 
+						for acl in fileserver['shares_info'][share_name]['acl']:
+							row = [server,share_name,share_folder_path,comment,acl['user'],acl['action'],acl['permission'],fileserver['shares_info'][share_name]['free_space'],fileserver['shares_info'][share_name]['used_space']]
+							table.add_row(row)
+					else:
+						row = [server,share_name,share_folder_path,comment,'','','',fileserver['shares_info'][share_name]['free_space'],fileserver['shares_info'][share_name]['used_space']]
+						table.add_row(row)
+			
+			table.border = False
+			table.align = 'l'
+			print(table)			
+
+
+
+	
+	#haim
 
 
 #####################################################################################################
@@ -6042,6 +6205,9 @@ if args.subparser_name == 'assess':
 if args.subparser_name == 'create':
 	create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram,args.exclude)
 	create_nomad_jobs()
+
+if args.subparser_name == 'map':
+	map_host(args.hosts,args.protocol,args.output)
 
 if args.subparser_name == 'copy-data':
 	monitored_copy(args.source,args.destination,args.nfs4acl)
