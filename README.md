@@ -2,16 +2,10 @@
 
 ## What is XCPtion?
 
-XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility (for CIFS the tool supports also 
-robocopy.exe). 
-XCPtion will be able to parallelly execute and manage multiple XCP jobs on more than one host in a distributed fashion. 
-This is done by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distributed scheduler. 
+XCPtion is a wrapper utility for [NetApp XCP](https://xcp.netapp.com/) NFS/CIFS file copy/migration utility. Support been also extended to: [robocopy] (CIFS), [cloudsync] (CIFS, NFS, S3, etc) (https://bluexp.netapp.com/cloud-sync-service), rclone (s3, google drive, ondrive and many more) (https://rclone.org/) and ndmpcopy (copy data between netapp volume/sub volume)
 
-XCPtion also include support for NetApp CloudSync (https://cloudmanager.netapp.com/sync) and can manage cloudsync relationships using various source and target endpoints (nfs, nfs-fsx, cifs, s3, s3ontap, sgws, local).
-
-Also added support for rclone (https://rclone.org/) which can be used for cloud storage such as s3, google drive, ondrive and many more. 
-
-And now it is also includes support for OnTap ndmpcopy that enables NetApp filer to filer volume/subvolume NDMP copy 
+XCPtion has the capability to concurrently execute and manage multiple tasks across a cluster of servers in a distributed manner
+This is achieved by utilizing [Hashi Corp Nomad](https://www.nomadproject.io/) distributed scheduler. 
 
 ## Where do I get XCPtion?
 
@@ -68,15 +62,16 @@ The interaction is done using the following python CLI command (need root access
 ```
 [root@centos1 xcption]# ./xcption.py -h
 usage: xcption.py [-h] [-v] [-d]
-                  {nodestatus,status,assess,load,create,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
+                  {nodestatus,status,assess,map,load,create,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                   ...
 
 positional arguments:
-  {nodestatus,status,assess,load,create,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
+  {nodestatus,status,assess,map,load,create,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                         sub commands that can be used
     nodestatus          display cluster nodes status
     status              display status
     assess              assess filesystem and create csv file
+    map                 map shares/exports
     load                load/update configuration from csv file
     create              create ad-hock task
     baseline            start initial baseline
@@ -105,7 +100,7 @@ optional arguments:
 
 ```
 
-**To display the nodes in the cluster use the `nodestatus` subcommand**
+**To list the nodes in the cluster use the `nodestatus` subcommand**
 
 [user@master xcption]$ sudo ./xcption.py nodestatus
 
@@ -120,9 +115,9 @@ optional arguments:
 
 ```
 
-The command display each node in the cluster, its status and amount of resources reserved/available by jobs and the nu,ber of running jobs.
+The command display each node in the cluster, its status and amount of resources reserved/available by jobs and the number of currently running jobs.
 
-**There are 2 options to create XCPtion jobs:**
+**There are several options to create XCPtion jobs:**
 
 **1. manual CSV creation**
 
@@ -140,30 +135,30 @@ a CSV file with the jobs should be created with the following columns:
 
 `FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)
 
-`EXCLUDE DIRS` (optional, supported for robocopy and xcp for nfs) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded for the migration. this is not recomanded for nfs due to xcp still scanning excluded dirs
+`EXCLUDE DIRS` (optional, supported for xcp for NFS, robocopy, rclone and ndmpcopy) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded during the migration. using exclude with xcp for NFS is not recomanded becuase xcp still scanning excluded dirs
 `ACL COPY` (optional) - incldue details for acl copy. no-win-acl will prevent acl copy for CIFS jobs (robocopy and xcp), nfs4-acl will include nfs4-acl for nfs jobs (require nfs4 acl suport on both source and destination)
 
 SOURCE and DEST paths format are as follows: 
 - NFS job using xcp - nfsserver:/export[/path] - both source and destination should be accesible from each one of the Linux servers in the cluster using root permissions  
 
-- CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission
+- CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission (the user used for `XCPtion Nomad` service is used by the tool)
 
 - CloudSync job accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
   - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,nfs-fsx,cifs,local,s3,sgws,s3ontap 
   - path - the following formats are supported paths:
         nfs path format: nfsserver:/export[:path]
         local (local storage on the broker) path format : /path
-        cifs path format: cifsserver:/share[/path] - username, password and domain for cifs can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: cifs:cifsserver:username:password[:domain]. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
-        s3ontap (ontap s3 server) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: s3ontap:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
-        sgws (storage grid) path format: s3server:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)        
-        s3 (aws s3) path format: region:bucket - accesskey and secretkey can be provided in xcption installdir/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@region:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)           
+        cifs path format: cifsserver:/share[/path] - username, password and domain for cifs can be provided in xcption <installdir>/system/xcp_repo/cloudsync/cred file with the following format: cifs:cifsserver:username:password[:domain]. if not provided can be entered manually in cloudsync interface following job creation (after xcption load)
+        s3ontap (ontap s3 server) path format: s3server:bucket - accesskey and secretkey can be provided in xcption <installdir>/system/xcp_repo/cloudsync/cred file with the following format: s3ontap:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)
+        sgws (storage grid) path format: s3server:bucket - accesskey and secretkey can be provided in xcption <installdir>/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@s3server:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)        
+        s3 (aws s3) path format: region:bucket - accesskey and secretkey can be provided in xcption <installdir>/system/xcp_repo/cloudsync/cred file with the following format: sgws:s3server:bucket@region:accessKey:secretKey. if not provided can be entered manualy in cloudsync interface following job creation (after xcption load)           
   - broker_group_name - name of the cloud sync broker group (containing one or more broker) with access to both source and destination. can be seen in the cloudesync:manage data brokers tab
   - account_name - name of the cloud sync multitenancy account name 
-  - username - the username provided should corelate to entry in the xcption installdir/system/xcp_repo/cloudsync/accounts with corelation to valid cloudsync API key created according to the procedure https://docs.netapp.com/us-en/occm/api_sync.html. Each line in the file should use the following format: username:apikey 
+  - username - the username provided should corelate to entry in the xcption <installdir>/system/xcp_repo/cloudsync/accounts with corelation to valid cloudsync API key created according to the procedure https://docs.netapp.com/us-en/occm/api_sync.html. Each line in the file should use the following format: username:apikey 
 
-- rclone job accoridng to the following format: remote:path[/folder]. remotes should be confiugred according to rclone documentation in installdir/system/xcp_repo/rclone/rclone.conf
+- rclone job accoridng to the following format: remote:path[/folder]. remotes should be confiugred according to rclone documentation and should be saved in <installdir>/system/xcp_repo/rclone/rclone.conf
 
-- ndmpcopy job job according to the following format ontapuser@cluster:/svm/vol[/path]. ssh public key authentication should be configured to allow unauthenticated ssh conectivity from XCPtion linux hosts to the involved clusters. 
+- ndmpcopy job job according to the following format ontapuser@cluster:/svm/vol[/path]. ssh public key authentication should be configured to allow unauthenticated ssh conectivity from all XCPtion linux hosts in the cluster. 
 
 CSV file example:
 ```
@@ -193,7 +188,8 @@ ndmpcopy,admin@cluster1:/svm/srcvol/folder1,admin@cluster2:/svm/dstvol/folder1,0
 ndmpcopy,admin@cluster1:/svm/srcvol/qtree1,admin@cluster2:/svm/dstvol/qtree1,0 0 * * * *,50,50,ndmpcopy,,,ndmpcopy.exclude
 ```
 
-XCP NFS EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
+EXCLUDE DIRS file format example:
+XCP NFS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
 ```
 192.168.0.200:/nfssrc/dir4/unused_files
 192.168.0.200:/nfssrc/dir4/subdir/old_to_delete
