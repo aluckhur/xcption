@@ -590,20 +590,125 @@ optional arguments:
 **additional sub commands that can be used includes the following**
 
 `pause`  - pause cron scheules 
+```
+[root@rhel1 xcption]# ./xcption.py pause -h
+usage: xcption.py pause [-h] [-j jobname] [-s srcpath]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+```
 `resume` - resume cron scheules 
+```
+[root@rhel1 xcption]# ./xcption.py resume -h
+usage: xcption.py resume [-h] [-j jobname] [-s srcpath]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+```
 `abort`  - abort running job
+```
+[root@rhel1 xcption]# ./xcption.py abort -h
+usage: xcption.py abort [-h] [-j jobname] [-s srcpath] -t type [-f]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+  -t type, --type type  specify the type of job to abort, can be baseline,sync
+                        or verify
+  -f, --force           force abort
+```
 `modify` - modify job properties like job name, cron, reserved resources, etc. 
+```
+[root@rhel1 xcption]# ./xcption.py modify -h
+usage: xcption.py modify [-h] [-j jobname] [-s srcpath] [-t tojob] [-c cron]
+                         [-p CPU] [-m RAM] [-f]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+  -t tojob, --tojob tojob
+                        move selected tasks to this job
+  -c cron, --cron cron  modify the sync schedule for this job
+  -p CPU, --cpu CPU     modify CPU allocation in MHz for each job
+  -m RAM, --ram RAM     modify RAM allocation in MB for each job
+  -f, --force           force modify
+```
 `export` - export jobs into csv file, the can be used for backup are job configuration migration to anther server. 
+```
+[root@rhel1 xcption]# ./xcption.py export -h
+usage: xcption.py export [-h] -c CSVFILE [-j jobname] [-s srcpath]
 
-`web`    - starts simple web interface for ro access.
+optional arguments:
+  -h, --help            show this help message and exit
+  -c CSVFILE, --csvfile CSVFILE
+                        input CSV file with the following columns: Job
+                        Name,SRC Path,DST Path,Schedule,CPU,Memory
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
 
+```
 `delete` - delete jobs from xcption 
+```
+[root@rhel1 xcption]# ./xcption.py delete -h
+usage: xcption.py delete [-h] [-j jobname] [-s srcpath] [-f]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+  -f, --force           force delete
+```
+`web`    - starts simple web interface for ro access.
+```
+[root@rhel1 xcption]# ./xcption.py web -h
+usage: xcption.py web [-h] [-p port]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -p port, --port port  tcp port to start the web server on (default:1234)
+```
 
 `copy-data`   - ad-hoc monitored copy of source to destination (nfs only)
+```
+[root@rhel1 xcption]# ./xcption.py copy-data -h
+usage: xcption.py copy-data [-h] -s SOURCE -d DESTINATION [-f] [-a]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -s SOURCE, --source SOURCE
+                        source nfs path (nfssrv:/mount)
+  -d DESTINATION, --destination DESTINATION
+                        destination nfs path (nfssrv:/mount)
+  -f, --force           force copy event if destination contains files
+  -a, --nfs4acl         use to include nfs4-acl
+```
 `delete-data` - ad-hoc monitored delete of data using xcp (nfs only)
+```
+[root@rhel1 xcption]# ./xcption.py delete-data -h
+usage: xcption.py delete-data [-h] -s SOURCE [-t tool] [-f]
 
+optional arguments:
+  -h, --help            show this help message and exit
+  -s SOURCE, --source SOURCE
+                        source nfs path (nfssrv:/mount)
+  -t tool, --tool tool  tool to use (default is xcp)
+  -f, --force           force delete data without confirmation
+```
