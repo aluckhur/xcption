@@ -111,4 +111,9 @@
 3.3.2.0
 - add support for xcp 1.9.3
 - enable sync without baseline completion when XCPTION_FORCE_SYNC environmental variable is set to TRUE (usefull for cloudsync/robocopy)
+- enable cloudsync to abort exisitng running job when sync is starting when XCPTION_ABORT_RUNNING_CLOUD_SYNC_JOBS environmental variable is set to TRUE (usefull when only xcption manages cloudsync jobs and external syncs should be disbaled)
 - use isync instead of copy for xcp linux jobs. enables re-baseline without coping all data from scratch 
+
+3.3.3.0
+- add the map sub command to map exports and shares 
+- updated README file 
