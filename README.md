@@ -588,6 +588,7 @@ optional arguments:
 ```
 
 **additional sub commands that can be used includes the following**
+
 `pause`  - pause cron scheules 
 `resume` - resume cron scheules 
 `abort`  - abort running job
