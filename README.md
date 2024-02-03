@@ -574,10 +574,10 @@ optional arguments:
  192.168.0.132  192.168.0.132:/vol2  95.0GiB     884KiB      3.11M       884KiB
  192.168.0.132  192.168.0.132:/      17.6MiB     1.44MiB     462         1.44MiB
  192.168.0.132  192.168.0.132:/vol1  100.0GiB    15.4MiB     24.9M       15.4MiB
-[root@rhel1 xcption]# ./xcption.py  map -p cifs -s 192.168.0.132
 ```
 
 ```
+[root@rhel1 xcption]# ./xcption.py  map -p cifs -s 192.168.0.132
 2024-02-03 03:41:49,138 - INFO - gathering CIFS shares information on host: 192.168.0.132
  Server         Share    Folder           Comment  ACL User        Action  ACL Permission  VOL Free Space  VOL Used Space
  192.168.0.132  xcption  C:\vol1\xcption           Domain Admins   Allow   Full Control    100.0GiB        15.4MiB
