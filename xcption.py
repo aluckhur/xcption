@@ -211,7 +211,7 @@ parser_create.add_argument('-s','--source',help="source path",required=True,type
 parser_create.add_argument('-d','--destination',help="destination path",required=True,type=str)
 parser_create.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
 parser_create.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
-parser_create.add_argument('-t','--tool',help="tool to use, can be [xcp|robocopy|rclone|ndmpcopy]", choices=['xcp','robocopy','rclone','ndmpcopy'],required=False,default='xcp',type=str,metavar='tool')
+parser_create.add_argument('-t','--tool',help="tool to use, can be [xcp|robocopy|rclone|ndmpcopy|cloudsync]", choices=['xcp','robocopy','rclone','ndmpcopy','cloudsync'],required=False,default='xcp',type=str,metavar='tool')
 parser_create.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
 parser_create.add_argument('-e','--exclude',help="comma seperated exclude paths",required=False,type=str)
 parser_create.add_argument('-v','--novalidation',help="create can be faster for windows paths since valaidation is prevented", required=False,action='store_true')
