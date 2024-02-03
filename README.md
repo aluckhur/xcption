@@ -124,8 +124,8 @@ The command display each node in the cluster, its status and amount of resources
 a CSV file with the jobs should be created with the following columns:
 
 `JOB NAME` - A name for the JOB, later on actions and output can be filtered by this name  
-`SOURCE PATH` - Source path *  
-`DEST PATH` - Destination path *  
+`SOURCE PATH` - Source path (format is dependent in the tool) 
+`DEST PATH` - Destination path (format is dependent in the tool) 
 `SYNC SCHED` (optional) - sync schedule in [cron](http://www.nncron.ru/help/EN/working/cron-format.htm) format (DEFAULT is daily @ midnight:`0 0 * * * *`)  
 `CPU MHz` (optional) - The reserved CPU frequency for the job (DEFAULT:3000)  
 `RAM MB` (optional) - The reserved RAM for the job (DEFAULT:800)  
@@ -590,12 +590,20 @@ optional arguments:
 **additional sub commands that can be used includes the following**
 
 `pause`  - pause cron scheules 
+
 `resume` - resume cron scheules 
+
 `abort`  - abort running job
+
 `modify` - modify job properties like job name, cron, reserved resources, etc. 
+
 `export` - export jobs into csv file, the can be used for backup are job configuration migration to anther server. 
+
 `web`    - starts simple web interface for ro access.
+
 `delete` - delete jobs from xcption 
+
 `copy-data`   - ad-hoc monitored copy of source to destination (nfs only)
-`delete-data` - monitored delete of data using xcp (nfs only)
+
+`delete-data` - ad-hoc monitored delete of data using xcp (nfs only)
 
