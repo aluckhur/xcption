@@ -109,7 +109,7 @@ cloudsyncscript = os.path.join(root,'cloudsync','cloudsync.py')
 rclonebin = os.path.join(root,'system','rclone_wrapper.sh')
 #rclone conf dir 
 rcloneconffile = os.path.join(xcprepopath,'rclone','rclone.conf')
-rcloneglobalflags = '--no-check-certificate --retries 0 --auto-confirm --multi-thread-streams 32 --checkers 32 --progress --metadata --transfers 16'
+rcloneglobalflags = '--no-check-certificate --retries 1 --auto-confirm --multi-thread-streams 32 --checkers 32 --progress --metadata --transfers 16'
 
 #ndmpcopy bin 
 ndmpcopybin = os.path.join(root,'system','ndmpcopy_wrapper.sh')
