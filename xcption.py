@@ -189,8 +189,8 @@ parser_status.add_argument('-e','--error',help="change the scope of the command 
 parser_status.add_argument('-o','--output',help="output type: [csv|json]",choices=['csv','json'],required=False,type=str,metavar='output')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
-parser_assess.add_argument('-s','--source',help="source nfs/cifs path",required=True,type=str)
-parser_assess.add_argument('-d','--destination',help="destination nfs/cifs path",required=True,type=str)
+parser_assess.add_argument('-s','--source',help="source path",required=True,type=str)
+parser_assess.add_argument('-d','--destination',help="destination path",required=True,type=str)
 parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
 parser_assess.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
 parser_assess.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
@@ -207,11 +207,11 @@ parser_map.add_argument('-p','--protocol',help="server protocol: [cifs|nfs]",cho
 parser_map.add_argument('-o','--output',help="output type: [csv|json]",choices=['table','csv','json'],required=False,default='table',type=str,metavar='output')
 
 parser_create.add_argument('-j','--job',help="xcption job name", required=True, type=str,metavar='jobname')
-parser_create.add_argument('-s','--source',help="source nfs/cifs path",required=True,type=str)
-parser_create.add_argument('-d','--destination',help="destination nfs/cifs path",required=True,type=str)
+parser_create.add_argument('-s','--source',help="source path",required=True,type=str)
+parser_create.add_argument('-d','--destination',help="destination path",required=True,type=str)
 parser_create.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
 parser_create.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
-parser_create.add_argument('-t','--tool',help="tool to use as part of the task", choices=['xcp','robocopy','rclone','ndmpcopy'],required=False,default='xcp',type=str,metavar='tool')
+parser_create.add_argument('-t','--tool',help="tool to use, can be [xcp|robocopy|rclone|ndmpcopy]", choices=['xcp','robocopy','rclone','ndmpcopy'],required=False,default='xcp',type=str,metavar='tool')
 parser_create.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
 parser_create.add_argument('-e','--exclude',help="comma seperated exclude paths",required=False,type=str)
 parser_create.add_argument('-v','--novalidation',help="create can be faster for windows paths since valaidation is prevented", required=False,action='store_true')
@@ -429,7 +429,7 @@ def ssh (hostname:str, cmd: list = []):
 
 #validate ontap ndmp 
 def validate_ontap_ndmp(ontappath):
-	matchObj = re.match("^([a-zA-Z0-9._%+-]+)@([a-zA-Z0-9.-]+):\/([a-zA-Z0-9.-]+)\/([a-zA-Z0-9.-]+)(.*)$",ontappath)
+	matchObj = re.match("^([a-zA-Z0-9._%+-_]+)@([a-zA-Z0-9.-_]+):\/([a-zA-Z0-9.-_]+)\/([a-zA-Z0-9.-]+)(.*)$",ontappath)
 	if matchObj:
 		ontapuser = matchObj.group(1)
 		ontaphost = matchObj.group(2)
@@ -3949,6 +3949,8 @@ def createhardlinkmatches(dirtree,inputfile):
 
 	content = [x.strip() for x in content] 
 	for line in content:
+		if not ":/" in line:
+			continue 
 		path,inode = line.split(',')
 		if path and inode:
 			if not inode in list(hardlinks.keys()): 
