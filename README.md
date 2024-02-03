@@ -189,6 +189,7 @@ ndmpcopy,admin@cluster1:/svm/srcvol/qtree1,admin@cluster2:/svm/dstvol/qtree1,0 0
 ```
 
 EXCLUDE DIRS file format example:
+
 XCP NFS file example (<installdir>/system/xcp_repo/excluedir/nfs_dir4_exclude_dirs for the above example)
 ```
 192.168.0.200:/nfssrc/dir4/unused_files
@@ -200,7 +201,7 @@ ROBOCOPY EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/cifs_
 \\192.168.0.200\src$\dir4\subdir1\files_not_needed
 unused_files #name of specific directory to exclude
 ```
-RCLONE EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/rclone.exclude for the above example)
+RCLONE EXCLUDE DIRS file example (<installdir>/system/xcp_repo/excluedir/rclone.exclude for the above example), format is according to rclone filtering rules: https://rclone.org/filtering/
 ```
 /folder1/**
 /folder2/**
@@ -215,16 +216,39 @@ NDMPCOPY EXCLUDE PATHS file example (<installdir>/system/xcp_repo/excluedir/ndmp
 
 cloudsync accounts file example (<installdir>/system/xcp_repo/cloudsync/accounts for the above example)
 ```
-hmarko:<refresh token from https://services.cloud.netapp.com/refresh-token>
+hmarko:<refresh token generated in https://services.cloud.netapp.com/refresh-token>
 ```
-cloudsync creds file example (<installdir>/system/xcp_repo/cloudsync/creds for the above example)
+cloudsync cred file example (<installdir>/system/xcp_repo/cloudsync/creds for the above example)
 ```
 cifs:192.168.0.200:<user>:<passwd>!:demo
 s3:bucket:<accesskey>:<secretkey>
 sgws:<bucket>@<endpoint>:<accesskey>:<secretkey>
 ```
+**2. add-hoc job creation**
+jobs can be created using the `xcption create` subcommand. 
+```
+usage: xcption.py create [-h] -j jobname -s SOURCE -d DESTINATION [-p CPU]
+                         [-m RAM] [-t tool] [-n cron] [-e EXCLUDE] [-v]
 
-**2. assessment of existing filesystem (not supported for cloudsync)**
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        xcption job name
+  -s SOURCE, --source SOURCE
+                        source nfs/cifs path
+  -d DESTINATION, --destination DESTINATION
+                        destination nfs/cifs path
+  -p CPU, --cpu CPU     CPU allocation in MHz for each job
+  -m RAM, --ram RAM     RAM allocation in MB for each job
+  -t tool, --tool tool  tool to use as part of the task
+  -n cron, --cron cron  create all task with schedule
+  -e EXCLUDE, --exclude EXCLUDE
+                        comma seperated exclude paths
+  -v, --novalidation    create can be faster for windows paths since
+                        valaidation is prevented
+```
+
+**3. assessment of existing filesystem (supported for NFS and CIFS using xcp/robocopy) - ADVANCED**
 
 Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `assess` and `smartassess` subcommands.
 
