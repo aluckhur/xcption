@@ -248,190 +248,6 @@ optional arguments:
                         valaidation is prevented
 ```
 
-**3. assessment of existing filesystem (supported for NFS and CIFS using xcp/robocopy) - ADVANCED**
-
-Automatic assessment of the source filesystem, preparation of the destination file system and creation of the csv file can be achieved using the `assess` and `smartassess` subcommands.
-
-for example if our source file system directory structure up to depth of 2 levels look as follows (bellow the subfolders we have many other files and directories). 
-
-```
- ├── folder1  
- │   ├── subfolder1  
- │   ├── subfolder2  
- │   └── subfolder3  
- ├── folder2  
- │   ├── subfolder1  
- │   ├── subfolder2  
- │   └── subfolder3  
- └── folder3  
-     ├── subfolder1  
-     ├── subfolder2
-     └── file1
-```
-we can use the `assess` command to build this initial directory structure on the destination volume and automatically create the XCPtion CSV file for us.
-XCPtion will analyze the source file system, will validate destination filesystem is not already contains data and will create the directory structure on the destination (using rsync).  
-
-**directory structure is created using `rsync` on linux and `robocopy` on windows will not be updated to the destination if new files/directories are created bellow the paths managed by XCPtion jobs  
-for example if a file is created under /src/folder1/ it should be manually updated to the destination**
-
-```
-usage: xcption.py assess [-h] -s SOURCE -d DESTINATION -l DEPTH -c CSVFILE [-p CPU] [-m RAM] [-r] [-u FAILBACKUSER] [-g FAILBACKGROUP] [-j jobname] [-n cron] [-a aclcopy]
-
-optional arguments:
-  -h, --help            show this help message and exit
-  -s SOURCE, --source SOURCE
-                        source nfs/cifs path
-  -d DESTINATION, --destination DESTINATION
-                        destination nfs/cifs path
-  -l DEPTH, --depth DEPTH
-                        filesystem depth to create jobs, range of 1-12
-  -c CSVFILE, --csvfile CSVFILE
-                        output CSV file
-  -p CPU, --cpu CPU     CPU allocation in MHz for each job
-  -m RAM, --ram RAM     RAM allocation in MB for each job
-  -r, --robocopy        use robocopy instead of xcp for windows jobs
-  -u FAILBACKUSER, --failbackuser FAILBACKUSER
-                        failback user required for xcp for windows jobs, see xcp.exe copy -h
-  -g FAILBACKGROUP, --failbackgroup FAILBACKGROUP
-                        failback group required for xcp for windows jobs, see xcp.exe copy -h
-  -j jobname, --job jobname
-                        xcption job name
-  -n cron, --cron cron  create all task with schedule
-  -a aclcopy, --acl aclcopy
-                        use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy
-
-```
-
-Example of running assess on NFS job:
-
-```
-user@master:~/xcption$ sudo ./xcption.py asses -c example/nfsjob.csv -s 192.168.0.200:/nfssrc -d 192.168.0.200:/nfsdst -l 1 -p 1000 -m 800 -j jobnfs1
-2019-09-06 15:31:39,709 - WARNING - source directory: 192.168.0.200:/nfssrc/ contains 1 files. those files will not be included in the xcption jobs and need to be copied externaly
-please review the warnings above, do you want to continue? [y/N] y
-2019-09-06 15:31:55,143 - INFO - job csv file:example/nfsjob.csv created
-2019-09-06 15:31:55,144 - INFO - rsync can be used to create the destination initial directory structure for xcption jobs
-2019-09-06 15:31:55,144 - INFO - rsync command to sync directory structure for the required depth will be:
-2019-09-06 15:31:55,144 - INFO - rsync -av --exclude ".snapshot" --exclude="/*/*" "/tmp/src_24145/" "/tmp/dst_24145/"
-2019-09-06 15:31:55,144 - INFO - (192.168.0.200:/nfssrc is mounted on:/tmp/src_24145 and 192.168.0.200:/nfsdst is mounted on:/tmp/dst_24145)
-do you want to run rsync ? [y/N] y
-2019-09-06 15:32:03,808 - INFO - =================================================================
-2019-09-06 15:32:03,808 - INFO - ========================Starting rsync===========================
-2019-09-06 15:32:03,808 - INFO - =================================================================
-sending incremental file list
-./
-file.txt
-dir1/
-dir2/
-dir3/
-dir4/
-
-sent 213 bytes  received 58 bytes  542.00 bytes/sec
-total size is 0  speedup is 0.00
-2019-09-06 15:32:03,825 - INFO - =================================================================
-2019-09-06 15:32:03,825 - INFO - ===================rsync ended successfully======================
-2019-09-06 15:32:03,825 - INFO - =================================================================
-2019-09-06 15:32:03,826 - INFO - csv file:example/nfsjob.csv is ready to be loaded into xcption
-
-user@master:~/xcption$ sudo cat example/nfsjob.csv
-#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB
-jobnfs1,192.168.0.200:/nfssrc/dir1,192.168.0.200:/nfsdst/dir1,0 0 * * * *,1000,800
-jobnfs1,192.168.0.200:/nfssrc/dir2,192.168.0.200:/nfsdst/dir2,0 0 * * * *,1000,800
-jobnfs1,192.168.0.200:/nfssrc/dir3,192.168.0.200:/nfsdst/dir3,0 0 * * * *,1000,800
-jobnfs1,192.168.0.200:/nfssrc/dir4,192.168.0.200:/nfsdst/dir4,0 0 * * * *,1000,800
-
-```
-
-Example of running asses on CIFS job **(make sure to escape \ when using cifs paths \\\\SRV\\share will be typed as \\\\\\\\SRV\\\\share)**:
-
-```
-user@master:~/xcption$ sudo  ./xcption.py assess -c example/cifsjob.csv -s \\\\192.168.0.200\\src$ -d \\\\192.168.0.200\\dst$ -j cifsjob -l 1 --cpu 2000 --ram 100 --robocopy
-2019-09-06 15:38:44,948 - INFO - validating src:\\192.168.0.200\src$ and dst:\\192.168.0.200\dst$ cifs paths are avaialble from one of the windows server
-2019-09-06 15:39:03,180 - WARNING - source path: \\192.168.0.200\src$ contains 2 files. those files will not be included in the xcption jobs and need to be copied externaly
-please review the warnings above, do you want to continue? [y/N] y
-2019-09-06 15:39:09,498 - INFO - job csv file:example/cifsjob.csv created
-2019-09-06 15:39:09,498 - INFO - robocopy can be used to create the destination initial directory structure for xcption jobs
-2019-09-06 15:39:09,498 - INFO - robocopy command to sync directory structure for the required depth will be:
-2019-09-06 15:39:09,498 - INFO - C:\NetApp\XCP\robocopy_wrapper.cmd /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:2 "\\192.168.0.200\src$" "\\192.168.0.200\dst$" /XF * ------ for directory structure
-2019-09-06 15:39:09,499 - INFO - C:\NetApp\XCP\robocopy_wrapper.cmd /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:1 "\\192.168.0.200\src$" "\\192.168.0.200\dst$" ------ for files
-do you want to run robocopy ? [y/N] y
-2019-09-06 15:39:19,573 - INFO - =================================================================
-2019-09-06 15:39:19,573 - INFO - ========================Starting robocopy========================
-2019-09-06 15:39:19,573 - INFO - =================================================================
-
-C:\NetApp\XCP\lib\alloc\d2a93b8a-2493-45b9-3b84-92c3ac878eda\win_C-_NetApp_XCP_r2481324813>c:\windows\system32\robocopy.exe /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:2 \\192.168.0.200\src$ \\192.168.0.200\dst$ /XF *
-
--------------------------------------------------------------------------------
-   ROBOCOPY     ::     Robust File Copy for Windows
--------------------------------------------------------------------------------
-
-  Started : Friday, September 6, 2019 8:39:02 AM
-   Source : \\192.168.0.200\src$\
-     Dest : \\192.168.0.200\dst$\
-
-    Files : *.*
-
-Exc Files : *
-
-  Options : *.* /TEE /S /E /COPYALL /PURGE /MIR /NP /LEV:2 /MT:16 /R:0 /W:0
-
-------------------------------------------------------------------------------
-
-
-------------------------------------------------------------------------------
-
-               Total    Copied   Skipped  Mismatch    FAILED    Extras
-    Dirs :         5         5         4         0         0         0
-   Files :        40         0        40         0         0         0
-   Bytes :   5.388 g         0   5.388 g         0         0         0
-   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
-   Ended : Friday, September 6, 2019 8:39:02 AM
-
-
-
-C:\NetApp\XCP\lib\alloc\efd1fe93-61c3-4848-f23e-1b9a32da3b78\win_C-_NetApp_XCP_r2481324813>c:\windows\system32\robocopy.exe /COPYALL /MIR /NP /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:1 \\192.168.0.200\src$ \\192.168.0.200\dst$
-
--------------------------------------------------------------------------------
-   ROBOCOPY     ::     Robust File Copy for Windows
--------------------------------------------------------------------------------
-
-  Started : Friday, September 6, 2019 8:39:05 AM
-   Source : \\192.168.0.200\src$\
-     Dest : \\192.168.0.200\dst$\
-
-    Files : *.*
-
-  Options : *.* /TEE /S /E /COPYALL /PURGE /MIR /NP /LEV:1 /MT:16 /R:0 /W:0
-
-------------------------------------------------------------------------------
-
-100%        New File                   0        \\192.168.0.200\src$\file - Copy.txt
-100%        New File                   0        \\192.168.0.200\src$\file.txt
-
-------------------------------------------------------------------------------
-
-               Total    Copied   Skipped  Mismatch    FAILED    Extras
-    Dirs :         1         1         0         0         0         0
-   Files :         2         2         0         0         0         0
-   Bytes :         0         0         0         0         0         0
-   Times :   0:00:00   0:00:00                       0:00:00   0:00:00
-   Ended : Friday, September 6, 2019 8:39:05 AM
-
-
-2019-09-06 15:39:26,677 - INFO - =================================================================
-2019-09-06 15:39:26,677 - INFO - =================robocopy ended successfully=====================
-2019-09-06 15:39:26,677 - INFO - =================================================================
-2019-09-06 15:39:26,677 - INFO - csv file:example/cifsjob.csv is ready to be loaded into xcption
-
-
-user@master:~/xcption$ sudo cat example/cifsjob.csv
-#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP
-cifsjob,\\192.168.0.200\src$\dir4,\\192.168.0.200\dst$\dir4,0 0 * * * *,2000,800,robocopy,,
-cifsjob,\\192.168.0.200\src$\dir3,\\192.168.0.200\dst$\dir3,0 0 * * * *,2000,800,robocopy,,
-cifsjob,\\192.168.0.200\src$\dir2,\\192.168.0.200\dst$\dir2,0 0 * * * *,2000,800,robocopy,,
-cifsjob,\\192.168.0.200\src$\dir1,\\192.168.0.200\dst$\dir1,0 0 * * * *,2000,800,robocopy,,
-
-```
-
 **Following the creation of the csv file, the file should be loaded and validated using the `load` command:**
 
 ```
@@ -479,9 +295,11 @@ user@master:~/xcption$ sudo ./xcption.py load -c example/cifsjob.csv
 
 ```
 
-**To run the baseline (xcp copy) the `baseline` command should be used**
+**To run the baseline (initial copy of data) the `baseline` command should be used**
 
-
+For xcp for NFS the baseline uses `xcp isync` instead of `xcp copy` (available as part of xcp 1.9.3) to prevent re-baseline of all data when destination already contains data.
+Baseline should be completed to enable incremental updated (sync). A rebaseline can be initiated using the `--force` (for xcp for NFS it will triger recreation of the index)
+When running without --job/--source baseline will be issued on all migration jobs.
 ```
 user@master:~/xcption$ sudo ./xcption.py baseline -h
 usage: xcption.py baseline [-h] [-j jobname] [-s srcpath] [-f]
@@ -511,6 +329,8 @@ user@master:~/xcption# sudo ./xcption.py baseline
 ```
 
 **To schedule the incremental updates (xcp sync) the `sync` subcommand should be used (sync is possiable only when baseline is complete)**
+The `sync` commnd will trigger/update the sync scheule and should be issued folloiwng every change in the cron schedule (for example after modifing the cron schedule of a job)
+When running without --job/--source baseline will be issued on all migration jobs.
 
 ```
 usage: xcption.py sync [-h] [-j jobname] [-s srcpath]
@@ -533,7 +353,52 @@ user@master:~/xcption# sudo ./xcption.py sync -j cifsjob
 
 ```
 
-**to start verification using xcp (linux and windows) the `verify` subcommand should be used (verify is possiable only when baseline is complete). verify -q can be used to verify 1 out 1000 files (using xcp -match rand(1000) option)** 
+**To trigger on demand sync the `syncnow` subcommand should be used (syncnow is possiable only when baseline is complete)**
+The `syncnow` commnd will start on demand sync not related to the cron schedule on the job.
+When running without --job/--source baseline will be issued on all migration jobs.
+
+```
+[root@rhel1 xcption]# ./xcption.py syncnow -h
+usage: xcption.py syncnow [-h] [-j jobname] [-s srcpath]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+```
+
+Example for starting sync on specific job name using the -j option
+```
+user@master:~/xcption# sudo ./xcption.py sync -j cifsjob
+2019-09-06 15:52:27,632 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir3 dst:\\192.168.0.200\dst$\dir3
+2019-09-06 15:52:27,708 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir2 dst:\\192.168.0.200\dst$\dir2
+2019-09-06 15:52:27,758 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir1 dst:\\192.168.0.200\dst$\dir1
+2019-09-06 15:52:27,807 - INFO - starting/updating sync job for src:\\192.168.0.200\src$\dir4 dst:\\192.168.0.200\dst$\dir4
+
+```
+
+**to start verification using xcp (linux and windows) the `verify` subcommand should be used (verify is possiable only when baseline is complete)**
+The verify command will trigger xcp verify jobIt can be used with `--withdata` to include also file content and not only names, `--quick` to verify 1 out 1000 files (using xcp -match rand(1000) option) or `--reverse` to compare destination to the source.
+```
+[root@rhel1 xcption]# ./xcption.py verify -h
+usage: xcption.py verify [-h] [-j jobname] [-s srcpath] [-q] [-w] [-r]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -j jobname, --job jobname
+                        change the scope of the command to specific job
+  -s srcpath, --source srcpath
+                        change the scope of the command to specific path
+  -q, --quick           perform quicker verify by using xcp random file verify
+                        (1 out of 1000)
+  -w, --withdata        perform deep data verification (full content
+                        verification)
+  -r, --reverse         perform reverse verify (dst will be compared to the
+                        src)
+
+```
 
 ```
 user@master:~/xcption$ sudo ./xcption.py verify
@@ -548,10 +413,13 @@ user@master:~/xcption$ sudo ./xcption.py verify
 
 ```
 
-
 **To report the status use the `status` command**
 
-can be filtered by specific job (-j), source (-s) and phase (-p)
+The `status` command is used to view the current status of the jobs managed by XCPtion. 
+When running without filters it will display informatoin on all jobs. Filters can be issued on job name, srcpath, job status, jobs with errors, used nodes, etc. 
+Output can be displayed in a human readable table or in CSV or JSON formats which can be used as part of automation.
+
+Verbose job information inclding all job properties and the status all phases within the job using `--verbose`. 
 
 ```
 user@master:~/xcption$ ./xcption.py status -h
@@ -578,6 +446,7 @@ optional arguments:
 
 
 Example:
+display general information on all jobs (no filters)
 
 ```
 
@@ -597,11 +466,10 @@ user@master:~/xcption# sudo ./xcption.py status
 
 ```
 
-verbose output can be seen using the `-v` argument for the `status` command 
-
+display verbose on job containing `dir1` in the source path
 
 ```
-user@master:~/xcption$ sudo ./xcption.py status  -v  -s dir1
+user@master:~/xcption$ sudo ./xcption.py status -v -s dir1
 JOB: jobnfs1
 SRC: 192.168.0.200:/nfssrc/dir1
 DST: 192.168.0.200:/nfsdst/dir1
@@ -631,44 +499,102 @@ TOOL NAME: robocopy
 
 **To see xcp logs for specific phase of a job use the `-p <phase>` argument together with the `-l` argument **
 
+As part of this command only the last 50 lines of the `stdout` and `stderr` are displayed. to see the complete file you can use the `cat` command on the file path displayed as part of the `status` command output.
+The following command is used to dispaly the logs of the last sync phase (`lastsync`), to see specific phase logs use baseline,sync#,verify#.
+
 ```
-user@master:~/xcption# sudo ./xcption.py status -v -s \\\\192.168.0.200\\src$\\dir1 -p verify1 -l
-JOB: cifsjob
-SRC: \\192.168.0.200\src$\dir1
-DST: \\192.168.0.200\dst$\dir1
-SYNC CRON: 0 0 * * * * (NEXT RUN 07:05:28)
-OS: WINDOWS
-TOOL NAME: robocopy
+[root@rhel1 xcption]# ./xcption.py status -s vol1 -v -p lastsync -l
 
- Phase    Start Time           End Time             Duration  Scanned      Reviewed  Copied  Modified  Deleted  Errors  Data Sent  Node  Status
- verify1  2019-09-06 16:49:47  2019-09-06 16:52:09  2m20s     5,372/5,372  5,372     -       -         -        -       -          WFA   equal
+JOB: nfs
+SRC: 192.168.0.132:/vol1
+DST: 192.168.0.132:/vol2
+SYNC CRON: 0 2 * * * (NEXT RUN 0d22h42m39s)
+RESOURCES: 2000MHz CPU 800MB RAM
+XCP INDEX NAME: 192.168.0.132-_vol1-192.168.0.132-_vol2
+EXCLUDE DIRS FILE: /root/xcption/system/xcp_repo/excludedir/nfs.exclude
+OS: LINUX
+TOOL NAME: xcp
 
-9 compared, 9 same, 0 different, 0 missing, 5s
-22 compared, 22 same, 0 different, 0 missing, 10s
-38 compared, 38 same, 0 different, 0 missing, 15s
-58 compared, 58 same, 0 different, 0 missing, 20s
-80 compared, 80 same, 0 different, 0 missing, 25s
-105 compared, 105 same, 0 different, 0 missing, 30s
-134 compared, 134 same, 0 different, 0 missing, 35s
-159 compared, 159 same, 0 different, 0 missing, 40s
-194 compared, 194 same, 0 different, 0 missing, 45s
-287 compared, 287 same, 0 different, 0 missing, 50s
-410 compared, 410 same, 0 different, 0 missing, 55s
-455 compared, 455 same, 0 different, 0 missing, 1m0s
-594 compared, 594 same, 0 different, 0 missing, 1m5s
-736 compared, 736 same, 0 different, 0 missing, 1m10s
-1,043 compared, 1,043 same, 0 different, 0 missing, 1m15s
-1,403 compared, 1,403 same, 0 different, 0 missing, 1m20s
-1,581 compared, 1,581 same, 0 different, 0 missing, 1m25s
-1,998 compared, 1,998 same, 0 different, 0 missing, 1m30s
-2,403 compared, 2,403 same, 0 different, 0 missing, 1m35s
-2,666 compared, 2,666 same, 0 different, 0 missing, 1m40s
-3,077 compared, 3,077 same, 0 different, 0 missing, 1m45s
-3,486 compared, 3,486 same, 0 different, 0 missing, 1m50s
-3,758 compared, 3,758 same, 0 different, 0 missing, 1m55s
-4,201 compared, 4,201 same, 0 different, 0 missing, 2m0s
-4,510 compared, 4,510 same, 0 different, 0 missing, 2m5s
-4,664 compared, 4,664 same, 0 different, 0 missing, 2m10s
-4,991 compared, 4,991 same, 0 different, 0 missing, 2m15s
-5,372 compared, 5,372 same, 0 different, 0 missing, 2m20s
+ Phase  Start Time           End Time             Duration  Scanned  Reviewed  Copied  Modified  Deleted  Errors  Data Sent             Node                   Status
+ sync1  2024-02-03 08:16:56  2024-02-03 08:16:59  1s        1        1         -       1         -        -       19.4 KiB(12.4 KiB/s)  rhel1.demo.netapp.com  complete
+
+Log type:stdout
+xcp: WARNING: CPU count is only 2!
+xcp: WARNING: CPU count is only 2!
+Job ID: Job_192.168.0.132-_vol1-192.168.0.132-_vol2_2024-02-03_03.16.57.515540_sync
+Index: 192.168.0.132-_vol1-192.168.0.132-_vol2 {source: 192.168.0.132:/vol1, target: 192.168.0.132:/vol2}
+
+
+1 reviewed, 1 checked at source, 1 modification, 17.1 KiB in (11.4 KiB/s), 14.2 KiB out (9.46 KiB/s), 1s.
+Starting search pass for 1 modified directory...
+1 reviewed, 1 checked at source, 1 modification, 1 re-reviewed, 21.7 KiB in (14.0 KiB/s), 14.3 KiB out (9.26 KiB/s), 1s.
+Rereading the 1 modified directory...
+1 reviewed, 1 checked at source, 1 modification, 1 re-reviewed, 1 new dir, 22.5 KiB in (14.5 KiB/s), 14.7 KiB out (9.42 KiB/s), 1s.
+Deep scanning the 1 modified directory...
+1 scanned, 1 indexed, 1 excluded, 1 reviewed, 1 checked at source, 1 modification, 1 re-reviewed, 1 new dir, 23.8 KiB in (15.2 KiB/s), 19.4 KiB out (12.4 KiB/s), 1s.
+
+the last 50 lines are displayed
+full log file path: /root/xcption/system/xcp_repo/nomadcache/job_sync__192.168.0.132-_vol1/stdoutlog_5a79dec1-700b-1878-e4fa-7f0fa7d74209.log
+Log type:stderr
+XCP 1.9.3; (c) 2024 NetApp, Inc.; Licensed to haim marko [NetApp Inc] until Tue Dec 17 17:53:30 2024
+
+Xcp command : xcp sync -id 192.168.0.132-_vol1-192.168.0.132-_vol2
+Stats       : 1 scanned, 1 indexed, 1 excluded, 1 reviewed, 1 checked at source, 1 modification, 1 re-reviewed, 1 new dir
+Speed       : 27.0 KiB in (16.4 KiB/s), 106 KiB out (64.0 KiB/s)
+Total Time  : 1s.
+Migration ID: 192.168.0.132-_vol1-192.168.0.132-_vol2
+Job ID      : Job_192.168.0.132-_vol1-192.168.0.132-_vol2_2024-02-03_03.16.57.515540_sync
+Log Path    : /root/xcption/system/xcp_repo/xcplogs/rhel1.demo.netapp.com/Job_192.168.0.132-_vol1-192.168.0.132-_vol2_2024-02-03_03.16.57.515540_sync.log
+STATUS      : PASSED
+
+the last 50 lines are displayed
+full log file path: /root/xcption/system/xcp_repo/nomadcache/job_sync__192.168.0.132-_vol1/stderrlog_5a79dec1-700b-1878-e4fa-7f0fa7d74209.log
+```
+**XCPtion can help with mapping existing NFS exports and CIFS shares information using the `map` command**
+This can be very helpful as part of migration to help with mapping the exisiting environment or to create automation for creation of CIFS shares and exports on the destinatation. 
+The information can be displayed in human readable table or using CSV/JSON ourput. 
+
+```
+usage: xcption.py map [-h] -s HOSTS -p type [-o output]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -s HOSTS, --hosts HOSTS
+                        comma seperated servers to map shares or exportrts
+  -p type, --protocol type
+                        server protocol: [cifs|nfs]
+  -o output, --output output
+                        output type: [csv|json]
+```
+
+```
+[root@rhel1 xcption]# ./xcption.py  map -p nfs -s 192.168.0.132
+2024-02-03 03:41:40,877 - INFO - gathering NFS exports information on host: 192.168.0.132
+ Server         Export               Free Space  Used Space  Free Files  Used Files
+ 192.168.0.132  192.168.0.132:/vol2  95.0GiB     884KiB      3.11M       884KiB
+ 192.168.0.132  192.168.0.132:/      17.6MiB     1.44MiB     462         1.44MiB
+ 192.168.0.132  192.168.0.132:/vol1  100.0GiB    15.4MiB     24.9M       15.4MiB
+[root@rhel1 xcption]# ./xcption.py  map -p cifs -s 192.168.0.132
+```
+
+```
+2024-02-03 03:41:49,138 - INFO - gathering CIFS shares information on host: 192.168.0.132
+ Server         Share    Folder           Comment  ACL User        Action  ACL Permission  VOL Free Space  VOL Used Space
+ 192.168.0.132  xcption  C:\vol1\xcption           Domain Admins   Allow   Full Control    100.0GiB        15.4MiB
+ 192.168.0.132  xcption  C:\vol1\xcption           Domain Users    Allow   Read            100.0GiB        15.4MiB
+ 192.168.0.132  vol2     C:\vol2                   Everyone        Allow   Full Control    95.0GiB         884KiB
+ 192.168.0.132  vol1     C:\vol1                   Everyone        Allow   Full Control    100.0GiB        15.4MiB
+ 192.168.0.132  c$       C:\                       Administrators  Allow   Full Control    17.6MiB         1.45MiB
+```
+
+**additional sub commands that can be used includes the following**
+`pause`  - pause cron scheules 
+`resume` - resume cron scheules 
+`abort`  - abort running job
+`modify` - modify job properties like job name, cron, reserved resources, etc. 
+`export` - export jobs into csv file, the can be used for backup are job configuration migration to anther server. 
+`web`    - starts simple web interface for ro access.
+`delete` - delete jobs from xcption 
+`copy-data`   - ad-hoc monitored copy of source to destination (nfs only)
+`delete-data` - monitored delete of data using xcp (nfs only)
 
