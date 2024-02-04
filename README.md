@@ -60,7 +60,7 @@ The rclone bnary should be available on all nodes in /usr/bin/rclone
 The interaction is done using the following python CLI command (need root access)
 
 ```
-[root@centos1 xcption]# ./xcption.py -h
+[root@rhel1 xcption]# ./xcption.py -h
 usage: xcption.py [-h] [-v] [-d]
                   {nodestatus,status,assess,map,load,create,baseline,sync,syncnow,pause,resume,abort,verify,delete,modify,copy-data,delete-data,nomad,export,web,fileupload,smartassess}
                   ...
@@ -73,7 +73,7 @@ positional arguments:
     assess              assess filesystem and create csv file
     map                 map shares/exports
     load                load/update configuration from csv file
-    create              create ad-hock task
+    create              create ad-hoc task
     baseline            start initial baseline
     sync                activate scheduled sync
     syncnow             initiate sync now
@@ -81,12 +81,12 @@ positional arguments:
     resume              resume sync schedule
     abort               abort running task
     verify              start verify to validate consistency between source
-                        and destination (xcp verify)
-    delete              delete existing config
+                        and destination
+    delete              delete existing tasks
     modify              modify task job
     copy-data           monitored copy of source to destination (nfs only)
     delete-data         monitored delete of data using xcp (nfs only)
-    export              export existing jobs to csv
+    export              export tasks to csv
     web                 start web interface to display status
     fileupload          transfer files to all nodes, usefull for xcp license
                         update on all nodes
@@ -97,7 +97,6 @@ optional arguments:
   -h, --help            show this help message and exit
   -v, --version         print version information
   -d, --debug           log debug messages to console
-
 ```
 
 **To list the nodes in the cluster use the `nodestatus` subcommand**
