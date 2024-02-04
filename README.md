@@ -134,15 +134,16 @@ a CSV file with the jobs should be created with the following columns:
 
 `FAILBACKGROUP` (optional, required for windows jobs using xcp.exe) - For windows jobs using the XCP tool it is mandatory to provide failback group (see xcp.exe help copy for details)
 
-`EXCLUDE DIRS` (optional, supported for xcp for NFS, robocopy, rclone and ndmpcopy) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (diffrent lines) that will be excluded during the migration. using exclude with xcp for NFS is not recomanded becuase xcp still scanning excluded dirs
-`ACL COPY` (optional) - incldue details for acl copy. no-win-acl will prevent acl copy for CIFS jobs (robocopy and xcp), nfs4-acl will include nfs4-acl for nfs jobs (require nfs4 acl suport on both source and destination)
+`EXCLUDE DIRS` (optional, supported for xcp for NFS, robocopy, rclone and ndmpcopy) - name of a file located in <installdir>/system/xcp_repo/excluedir containg a list of paths (different lines) that will be excluded during the migration. using exclude with xcp for NFS is not recommended because xcp still scanning excluded dirs
+
+`ACL COPY` (optional) - include details for acl copy. no-win-acl will prevent acl copy for CIFS jobs (robocopy and xcp), nfs4-acl will include nfs4-acl for nfs jobs (require nfs4 acl support on both source and destination)
 
 SOURCE and DEST paths format are as follows: 
 - NFS job using xcp - nfsserver:/export[/path] - both source and destination should be accesible from each one of the Linux servers in the cluster using root permissions  
 
 - CIFS job using xcp for windows or robocopy - \\\\cifsserver\\share[\\path] - both source and destination should be accesible from each one of the Windows servers in the cluster using administrative permission (the user used for `XCPtion Nomad` service is used by the tool)
 
-- CloudSync job accoring to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
+- CloudSync job according to the following format: protocol://path@broker_group_name@account_name@username , src and dst can be from diffrent protocols 
   - protocol - can be one of the following: nfs(same as nfs3),nfs3,nfs4,nfs4.1,nfs4.2,nfs-fsx,cifs,local,s3,sgws,s3ontap 
   - path - the following formats are supported paths:
         nfs path format: nfsserver:/export[:path]
