@@ -3171,16 +3171,25 @@ def nomadstatus():
 			ip = node['Address']
 
 			logging.debug("getting node specifics:"+name)
-			response = requests.get(nomadapiurl+'node/'+nodeid)
+			response = requests.get(nomadapiurl+'nodes?prefix='+nodeid+'&resources=true&os=true')
+			#deprecated nodes api 
+			#response = requests.get(nomadapiurl+'node/'+nodeid)
 			if not response.ok:
 				logging.error("could not get node information for node:"+name+" id:"+nodeid)
 				exit(1)
 			else:
+				nodedetails = json.loads(response.content)		
+				ostype = nodedetails[0]['Attributes']['os.name'].capitalize() 
+				totalcpu = nodedetails[0]['NodeResources']['Cpu']['CpuShares']
+				totalram = nodedetails[0]['NodeResources']['Memory']['MemoryMB']
+				#ip = nodedetails[0]['Address']
+				#deprecated nodes api 
+				#ostype = nodedetails['Attributes']['os.name'].capitalize() 
+				#totalcpu = nodedetails['Resources']['CPU']
+				#totalram = nodedetails['Resources']['MemoryMB']
+				response = requests.get(nomadapiurl+'node/'+nodeid)
 				nodedetails = json.loads(response.content)
-				ostype = nodedetails['Attributes']['os.name'].capitalize() 
 				ip = nodedetails['Attributes']['unique.network.ip-address']
-				totalcpu = nodedetails['Resources']['CPU']
-				totalram = nodedetails['Resources']['MemoryMB']
 
 				response = requests.get(nomadapiurl+'client/stats?node_id='+nodeid)
 				if not response.ok:
