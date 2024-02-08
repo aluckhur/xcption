@@ -136,32 +136,32 @@ else
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
   
   #pip3 install --no-index --find-links /tmp/pip_unzip_loc -r $SCRIPT_DIR/requirements.txt
-  pip3 install /tmp/pip_unzip_loc/certifi*
-  pip3 install /tmp/pip_unzip_loc/chardet*
-  pip3 install /tmp/pip_unzip_loc/typing_extensions*
-  pip3 install /tmp/pip_unzip_loc/zipp*
-  pip3 install /tmp/pip_unzip_loc/importlib_metadata*
-  pip3 install /tmp/pip_unzip_loc/click*
-  pip3 install /tmp/pip_unzip_loc/importlib_metadata-4.4.0-py3-none-any.whl
-  pip3 install /tmp/pip_unzip_loc/python_dateutil*
-  pip3 install /tmp/pip_unzip_loc/croniter*
-  pip3 install /tmp/pip_unzip_loc/dataclasses*
-  pip3 install /tmp/pip_unzip_loc/MarkupSafe*
-  pip3 install /tmp/pip_unzip_loc/Werkzeug*
-  pip3 install /tmp/pip_unzip_loc/itsdangerous*
-  pip3 install /tmp/pip_unzip_loc/Jinja2*
-  pip3 install /tmp/pip_unzip_loc/Flask*
-  pip3 install /tmp/pip_unzip_loc/future*
-  pip3 install /tmp/pip_unzip_loc/hurry.filesize*
-  pip3 install /tmp/pip_unzip_loc/idna*
-  pip3 install /tmp/pip_unzip_loc/MarkupSafe*
-  pip3 install /tmp/pip_unzip_loc/wcwidth*
-  pip3 install /tmp/pip_unzip_loc/prettytable*
-  pip3 install /tmp/pip_unzip_loc/urllib3*
-  pip3 install /tmp/pip_unzip_loc/requests*
-  pip3 install /tmp/pip_unzip_loc/python_nomad*
-  pip3 install /tmp/pip_unzip_loc/six*
-  pip3 install /tmp/pip_unzip_loc/treelib*
+  pip3 install /tmp/pip_unzip_loc/pip/certifi*
+  pip3 install /tmp/pip_unzip_loc/pip/chardet*
+  pip3 install /tmp/pip_unzip_loc/pip/typing_extensions*
+  pip3 install /tmp/pip_unzip_loc/pip/zipp*
+  pip3 install /tmp/pip_unzip_loc/pip/importlib_metadata*
+  pip3 install /tmp/pip_unzip_loc/pip/click*
+  pip3 install /tmp/pip_unzip_loc/pip/importlib_metadata-4.4.0-py3-none-any.whl
+  pip3 install /tmp/pip_unzip_loc/pip/python_dateutil*
+  pip3 install /tmp/pip_unzip_loc/pip/croniter*
+  pip3 install /tmp/pip_unzip_loc/pip/dataclasses*
+  pip3 install /tmp/pip_unzip_loc/pip/MarkupSafe*
+  pip3 install /tmp/pip_unzip_loc/pip/Werkzeug*
+  pip3 install /tmp/pip_unzip_loc/pip/itsdangerous*
+  pip3 install /tmp/pip_unzip_loc/pip/Jinja2*
+  pip3 install /tmp/pip_unzip_loc/pip/Flask*
+  pip3 install /tmp/pip_unzip_loc/pip/future*
+  pip3 install /tmp/pip_unzip_loc/pip/hurry.filesize*
+  pip3 install /tmp/pip_unzip_loc/pip/idna*
+  pip3 install /tmp/pip_unzip_loc/pip/MarkupSafe*
+  pip3 install /tmp/pip_unzip_loc/pip/wcwidth*
+  pip3 install /tmp/pip_unzip_loc/pip/prettytable*
+  pip3 install /tmp/pip_unzip_loc/pip/urllib3*
+  pip3 install /tmp/pip_unzip_loc/pip/requests*
+  pip3 install /tmp/pip_unzip_loc/pip/python_nomad*
+  pip3 install /tmp/pip_unzip_loc/pip/six*
+  pip3 install /tmp/pip_unzip_loc/pip/treelib*
   rm -rf /tmp/pip_unzip_loc
 fi
 
