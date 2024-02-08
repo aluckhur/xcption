@@ -1,6 +1,8 @@
 #!/bin/bash
 
-export XCP_LOG_DIR=/root/xcption/system/xcp_repo/xcplogs
+export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+
+export XCP_LOG_DIR=${SCRIPT_DIR}/xcp_repo/xcplogs
 echo 0 >  /proc/self/loginuid
 
 if [[ " $@ " =~ "-acl4" ]]; then
