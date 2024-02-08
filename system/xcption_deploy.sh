@@ -166,16 +166,16 @@ else
 fi
 
 if [ "$ONLINE" == "true" ]; then
-  CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
-  NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
+  #CHECKPOINT_URL="https://checkpoint-api.hashicorp.com/v1/check"
+  #NOMAD_VERSION=$(curl -s "${CHECKPOINT_URL}"/nomad | jq .current_version | tr -d '"')
 
-  echo "Fetching Nomad for linux version ${NOMAD_VERSION} ..."
-  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o ${SCRIPT_DIR}/nomad.zip
-  echo "Installing Nomad linux version ${NOMAD_VERSION} ..."
+  #echo "Fetching Nomad for linux version ${NOMAD_VERSION} ..."
+  #curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_linux_amd64.zip -o ${SCRIPT_DIR}/nomad.zip
+  echo "Installing Nomad linux..."
   unzip -o ${SCRIPT_DIR}/nomad.zip -d ${SCRIPT_DIR}
-  echo "Fetching Nomad for windows version ${NOMAD_VERSION} ..."
-  curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip
-  echo "Installing Nomad windows version ${NOMAD_VERSION} ..."
+  #echo "Fetching Nomad for windows version ${NOMAD_VERSION} ..."
+  #curl -s https://releases.hashicorp.com/nomad/${NOMAD_VERSION}/nomad_${NOMAD_VERSION}_windows_amd64.zip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip
+  echo "Installing Nomad windows..."
   unzip -o ${SCRIPT_DIR}/../windows/nomad_windows.zip -d ${SCRIPT_DIR}/../windows
   echo "Installing rclone"
   curl https://rclone.org/install.sh | sudo bash
