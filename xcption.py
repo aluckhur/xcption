@@ -6363,10 +6363,10 @@ if args.subparser_name == 'modify':
 
 	modify_tasks(args,args.force)
 	#create_nomad_jobs()
-	parse_nomad_jobs_to_files()
+	parse_nomad_jobs_to_files(False)
 
 if args.subparser_name == 'export':	
-	parse_nomad_jobs_to_files()
+	parse_nomad_jobs_to_files(False)
 	export_csv(args.csvfile)
 
 if args.subparser_name == 'web':	
@@ -6396,7 +6396,7 @@ if args.subparser_name == 'smartassess':
 		if args.min_inodes:
 			mininodespertask_minborder = args.min_inodes
 		mininodespertask = mininodespertask_minborder + 200000
-		parse_nomad_jobs_to_files()
+		parse_nomad_jobs_to_files(False)
 
 	if args.smartassess_command == 'status':
 		smartassess_fs_linux_status_createcsv(args,False)
