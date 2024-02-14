@@ -3645,62 +3645,127 @@ def parse_nomad_jobs_to_files (parselog=True):
 
 				# don't cache logs to make xcption status run faster (updated info will be delayed (max 10s) until next gc will run)
 				if parselog:
-					#get stderr and stdout logs
+					#get stderrprevious stdout and stdout log parsing state
+					offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': ''}, 'stdout':{'offset':0, 'file':'', 'data': ''}}
 					try:
-						offsetconfig = {'stderr': {'offset':0}, 'stdout':{'offset':0}}
 						if os.path.isfile(cacherunningfile):							
 							f = open(cacherunningfile)
 							offsetconfig = json.load(f)
 							f.close()
 					except Exception as e:					
-						logging.error(f"cannot load data from file:{cacherunningfile} - {e}") 
-						exit(1)
+						logging.debug(f"cannot load data from file:{cacherunningfile} - {e}") 
+						offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': ''}, 'stdout':{'offset':0, 'file':'', 'data': ''}}
 
+					#itterate over log types			
 					for logtype in ['stderr','stdout']:
-						#try to get the log file using api
-						startoffset = offsetconfig[logtype]['offset']
-						prevoffset = startoffset
-						logging.debug(f"collecting alloc:{alloc['ID']} logs typr:{logtype} offset:{startoffset}")
-						response2 = requests.get(f"{nomadapiurl}client/fs/logs/{alloc['ID']}?task={task}&type={logtype}&origin=start&offset={startoffset}")
-						loginc = ''
-						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
-						nextoffset = 0
-						logstringlen = 0
-						logstring = ''
+						#when set to True the it new data will be appended 
+						append = False
 
-						# test = True 
+						#this is the last file 
+						lastfile = offsetconfig[logtype]['file']
+						#this is the last offset on the file 
+						lastoffset = offsetconfig[logtype]['offset']
+
+						#initialize empty dict to host previous data obj 
+						prevjsonobj = {'Full': True,'Data': b'', 'File': '', 'Offset':0, 'Len': 0}
+						if lastoffset % 65536:
+							prevjsonobj = {'Full': False, 'Data': offsetconfig[logtype]['data'], 'File': '', 'Offset':0, 'Len': 0}
+						
+						#the last log file number (apears in the suffix of the file name)
+						try:
+							lastlogfilenum = int(re.search(r'\d+$', offsetconfig[logtype]['file']).group())
+						except:
+							lastlogfilenum = 0
+
+						#start offset from the begining of the log 
+						startoffset = 0
+
+						#log file to update 
+						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
+
+						#collect the log the logs 
+						logging.debug(f"collecting logs alloc:{alloc['ID']} logs type:{logtype} offset:{startoffset} using logs API")
+						response2 = requests.get(f"{nomadapiurl}client/fs/logs/{alloc['ID']}?task={task}&type={logtype}&origin=start")
+						
+						#used for part of the logs that need to be included in the appended file 
+						loginc = ''
+						
 						if response2.ok:
 							if re.search(rb"(\d|\S)", response2.content, re.M|re.I):
 								logging.debug("log for job:"+alloc['ID']+" is available using api")
-								jsondec = json.JSONDecoder()
 								jsonresp = response2.content.decode('utf-8')
 								pos = 0
 								while not pos == len(str(jsonresp)):
+									jsondec = json.JSONDecoder()
 									jsonobj, json_len = jsondec.raw_decode(str(jsonresp)[pos:])
 									pos += json_len
-									logstring = ''
-									if 'Data' in jsonobj:
-										logstring = base64.b64decode(jsonobj['Data']).decode('utf-8','ignore')
-									logstringlen = len(logstring)
-									loginc += logstring.replace("\\n","\n")
-									# if test: 
-									# 	logging.debug("==========================================================================")
-									# 	logging.debug(loginc.partition("\n")[0])
-									# 	logging.debug("==========================================================================")
-									# 	test=False
-									if 'Offset' in jsonobj:
-										
-										nextoffset = jsonobj['Offset']
-										if logstringlen<65536 and nextoffset-prevoffset > 65536:
-											nextoffset -= 65536-logstringlen
-
 									
-									logging.debug(f"parsing log for type:{logtype} job:{alloc['ID']} offset:{nextoffset} len:{logstringlen}")
+									if 'File' in jsonobj and 'Offset' in jsonobj and 'Data' in jsonobj:
+										currentfile = jsonobj['File']
+										currentoffset = jsonobj['Offset']
+										currentdatasize = len(jsonobj['Data'])
+										
+										#each full data size is in the size of 87384 when it is partial we want to take care of it diffrent
+										currentfull = True
+										if currentdatasize < 87384:
+											currentfull = False 
+										jsonobj['Full'] = currentfull
+										jsonobj['Len'] = currentdatasize
 
-								offsetconfig[logtype]['offset'] = nextoffset
-								
+										try:
+											currlogfilenum = int(re.search(r'\d+$', currentfile).group())
+										except:
+											#this shouldn't happend 
+											currlogfilenum = 0
+
+										#part of the log that wan't processed yet 
+										print(currlogfilenum,lastlogfilenum,currentoffset,lastoffset)
+										if (currlogfilenum == lastlogfilenum and currentoffset > lastoffset) or (currlogfilenum > lastlogfilenum):
+											#mark this part and next parts for append 
+											append = True 
+										
+										if currlogfilenum > lastlogfilenum:
+											print("Prev",prevjsonobj['File'],prevjsonobj['Offset'],prevjsonobj['Full'],prevjsonobj['Len'])
+											print("Current",jsonobj['File'],jsonobj['Offset'],jsonobj['Full'],jsonobj['Len'])
+											print("")
+									
+
+										if append:
+											#convert base64 to string and include prevstring if was used
+											try:
+												logstring = base64.b64decode(jsonobj['Data']).decode('utf-8','ignore')
+											except:
+												logstring = ''
+
+											#capture the length of the log string 
+											logstringlen = len(logstring)
+
+											#prcess partial data (smaller than 65536)
+											if not prevjsonobj['Full']:
+												prevlogstring = base64.b64decode(prevjsonobj['Data']).decode('utf-8','ignore')
+												prevlogstringlen = len(prevlogstring)
+												if logstringlen > prevlogstringlen:
+													logstring = logstring[-(logstringlen-prevlogstringlen):]
+													logstringlen = len(logstring)
+
+											#normalize log string 	
+											logstringnormalize = logstring.replace("\\n","\n")
+											
+											#append normalized string to the included part of the log 
+											loginc += logstringnormalize											
+
+											print(f"parsing log for type:{logtype} job:{alloc['ID']} offset:{currentoffset} len:{logstringlen} logfile:{jsonobj['File']}")
+											logging.debug(f"parsing log for type:{logtype} job:{alloc['ID']} offset:{currentoffset} len:{logstringlen} logfile:{jsonobj['File']}")
+												
+											offsetconfig[logtype]['file'] = currentfile 											
+											offsetconfig[logtype]['offset'] = currentoffset
+											offsetconfig[logtype]['data'] = jsonobj['Data']
+
+										#keep previous data 
+										prevjsonobj = jsonobj
+
 							else:
-								logging.debug(f"log for type:{logtype} job:{alloc['ID']} was not updated since last request")
+								logging.debug(f"log type:{logtype} job:{alloc['ID']} was not updated since last request")
 							
 							#write incremantal log to file
 							try:
