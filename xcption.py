@@ -3646,7 +3646,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 				# don't cache logs to make xcption status run faster (updated info will be delayed (max 10s) until next gc will run)
 				if parselog:
 					#get stderrprevious stdout and stdout log parsing state
-					offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': ''}, 'stdout':{'offset':0, 'file':'', 'data': ''}}
+					offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}, 'stdout':{'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}}
 					try:
 						if os.path.isfile(cacherunningfile):							
 							f = open(cacherunningfile)
@@ -3654,28 +3654,25 @@ def parse_nomad_jobs_to_files (parselog=True):
 							f.close()
 					except Exception as e:					
 						logging.debug(f"cannot load data from file:{cacherunningfile} - {e}") 
-						offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': ''}, 'stdout':{'offset':0, 'file':'', 'data': ''}}
+						offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}, 'stdout':{'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}}
 
 					#itterate over log types			
 					for logtype in ['stderr','stdout']:
 						#when set to True the it new data will be appended 
 						append = False
+						appended = False
 
-						#this is the last file 
-						lastfile = offsetconfig[logtype]['file']
 						#this is the last offset on the file 
 						lastoffset = offsetconfig[logtype]['offset']
 
-						#initialize empty dict to host previous data obj 
-						prevjsonobj = {'Full': True,'Data': b'', 'File': '', 'Offset':0, 'Len': 0}
-						if lastoffset % 65536:
-							prevjsonobj = {'Full': False, 'Data': offsetconfig[logtype]['data'], 'File': '', 'Offset':0, 'Len': 0}
-						
 						#the last log file number (apears in the suffix of the file name)
 						try:
 							lastlogfilenum = int(re.search(r'\d+$', offsetconfig[logtype]['file']).group())
 						except:
 							lastlogfilenum = 0
+
+						#initialize dict to host previous data obj 
+						prevjsonobj = {'Full': offsetconfig[logtype]['full'],'Data': offsetconfig[logtype]['data'], 'File': offsetconfig[logtype]['file'], 'Offset': offsetconfig[logtype]['offset'], 'Len': offsetconfig[logtype]['len'], 'Seq': offsetconfig[logtype]['seq'] }
 
 						#start offset from the begining of the log 
 						startoffset = 0
@@ -3694,16 +3691,19 @@ def parse_nomad_jobs_to_files (parselog=True):
 							if re.search(rb"(\d|\S)", response2.content, re.M|re.I):
 								logging.debug("log for job:"+alloc['ID']+" is available using api")
 								jsonresp = response2.content.decode('utf-8')
-								pos = 0
-								while not pos == len(str(jsonresp)):
-									jsondec = json.JSONDecoder()
-									jsonobj, json_len = jsondec.raw_decode(str(jsonresp)[pos:])
-									pos += json_len
+								jsondec = json.JSONDecoder()
+								while jsonresp:
+									jsonobj, json_len = jsondec.raw_decode(jsonresp)
+									jsonresp = jsonresp[json_len:]
 									
 									if 'File' in jsonobj and 'Offset' in jsonobj and 'Data' in jsonobj:
 										currentfile = jsonobj['File']
-										currentoffset = jsonobj['Offset']
 										currentdatasize = len(jsonobj['Data'])
+										try:
+											currlogfilenum = int(re.search(r'\d+$', currentfile).group())
+										except:
+											#this shouldn't happend 
+											currlogfilenum = 0										
 										
 										#each full data size is in the size of 87384 when it is partial we want to take care of it diffrent
 										currentfull = True
@@ -3711,25 +3711,20 @@ def parse_nomad_jobs_to_files (parselog=True):
 											currentfull = False 
 										jsonobj['Full'] = currentfull
 										jsonobj['Len'] = currentdatasize
-
-										try:
-											currlogfilenum = int(re.search(r'\d+$', currentfile).group())
-										except:
-											#this shouldn't happend 
-											currlogfilenum = 0
+										jsonobj['Seq'] = (currlogfilenum+1)*1000000+int(jsonobj['Offset']/65536)
 
 										#part of the log that wan't processed yet 
-										print(currlogfilenum,lastlogfilenum,currentoffset,lastoffset)
-										if (currlogfilenum == lastlogfilenum and currentoffset > lastoffset) or (currlogfilenum > lastlogfilenum):
-											#mark this part and next parts for append 
+										#diffrent offset 
+										if (currlogfilenum == lastlogfilenum and jsonobj['Offset'] > prevjsonobj['Offset']):
+											append = True
+										#changes withing the same sequence  
+										if (jsonobj['Seq']==prevjsonobj['Seq'] and jsonobj['Len'] > prevjsonobj['Len']):
 											append = True 
-										
-										if currlogfilenum > lastlogfilenum:
-											print("Prev",prevjsonobj['File'],prevjsonobj['Offset'],prevjsonobj['Full'],prevjsonobj['Len'])
-											print("Current",jsonobj['File'],jsonobj['Offset'],jsonobj['Full'],jsonobj['Len'])
-											print("")
+										#diffrent file
+										if (currlogfilenum > lastlogfilenum):
+											append = True 
+											
 									
-
 										if append:
 											#convert base64 to string and include prevstring if was used
 											try:
@@ -3741,12 +3736,23 @@ def parse_nomad_jobs_to_files (parselog=True):
 											logstringlen = len(logstring)
 
 											#prcess partial data (smaller than 65536)
-											if not prevjsonobj['Full']:
+											if not prevjsonobj['Full'] and not appended:
+												
 												prevlogstring = base64.b64decode(prevjsonobj['Data']).decode('utf-8','ignore')
 												prevlogstringlen = len(prevlogstring)
-												if logstringlen > prevlogstringlen:
+												if jsonobj['Seq'] == prevjsonobj['Seq']:
+													#same seq addition 
 													logstring = logstring[-(logstringlen-prevlogstringlen):]
 													logstringlen = len(logstring)
+													#print("processing same seq addition:", jsonobj['Seq'], prevjsonobj['Seq'], prevlogstringlen, logstringlen)
+												elif jsonobj['Seq'] > prevjsonobj['Seq'] and jsonobj['Seq']-prevjsonobj['Seq'] < 2000000:
+													#dual seq addition
+													logstring = logstring[-(65536-prevlogstringlen):]
+													logstringlen = len(logstring)			
+													#print("processing dual seq addition:", jsonobj['Seq'], prevjsonobj['Seq'], prevlogstringlen, logstringlen)										
+											
+											#mark to prevent additional append on file change 
+											appended = True
 
 											#normalize log string 	
 											logstringnormalize = logstring.replace("\\n","\n")
@@ -3754,15 +3760,18 @@ def parse_nomad_jobs_to_files (parselog=True):
 											#append normalized string to the included part of the log 
 											loginc += logstringnormalize											
 
-											print(f"parsing log for type:{logtype} job:{alloc['ID']} offset:{currentoffset} len:{logstringlen} logfile:{jsonobj['File']}")
-											logging.debug(f"parsing log for type:{logtype} job:{alloc['ID']} offset:{currentoffset} len:{logstringlen} logfile:{jsonobj['File']}")
+											logging.debug(f"incrementing log type:{logtype} job:{alloc['ID']}  offset:{jsonobj['Offset']} seq:{jsonobj['Seq']} len:{jsonobj['Len']} logfile:{jsonobj['File']} Full:{jsonobj['Full']}")
 												
-											offsetconfig[logtype]['file'] = currentfile 											
-											offsetconfig[logtype]['offset'] = currentoffset
+											offsetconfig[logtype]['file'] = jsonobj['File'] 											
+											offsetconfig[logtype]['offset'] = jsonobj['Offset']
 											offsetconfig[logtype]['data'] = jsonobj['Data']
+											offsetconfig[logtype]['full'] = jsonobj['Full']
+											offsetconfig[logtype]['seq'] = jsonobj['Seq']
+											offsetconfig[logtype]['len'] = jsonobj['Len']
 
-										#keep previous data 
-										prevjsonobj = jsonobj
+
+											#keep previous data 
+											prevjsonobj = jsonobj
 
 							else:
 								logging.debug(f"log type:{logtype} job:{alloc['ID']} was not updated since last request")
@@ -3778,7 +3787,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 						else:
 							logging.info(f"log for type:{logtype} job:{alloc['ID']} does NOT exists")
 							
-					try:	
+					try:
 						f = open(cacherunningfile,'w')
 						json.dump(offsetconfig,f)
 					except Exception as e:					

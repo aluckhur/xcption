@@ -1,0 +1,17 @@
+#!/bin/bash
+
+export SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
+export counter=0
+
+while true
+do
+  ((counter+=1))
+  echo "hey what's up - this is test log line ${counter}"
+  >&2 echo "stderr log line ${counter}" 
+  if (( $counter % 1000 == 0 )) 
+  then
+    sleep 1
+  fi
+done
+
+
