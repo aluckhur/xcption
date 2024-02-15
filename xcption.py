@@ -3751,8 +3751,8 @@ def parse_nomad_jobs_to_files (parselog=True):
 													logstringlen = len(logstring)			
 													#print("processing dual seq addition:", jsonobj['Seq'], prevjsonobj['Seq'], prevlogstringlen, logstringlen)										
 											
-											#mark to prevent additional append on file change 
-											appended = True
+												#mark to prevent additional append on file change 
+												appended = True
 
 											#normalize log string 	
 											logstringnormalize = logstring.replace("\\n","\n")
@@ -3791,7 +3791,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 						f = open(cacherunningfile,'w')
 						json.dump(offsetconfig,f)
 					except Exception as e:					
-						logging.error(f"cannot load data from file:{cacherunningfile} - {e}") 
+						logging.error(f"cannot write data tp file:{cacherunningfile} - {e}") 
 						exit(1)
 						
 				else:
