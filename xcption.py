@@ -3289,226 +3289,6 @@ def check_nomad():
 			logging.debug("xcption_gc_system job is running")
 
 #used to parse nomad jobs to files, will be used as a cache in case of nomad GC removed ended jobs 
-def parse_nomad_jobs_to_files_orig (parselog=True):
-	#get nomad allocations 
-	jobs = {}
-	allocs = {}
-	nodes = {}
-	
-	try:
-		jobs  = n.jobs.get_jobs()
-	except Exception as e:
-		logging.error('cannot get nomad job list')
-		exit(1)
-	try:
-		allocs = n.allocations.get_allocations()
-	except Exception as e:
-		logging.error('cannot get alloc list')
-		exit(1)
-	try:
-		nodes = n.nodes.get_nodes()
-	except Exception as e:
-		logging.error('cannot get node list')
-		exit(1)
-
-	nomadserver = ''
-	try:
-		response = requests.get(nomadapiurl+'agent/members')
-		if response.ok:
-			agentinfo = json.loads(response.content)
-			nomadserver = agentinfo["ServerName"]
-	except Exception as e:
-		logging.error("could not get nomad server name")
-		exit(1)
-	try:
-		hostname = socket.gethostname()
-	except Exception as e:
-		logging.error("could not get hostname")
-		exit(1)	
-
-	if hostname != nomadserver:
-		logging.debug("current server:"+hostname+" is not the nomad server:"+nomadserver)
-		return
-	else:
-		logging.debug("current server:"+hostname+" is the nomad server")
-
-	if not os.path.isdir(cachedir):
-		os.mkdir(cachedir)
-
-	lockcounter = 0
-	lockfile = os.path.join(cachedir,'nomadlock')
-	while os.path.exists(lockfile) and lockcounter <= 2:
-		logging.debug("delaying cache update since another update is running (lock file:"+lockfile+" exists)")
-		time.sleep(1)
-		lockcounter+=1
-
-	#creating the lock file 
-	try:
-		open(lockfile,'w').close()
-	except Exception as e:
-		logging.debug("cannot create lock file:"+lockfile)
-
-	for job in jobs:
-		if not (job['ID'].startswith('baseline') or job['ID'].startswith('sync') or job['ID'].startswith('verify') or job['ID'].startswith('smartassess') or job['ID'].startswith('xcpdelete')):
-			continue
-
-		jobdir = os.path.join(cachedir,'job_'+job['ID'])	
-
-		if len(job['ID'].split('/')) == 1:
-			if not os.path.isdir(jobdir):
-				logging.debug("creating dir:"+jobdir)
-				try:
-					logging.debug("creating directory:"+jobdir)
-					os.mkdir(jobdir)
-				except Exception as e:
-					logging.error("cannot create dir:"+jobdir)
-					exit(1)
-		else:
-			#because the sub jobs contains the job name
-			jobdir = os.path.join(cachedir,'job_'+job['ID'].split('/')[0])
-
-		jobjsonfile = os.path.join(jobdir,'job_'+job['ID'])		
-		cachecompletefile = os.path.join(jobdir,'complete.job_'+job['ID'])
-		cachewarningfile = os.path.join(jobdir,'warning.job_'+job['ID'])
-		cacheerrorfile = os.path.join(jobdir,'error.job_'+job['ID'])
-		cacherunningfile = os.path.join(jobdir,'running.job_'+job['ID'])
-		if len(job['ID'].split('/')) > 1:
-			jobjsonfile = os.path.join(jobdir,job['ID'].split('/')[1])
-			cachecompletefile = os.path.join(jobdir,'complete.'+job['ID'].split('/')[1])
-			cachewarningfile = os.path.join(jobdir,'warning.'+job['ID'].split('/')[1])
-			cacheerrorfile = os.path.join(jobdir,'error.'+job['ID'].split('/')[1])
-			cacherunningfile = os.path.join(jobdir,'running.'+job['ID'].split('/')[1])
-	
-		#validating if final update from job already exists in cache 
-		jobcomplete = False 
-		try:
-			if job['JobSummary']['Summary'][job['ID'].split('/')[0]]['Complete'] == 1 or job['JobSummary']['Summary'][job['ID'].split('/')[0]]['Failed'] == 1:
-				jobcomplete = True	
-		except Exception as e:
-			logging.debug("could not validate job status:"+job['ID'])
-
-		#validting if cache done 
-		cachecomplete = False 		
-		if os.path.isfile(cachecompletefile):
-			cachecomplete = True
-
-		#skip caching if complete file found 
-		if cachecomplete:
-			logging.debug("cache for job:"+job['ID']+" is complete, skipping")
-			continue
-		try:
-			with open(jobjsonfile, 'w') as fp:
-				json.dump(job, fp)
-				logging.debug("dumping job to json file:"+jobjsonfile)		
-		except Exception as e:
-			logging.error("cannot create file:"+jobjsonfile)
-			#exit(1)
-
-		logging.debug("caching job:"+job['ID'])
-
-		for alloc in allocs:		
-			if alloc['JobID'] == job['ID']:
-				allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')				
-				try:
-					with open(allocjsonfile, 'w') as fp:
-						json.dump(alloc, fp)
-						logging.debug("dumping alloc to json file:"+allocjsonfile)		
-				except Exception as e:
-					logging.error("cannot create file:"+allocjsonfile)
-					exit(1)
-
-				task = 'sync'	
-				if alloc['TaskGroup'].startswith('baseline'): task='baseline'
-				if alloc['TaskGroup'].startswith('verify'): task='verify'
-				if alloc['TaskGroup'].startswith('smartassess'): task='smartassess'
-				if alloc['TaskGroup'].startswith('xcpdelete'): task='xcpdelete'
-
-				# don't cache logs to make xcption status run faster (updated info will be delayed (max 10s) until next gc will run)
-				if parselog:
-					#get stderr and stdout logs
-					for logtype in ['stderr','stdout']:
-						#try to get the log file using api
-						response = requests.get(nomadapiurl+'client/fs/logs/'+alloc['ID']+'?task='+task+'&type='+logtype+'&plain=true')
-						if response.ok and re.search(rb"(\d|\S)", response.content, re.M|re.I):
-							logging.debug("log for job:"+alloc['ID']+" is available using api")
-							alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
-							try:
-								#for smartassess and xcp delete jobs always pull a full file 
-								if not os.path.isfile(alloclogfile) or job['ID'].startswith('smartassess') or job['ID'].startswith('xcpdelete'):
-									with open(alloclogfile, 'w') as fp:
-										logging.debug("dumping log to log file:"+alloclogfile)
-										fp.write(response.content.decode('utf-8'))
-										fp.close()
-								else:
-									#this is used to be able to add delta to the cache file to enable tail to work
-									tmpalloclogfile = '/tmp/'+str(os.getpid())+alloclogfile.replace('/','_')[:200]
-									
-									with open(tmpalloclogfile, 'wb') as fp:
-										logging.debug("dumping log to temp log file:"+tmpalloclogfile)
-										fp.write(response.content)
-										fp.close()								
-									
-									tmpalloclogfilenobin = tmpalloclogfile+".nobin"
-									DEVNULL = open(os.devnull, 'wb')
-									tr = "tr -cd '"+'\11\12\15\40-\176'+"' < "+tmpalloclogfile+" > "+tmpalloclogfilenobin
-
-									logging.debug("running tr:"+tr)
-									subprocess.call(tr,shell=True,stdout=DEVNULL,stderr=DEVNULL)
-
-									logging.debug("comparing current cached file:"+alloclogfile+" with temp file:"+tmpalloclogfilenobin)
-									apendtologfile = open(alloclogfile, 'a')
-									DEVNULL = open(os.devnull, 'wb')
-									#subprocess.call( ['comm','-13','--nocheck-order',alloclogfile,tmpalloclogfile],stdout=apendtologfile,stderr=DEVNULL)
-									diff = "diff "+alloclogfile+" "+tmpalloclogfilenobin+" | grep '^>' | cut -c 3-"
-									logging.debug("running diff:"+diff)
-									subprocess.call(diff,shell=True,stdout=apendtologfile,stderr=DEVNULL)
-
-									apendtologfile.close()
-									os.remove(tmpalloclogfile)	
-									os.remove(tmpalloclogfilenobin)	
-									logging.debug("diff ended and new entries merged into the old cached log file")
-							except Exception as e:
-								print (e)
-								logging.error("cannot create file:"+alloclogfile)
-								exit(1)
-				else:
-					logging.debug("skpping log cache update for:"+job['ID'])
-				
-				#validating no error in the log that did not resulted with exit code 1
-				if jobcomplete and not cachecomplete and parselog and not os.path.isfile(cachecompletefile):
-					for logtype in ['stderr']:    #,'stdout']:
-						logfile =  os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
-						if os.path.isfile(logfile):
-							logging.debug("looking for warnings in the log")
-							with open(logfile) as f:
-								content = f.readlines()
-							content = [x.strip() for x in content] 
-							for line in content:
-								if re.search(" WARNING: ", line):
-									logging.debug("warning found in the log, creating file:"+cachewarningfile)
-									subprocess.call(['touch', cachewarningfile])
-								if re.search(" nfs3 error", line):
-									logging.debug("nfs3 error found in the log, creating file:"+cacheerrorfile)
-									subprocess.call(['touch', cacheerrorfile])
-									break
-
-				logging.debug("caching alloc:"+alloc['ID'])
-
-		# mark jobs as completed only as part of nomad subcommand and not status
-		if jobcomplete and not cachecomplete and parselog:
-			logging.debug("creating file:"+cachecompletefile+" to prevent further caching for the job")
-			subprocess.call(['touch', cachecompletefile])
-
-
-			
-	#removing the lock file 
-	try:
-		logging.debug("removing lock file:"+lockfile)
-		os.remove(lockfile)
-	except Exception as e:
-		logging.debug("cannot remove lock file:"+lockfile)
-
-#used to parse nomad jobs to files, will be used as a cache in case of nomad GC removed ended jobs 
 def parse_nomad_jobs_to_files (parselog=True):
 	#get nomad allocations 
 	jobs = {}
@@ -3625,197 +3405,197 @@ def parse_nomad_jobs_to_files (parselog=True):
 			#exit(1)
 
 		logging.debug("caching job:"+job['ID'])
-
-		for alloc in allocs:		
-			if alloc['JobID'] == job['ID']:
-				allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')
-				try:
-					with open(allocjsonfile, 'w') as fp:
-						json.dump(alloc, fp)
-						logging.debug("dumping alloc to json file:"+allocjsonfile)
-				except Exception as e:
-					logging.error("cannot create file:"+allocjsonfile)
-					exit(1)
-
-				task = 'sync'	
-				if alloc['TaskGroup'].startswith('baseline'): task='baseline'
-				if alloc['TaskGroup'].startswith('verify'): task='verify'
-				if alloc['TaskGroup'].startswith('smartassess'): task='smartassess'
-				if alloc['TaskGroup'].startswith('xcpdelete'): task='xcpdelete'
-
-				# don't cache logs to make xcption status run faster (updated info will be delayed (max 10s) until next gc will run)
-				if parselog:
-					#get stderrprevious stdout and stdout log parsing state
-					offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}, 'stdout':{'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}}
-					try:
-						if os.path.isfile(cacherunningfile):							
-							f = open(cacherunningfile)
-							offsetconfig = json.load(f)
-							f.close()
-					except Exception as e:					
-						logging.debug(f"cannot load data from file:{cacherunningfile} - {e}") 
-						offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}, 'stdout':{'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}}
-
-					#itterate over log types			
-					for logtype in ['stderr','stdout']:
-						#when set to True the it new data will be appended 
-						append = False
-						appended = False
-
-						#this is the last offset on the file 
-						lastoffset = offsetconfig[logtype]['offset']
-
-						#the last log file number (apears in the suffix of the file name)
-						try:
-							lastlogfilenum = int(re.search(r'\d+$', offsetconfig[logtype]['file']).group())
-						except:
-							lastlogfilenum = 0
-
-						#initialize dict to host previous data obj 
-						prevjsonobj = {'Full': offsetconfig[logtype]['full'],'Data': offsetconfig[logtype]['data'], 'File': offsetconfig[logtype]['file'], 'Offset': offsetconfig[logtype]['offset'], 'Len': offsetconfig[logtype]['len'], 'Seq': offsetconfig[logtype]['seq'] }
-
-						#start offset from the begining of the log 
-						startoffset = 0
-
-						#log file to update 
-						alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
-
-						#collect the log the logs 
-						logging.debug(f"collecting logs alloc:{alloc['ID']} logs type:{logtype} offset:{startoffset} using logs API")
-						response2 = requests.get(f"{nomadapiurl}client/fs/logs/{alloc['ID']}?task={task}&type={logtype}&origin=start")
-						
-						#used for part of the logs that need to be included in the appended file 
-						loginc = ''
-						
-						if response2.ok:
-							if re.search(rb"(\d|\S)", response2.content, re.M|re.I):
-								logging.debug("log for job:"+alloc['ID']+" is available using api")
-								jsonresp = response2.content.decode('utf-8')
-								jsondec = json.JSONDecoder()
-								while jsonresp:
-									jsonobj, json_len = jsondec.raw_decode(jsonresp)
-									jsonresp = jsonresp[json_len:]
-									
-									if 'File' in jsonobj and 'Offset' in jsonobj and 'Data' in jsonobj:
-										currentfile = jsonobj['File']
-										currentdatasize = len(jsonobj['Data'])
-										try:
-											currlogfilenum = int(re.search(r'\d+$', currentfile).group())
-										except:
-											#this shouldn't happend 
-											currlogfilenum = 0										
-										
-										#each full data size is in the size of 87384 when it is partial we want to take care of it diffrent
-										currentfull = True
-										if currentdatasize < 87384:
-											currentfull = False 
-										jsonobj['Full'] = currentfull
-										jsonobj['Len'] = currentdatasize
-										jsonobj['Seq'] = (currlogfilenum+1)*1000000+int(jsonobj['Offset']/65536)
-
-										#part of the log that wan't processed yet 
-										#diffrent offset 
-										if (currlogfilenum == lastlogfilenum and jsonobj['Offset'] > prevjsonobj['Offset']):
-											append = True
-										#changes withing the same sequence  
-										if (jsonobj['Seq']==prevjsonobj['Seq'] and jsonobj['Len'] > prevjsonobj['Len']):
-											append = True 
-										#diffrent file
-										if (currlogfilenum > lastlogfilenum):
-											append = True 
-											
-									
-										if append:
-											#convert base64 to string and include prevstring if was used
-											try:
-												logstring = base64.b64decode(jsonobj['Data']).decode('utf-8','ignore')
-											except:
-												logstring = ''
-
-											#capture the length of the log string 
-											logstringlen = len(logstring)
-
-											#prcess partial data (smaller than 65536)
-											if not prevjsonobj['Full'] and not appended:
-												
-												prevlogstring = base64.b64decode(prevjsonobj['Data']).decode('utf-8','ignore')
-												prevlogstringlen = len(prevlogstring)
-												if jsonobj['Seq'] == prevjsonobj['Seq']:
-													#same seq addition 
-													logstring = logstring[-(logstringlen-prevlogstringlen):]
-													logstringlen = len(logstring)
-													#print("processing same seq addition:", jsonobj['Seq'], prevjsonobj['Seq'], prevlogstringlen, logstringlen)
-												elif jsonobj['Seq'] > prevjsonobj['Seq'] and jsonobj['Seq']-prevjsonobj['Seq'] < 2000000:
-													#dual seq addition
-													logstring = logstring[-(65536-prevlogstringlen):]
-													logstringlen = len(logstring)			
-													#print("processing dual seq addition:", jsonobj['Seq'], prevjsonobj['Seq'], prevlogstringlen, logstringlen)										
-											
-												#mark to prevent additional append on file change 
-												appended = True
-
-											#normalize log string 	
-											logstringnormalize = logstring.replace("\\n","\n")
-											
-											#append normalized string to the included part of the log 
-											loginc += logstringnormalize											
-
-											logging.debug(f"incrementing log type:{logtype} job:{alloc['ID']}  offset:{jsonobj['Offset']} seq:{jsonobj['Seq']} len:{jsonobj['Len']} logfile:{jsonobj['File']} Full:{jsonobj['Full']}")
-												
-											offsetconfig[logtype]['file'] = jsonobj['File'] 											
-											offsetconfig[logtype]['offset'] = jsonobj['Offset']
-											offsetconfig[logtype]['data'] = jsonobj['Data']
-											offsetconfig[logtype]['full'] = jsonobj['Full']
-											offsetconfig[logtype]['seq'] = jsonobj['Seq']
-											offsetconfig[logtype]['len'] = jsonobj['Len']
-
-
-											#keep previous data 
-											prevjsonobj = jsonobj
-
-							else:
-								logging.debug(f"log type:{logtype} job:{alloc['ID']} was not updated since last request")
-							
-							#write incremantal log to file
-							try:
-								f = open(alloclogfile,'a')
-								f.write(loginc)
-								f.close()
-							except Exception as e:					
-								logging.error(f"cannot append data to file:{alloclogfile} - {e}") 
-								exit(1)								
-						else:
-							logging.info(f"log for type:{logtype} job:{alloc['ID']} does NOT exists")
-							
-					try:
-						f = open(cacherunningfile,'w')
-						json.dump(offsetconfig,f)
-					except Exception as e:					
-						logging.error(f"cannot write data tp file:{cacherunningfile} - {e}") 
-						exit(1)
-						
-				else:
-					logging.debug("skpping log cache update for:"+job['ID'])
 				
-				#validating no error in the log that did not resulted with exit code 1
-				if jobcomplete and not cachecomplete and parselog and not os.path.isfile(cachecompletefile):
-					for logtype in ['stderr']:    #,'stdout']:
-						logfile =  os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
-						if os.path.isfile(logfile):
-							logging.debug("looking for warnings in the log")
-							with open(logfile) as f:
-								content = f.readlines()
-							content = [x.strip() for x in content] 
-							for line in content:
-								if re.search(" WARNING: ", line):
-									logging.debug("warning found in the log, creating file:"+cachewarningfile)
-									subprocess.call(['touch', cachewarningfile])
-								if re.search(" nfs3 error", line):
-									logging.debug("nfs3 error found in the log, creating file:"+cacheerrorfile)
-									subprocess.call(['touch', cacheerrorfile])
-									break
+		joballocs = [a for a in allocs if a['JobID'] in job['ID']]
+		for alloc in joballocs:		
+			allocjsonfile = os.path.join(jobdir,'alloc_'+alloc['ID']+'.json')
+			try:
+				with open(allocjsonfile, 'w') as fp:
+					json.dump(alloc, fp)
+					logging.debug("dumping alloc to json file:"+allocjsonfile)
+			except Exception as e:
+				logging.error("cannot create file:"+allocjsonfile)
+				exit(1)
 
-				logging.debug("caching alloc:"+alloc['ID'])
+			task = 'sync'	
+			if alloc['TaskGroup'].startswith('baseline'): task='baseline'
+			if alloc['TaskGroup'].startswith('verify'): task='verify'
+			if alloc['TaskGroup'].startswith('smartassess'): task='smartassess'
+			if alloc['TaskGroup'].startswith('xcpdelete'): task='xcpdelete'
+
+			# don't cache logs to make xcption status run faster (updated info will be delayed (max 10s) until next gc will run)
+			if parselog:
+				#get stderrprevious stdout and stdout log parsing state
+				offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}, 'stdout':{'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}}
+				try:
+					if os.path.isfile(cacherunningfile):							
+						f = open(cacherunningfile)
+						offsetconfig = json.load(f)
+						f.close()
+				except Exception as e:					
+					logging.debug(f"cannot load data from file:{cacherunningfile} - {e}") 
+					offsetconfig = {'stderr': {'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}, 'stdout':{'offset':0, 'file':'', 'data': '', "full": True, "len": 0, 'seq': 0}}
+
+				#itterate over log types			
+				for logtype in ['stderr','stdout']:
+					#when set to True the it new data will be appended 
+					append = False
+					appended = False
+
+					#this is the last offset on the file 
+					lastoffset = offsetconfig[logtype]['offset']
+
+					#the last log file number (apears in the suffix of the file name)
+					try:
+						lastlogfilenum = int(re.search(r'\d+$', offsetconfig[logtype]['file']).group())
+					except:
+						lastlogfilenum = 0
+
+					#initialize dict to host previous data obj 
+					prevjsonobj = {'Full': offsetconfig[logtype]['full'],'Data': offsetconfig[logtype]['data'], 'File': offsetconfig[logtype]['file'], 'Offset': offsetconfig[logtype]['offset'], 'Len': offsetconfig[logtype]['len'], 'Seq': offsetconfig[logtype]['seq'] }
+
+					#start offset from the begining of the log 
+					startoffset = 0
+
+					#log file to update 
+					alloclogfile = os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
+
+					#collect the log the logs 
+					logging.debug(f"collecting logs alloc:{alloc['ID']} logs type:{logtype} offset:{startoffset} using logs API")
+					response2 = requests.get(f"{nomadapiurl}client/fs/logs/{alloc['ID']}?task={task}&type={logtype}&origin=start")
+					
+					#used for part of the logs that need to be included in the appended file 
+					loginc = ''
+					
+					if response2.ok:
+						if re.search(rb"(\d|\S)", response2.content, re.M|re.I):
+							logging.debug("log for job:"+alloc['ID']+" is available using api")
+							jsonresp = response2.content.decode('utf-8')
+							jsondec = json.JSONDecoder()
+							while jsonresp:
+								jsonobj, json_len = jsondec.raw_decode(jsonresp)
+								jsonresp = jsonresp[json_len:]
+								
+								if 'File' in jsonobj and 'Offset' in jsonobj and 'Data' in jsonobj:
+									currentfile = jsonobj['File']
+									currentdatasize = len(jsonobj['Data'])
+									try:
+										currlogfilenum = int(re.search(r'\d+$', currentfile).group())
+									except:
+										#this shouldn't happend 
+										currlogfilenum = 0										
+									
+									#each full data size is in the size of 87384 when it is partial we want to take care of it diffrent
+									currentfull = True
+									if currentdatasize < 87384:
+										currentfull = False 
+									jsonobj['Full'] = currentfull
+									jsonobj['Len'] = currentdatasize
+									jsonobj['Seq'] = (currlogfilenum+1)*1000000+int(jsonobj['Offset']/65536)
+
+									#part of the log that wan't processed yet 
+									#diffrent offset 
+									if (currlogfilenum == lastlogfilenum and jsonobj['Offset'] > prevjsonobj['Offset']):
+										append = True
+									#changes withing the same sequence  
+									if (jsonobj['Seq']==prevjsonobj['Seq'] and jsonobj['Len'] > prevjsonobj['Len']):
+										append = True 
+									#diffrent file
+									if (currlogfilenum > lastlogfilenum):
+										append = True 
+										
+								
+									if append:
+										#convert base64 to string and include prevstring if was used
+										try:
+											logstring = base64.b64decode(jsonobj['Data']).decode('utf-8','ignore')
+										except:
+											logstring = ''
+
+										#capture the length of the log string 
+										logstringlen = len(logstring)
+
+										#prcess partial data (smaller than 65536)
+										if not prevjsonobj['Full'] and not appended:
+											
+											prevlogstring = base64.b64decode(prevjsonobj['Data']).decode('utf-8','ignore')
+											prevlogstringlen = len(prevlogstring)
+											if jsonobj['Seq'] == prevjsonobj['Seq']:
+												#same seq addition 
+												logstring = logstring[-(logstringlen-prevlogstringlen):]
+												logstringlen = len(logstring)
+												#print("processing same seq addition:", jsonobj['Seq'], prevjsonobj['Seq'], prevlogstringlen, logstringlen)
+											elif jsonobj['Seq'] > prevjsonobj['Seq'] and jsonobj['Seq']-prevjsonobj['Seq'] < 2000000:
+												#dual seq addition
+												logstring = logstring[-(65536-prevlogstringlen):]
+												logstringlen = len(logstring)			
+												#print("processing dual seq addition:", jsonobj['Seq'], prevjsonobj['Seq'], prevlogstringlen, logstringlen)										
+										
+											#mark to prevent additional append on file change 
+											appended = True
+
+										#normalize log string 	
+										logstringnormalize = logstring.replace("\\n","\n")
+										
+										#append normalized string to the included part of the log 
+										loginc += logstringnormalize											
+
+										logging.debug(f"incrementing log type:{logtype} job:{alloc['ID']}  offset:{jsonobj['Offset']} seq:{jsonobj['Seq']} len:{jsonobj['Len']} logfile:{jsonobj['File']} Full:{jsonobj['Full']}")
+											
+										offsetconfig[logtype]['file'] = jsonobj['File'] 											
+										offsetconfig[logtype]['offset'] = jsonobj['Offset']
+										offsetconfig[logtype]['data'] = jsonobj['Data']
+										offsetconfig[logtype]['full'] = jsonobj['Full']
+										offsetconfig[logtype]['seq'] = jsonobj['Seq']
+										offsetconfig[logtype]['len'] = jsonobj['Len']
+
+
+										#keep previous data 
+										prevjsonobj = jsonobj
+
+						else:
+							logging.debug(f"log type:{logtype} job:{alloc['ID']} was not updated since last request")
+						
+						#write incremantal log to file
+						try:
+							f = open(alloclogfile,'a')
+							f.write(loginc)
+							f.close()
+						except Exception as e:					
+							logging.error(f"cannot append data to file:{alloclogfile} - {e}") 
+							exit(1)								
+					else:
+						logging.info(f"log for type:{logtype} job:{alloc['ID']} does NOT exists")
+						
+				try:
+					f = open(cacherunningfile,'w')
+					json.dump(offsetconfig,f)
+				except Exception as e:					
+					logging.error(f"cannot write data tp file:{cacherunningfile} - {e}") 
+					exit(1)
+					
+			else:
+				logging.debug("skpping log cache update for:"+job['ID'])
+			
+			#validating no error in the log that did not resulted with exit code 1
+			if jobcomplete and not cachecomplete and parselog and not os.path.isfile(cachecompletefile):
+				for logtype in ['stderr']:    #,'stdout']:
+					logfile =  os.path.join(jobdir,logtype+'log_'+alloc['ID']+'.log')
+					if os.path.isfile(logfile):
+						logging.debug("looking for warnings in the log")
+						with open(logfile) as f:
+							content = f.readlines()
+						content = [x.strip() for x in content] 
+						for line in content:
+							if re.search(" WARNING: ", line):
+								logging.debug("warning found in the log, creating file:"+cachewarningfile)
+								subprocess.call(['touch', cachewarningfile])
+							if re.search(" nfs3 error", line):
+								logging.debug("nfs3 error found in the log, creating file:"+cacheerrorfile)
+								subprocess.call(['touch', cacheerrorfile])
+								break
+
+			logging.debug("caching alloc:"+alloc['ID'])
 
 		# mark jobs as completed only as part of nomad subcommand and not status
 		if jobcomplete and not cachecomplete and parselog:
@@ -3827,9 +3607,10 @@ def parse_nomad_jobs_to_files (parselog=True):
 				json.dump(statsresults,f)
 			except Exception as e:					
 				logging.error(f"cannot write data to 'complete' file:{cachecompletefile} - {e}") 
-				exit(1)			
+				exit(1)
 
-
+			#delete the job from nomad when complete
+			delete_job_by_prefix(job['ID'])
 			
 	#removing the lock file 
 	try:
@@ -5695,7 +5476,7 @@ def upload_file (path, linuxpath, windowspath):
 def rotate_sync_count_in_cache(maxsyncsperjob):
 	if maxsyncsperjob<1: return
 	
-	for fileprefix in ['periodic','alloc']:
+	for fileprefix in ['periodic','alloc','stdoutlog','stderrlog','running','complete']:
 		cmd = "find "+cachedir+"/job_sync_* -type d | awk '{system(\"find \"$1\"/"+fileprefix+"* -printf "+'\\"%T@ %p\\n\\" | sort -r | tail -n +'+str(maxsyncsperjob+1)+'")}'+"' | awk '{system(\"rm -rf \"$2)}'"
 		logging.debug("removing old syncs exceeding "+str(maxsyncsperjob)+" from cache using the cmd:"+cmd)
 		filelist = os.system(cmd)
