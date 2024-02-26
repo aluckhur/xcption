@@ -3452,7 +3452,10 @@ def parse_nomad_jobs_to_files (parselog=True):
 						lastlogfilenum = 0
 
 					#initialize dict to host previous data obj 
-					prevjsonobj = {'Full': offsetconfig[logtype]['full'],'Data': offsetconfig[logtype]['data'], 'File': offsetconfig[logtype]['file'], 'Offset': offsetconfig[logtype]['offset'], 'Len': offsetconfig[logtype]['len'], 'Seq': offsetconfig[logtype]['seq'] }
+					try:
+						prevjsonobj = {'Full': offsetconfig[logtype]['full'],'Data': offsetconfig[logtype]['data'], 'File': offsetconfig[logtype]['file'], 'Offset': offsetconfig[logtype]['offset'], 'Len': offsetconfig[logtype]['len'], 'Seq': offsetconfig[logtype]['seq'] }
+					except:
+						prevjsonobj = {'Full': True,'Data': "", 'File': "", 'Offset': 0, 'Len': 0, 'Seq': 0 }
 
 					#start offset from the begining of the log 
 					startoffset = 0
