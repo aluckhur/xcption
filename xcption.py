@@ -429,7 +429,7 @@ def ssh (hostname:str, cmd: list = []):
 
 #validate ontap ndmp 
 def validate_ontap_ndmp(ontappath):
-	matchObj = re.match("^([a-zA-Z0-9._%+-_]+)@([a-zA-Z0-9.-_]+):\/([a-zA-Z0-9.-_]+)\/([a-zA-Z0-9.-]+)(.*)$",ontappath)
+	matchObj = re.match("^([a-zA-Z0-9\._%+-_]+)@([a-zA-Z0-9-_]+):\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9_]+)(.*)$",ontappath)
 	if matchObj:
 		ontapuser = matchObj.group(1)
 		ontaphost = matchObj.group(2)
