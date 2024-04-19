@@ -1,19 +1,9 @@
 
- param (
-    [string]$XCPtionServer = $(throw "-XCPtionServer is required."), 
-    #[string]$XCPtionServerUser = $(throw "-XCPtionServerUser is required."), 
-	#[string]$XCPtionServerPwd, 
-	#[string]$XCPtionServerInstallDir = $(throw "-XCPtionServerInstallDir is required."), 
-    [string]$XCPtionServiceUser = $(throw "-XCPtionServiceUser is required."),
-	[string]$XCPtionServicePwd
- )
-
-$XCPtionServerInstallDir += '/windows/'
-
-if (-not $XCPtionServerPwd) {
-	$pwd = Read-Host -AsSecureString "XCPtion Server Passwd"
-	$XCPtionServerPwd = (New-Object PSCredential "user",$pwd).GetNetworkCredential().Password
-}
+param (
+   [string]$XCPtionServer = $(throw "-XCPtionServer is required."), 
+   [string]$XCPtionServiceUser = $(throw "-XCPtionServiceUser is required."),
+   [string]$XCPtionServicePwd
+)
 
 if (-not $XCPtionServicePwd) {
 	$pwd = Read-Host -AsSecureString "XCPtion Service Passwd"
@@ -24,36 +14,6 @@ if (-not $XCPtionServicePwd) {
 $InstallDir = "C:\NetApp\XCP\"
 $LogDir = $InstallDir+"Log\"
 $XCPtionServiceName = "XCPtionNomad"
-$LocalDirWithRequiredFiles = $InstallDir
-
-#$TempDir = $env:TEMP+'\'
-$TempDir = $InstallDir
-if (-not $TempDir) {$TempDir = 'C:\Temp\' }
-if (-not (Test-path $TempDir -Type Container)) {
-	New-Item -ItemType Directory -Path $TempDir
-}
-
-
-function GetFile
-{
-    Param([string]$URL, [string]$DestinationFile)
-	
-	$LocalPath = $LocalDirWithRequiredFiles+$DestinationFile
-	
-	if (Test-Path $LocalPath -PathType Leaf) {
-		Write-Host $("Using local copy: "+$LocalDirWithRequiredFiles+'\'+$DestinationFile)
-		if ($($LocalDirWithRequiredFiles+$DestinationFile) -ne $($TempDir+$DestinationFile)) {
-			Copy-Item $($LocalDirWithRequiredFiles+$DestinationFile) $($TempDir+$DestinationFile)
-		}
-	} else {
-		[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-		Invoke-WebRequest $URL -OutFile $($TempDir+$DestinationFile) -ErrorVariable out
-		if ($out) {
-			Write-Host "Could not download $DestinationFile from the internet and could not find it in local directory $LocalDirWithRequiredFiles" -ForegroundColor Red
-			exit(1)
-		} 
-	}
-}
 
 
 function Unzip
@@ -64,30 +24,8 @@ function Unzip
     [System.IO.Compression.ZipFile]::ExtractToDirectory($zipfile, $outpath) 
 }
 
-function SCPfile
-{
-    Param([string]$File)
-	
-	
-	$SRCPath = '"'+$XCPtionServer+':'+$XCPtionServerInstallDir+$File+'"'
-	$DSTPath = '"'+$TempDir+$File+'"'
-
-	
-	$SCPcmd =  $TempDir+'pscp.exe'
-	
-	& $SCPCmd '-pw' $XCPtionServerPWD '-l' $XCPtionServerUser $SRCPath $DSTPath
-	
-
-	
-	#if ($out -gt 0) {
-	#	Write-Host "Could not SCP:$SRCPath" -ForegroundColor Red
-	#	exit(1)	
-	#}
-}
 
 Add-Type -AssemblyName System.IO.Compression.FileSystem
-
-
 if (-not ([System.Management.Automation.PSTypeName]'ServerCertificateValidationCallback').Type)
 {
 $certCallback = @"
@@ -140,29 +78,14 @@ if (-not (Test-Path $LogDir -Type Container)) {
 # Write-Host "Getting SCP client for windows to copy required files from XCP server"
 # GetFile  -URL https://the.earth.li/~sgtatham/putty/latest/w64/pscp.exe -DestinationFile pscp.exe
  
-# if (-not (Test-Path $($InstallDir+'xcp.exe') -Type Leaf)) {
-# 	Write-Host "Fetching xcp.exe from XCPtion server"
-# 	SCPfile -File xcp_windows.zip 
-# 	Unzip $($TempDir+"xcp_windows.zip") $InstallDir
-# }
-# if (-not (Test-Path $($InstallDir+'nomad.exe') -Type Leaf)) {
-# 	Write-Host "Fetching nomad.exe from XCPtion server"
-# 	SCPfile -File nomad_windows.zip
-# 	Unzip $($TempDir+"nomad_windows.zip") $InstallDir
-# }
-# if (-not (Test-Path $($InstallDir+'nssm.exe') -Type Leaf)) {
-# 	Write-Host "Fetching nssm.exe from XCPtion server"
-# 	SCPfile -File nssm.exe
-# }
-
-# Write-Host "Featching required files from XCPtion server"
-# SCPfile -File license 
-# SCPfile -File nomad_service.cmd
-# SCPfile -File robocopy_wrapper.cmd
-# SCPfile -File Robocopy_Errors.txt
-# SCPfile -File Robocopy-Get-FailedFiles.ps1
-# SCPfile -File robocopy_log_file_dir.txt
-
+if (-not (Test-Path $($InstallDir+'xcp.exe') -Type Leaf)) {
+	Write-Host "Fetching xcp.exe from XCPtion server"
+	Unzip $($TempDir+"xcp_windows.zip") $InstallDir
+}
+if (-not (Test-Path $($InstallDir+'nomad.exe') -Type Leaf)) {
+	Write-Host "Fetching nomad.exe from XCPtion server"
+	Unzip $($TempDir+"nomad_windows.zip") $InstallDir
+}
 $NomadClientHCLFile = $InstallDir+'client.hcl'
 Write-Host "Creating nomad client configuration file:$NomadClientHCLFile"
 
@@ -170,6 +93,7 @@ Set-Content -Value "bind_addr    = ""0.0.0.0""" -Path $NomadClientHCLFile
 Add-Content -Value "region       = ""DC1""" -Path $NomadClientHCLFile 
 Add-Content -Value "datacenter   = ""DC1""" -Path $NomadClientHCLFile 
 Add-Content -Value "data_dir     = ""$(($InstallDir -Replace "\\","/")+'lib')""" -Path $NomadClientHCLFile 
+Add-Content -Value "log_file     = ""$(($LogDir -Replace "\\","/")+'NomadLog.txt')""" -Path $NomadClientHCLFile 
 #Add-Content -Value "log_level   = ""DEBUG""" -Path $NomadClientHCLFile 
 Add-Content -Value "leave_on_interrupt = true" -Path $NomadClientHCLFile 
 Add-Content -Value "leave_on_terminate = true" -Path $NomadClientHCLFile 
@@ -193,20 +117,25 @@ Add-Content -Value "}" -Path $NomadClientHCLFile
 if (Get-Service $XCPtionServiceName -ErrorAction SilentlyContinue)
 {
     Write-Host "Service:$XCPtionServiceName already exists, removing it"
-	Stop-Service -Name $XCPtionServiceName
+	Stop-Service -Name $XCPtionServiceName -OutVariable out
 	$serviceToRemove = Get-WmiObject -Class Win32_Service -Filter "name='$XCPtionServiceName'"
-    $serviceToRemove.delete()
+    $out = $serviceToRemove.delete()
 }
 
-Write-Host "Creating service:$XCPtionServiceName"
-$binaryPath = $InstallDir+'nomad_service.cmd'
+#remove previous nomad lib dir
+if (Test-Path $($InstallDir+'lib\alloc') -Type Container) {
+	Write-Host "Removing previous allocs"
+	Remove-Item -LiteralPath $InstallDir'lib\alloc' -Force -Recurse
+}
 
-& $($InstallDir+'nssm.exe') "install" $XCPtionServiceName $binaryPath
-& $($InstallDir+'nssm.exe') "set" $XCPtionServiceName "DisplayName" $XCPtionServiceName
-& $($InstallDir+'nssm.exe') "set" $XCPtionServiceName "Start" "SERVICE_AUTO_START"
-& $($InstallDir+'nssm.exe') "set" $XCPtionServiceName "ObjectName" $XCPtionServiceUser $XCPtionServicePWD
+
+$binaryPath = $InstallDir+'nomad.exe'
+Write-Host "Creating service:$XCPtionServiceName"
+& sc.exe create "$XCPtionServiceName" binPath= "$binaryPath agent -config=$NomadClientHCLFile" Start= auto DisplayName= "$XCPtionServiceName"
+& sc.exe config "$XCPtionServiceName" obj= "$XCPtionServiceUser" password= "$XCPtionServicePWD"
 
 Write-Host "Starting service:$XCPtionServiceName"
 Start-Service -Name $XCPtionServiceName
-"installation completed"
+Write-Host "Installation completed"
+
 
