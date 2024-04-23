@@ -48,7 +48,7 @@ winpath = 'C:\\NetApp\\XCP'
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 xcpwincopyparam = "-preserve-atime -acl -root"
 xcpwinsyncparam = "-preserve-atime -acl -root"
-xcpwinverifyparam = "-v -l -nodata -noatime -preserve-atime "
+xcpwinverifyparam = "-v -l -nodata -preserve-atime "
 
 #robocopy windows location
 robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
@@ -213,8 +213,8 @@ parser_create.add_argument('-p','--cpu',help="CPU allocation in MHz for each job
 parser_create.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
 parser_create.add_argument('-t','--tool',help="tool to use, can be [xcp|robocopy|rclone|ndmpcopy|cloudsync]", choices=['xcp','robocopy','rclone','ndmpcopy','cloudsync'],required=False,default='xcp',type=str,metavar='tool')
 parser_create.add_argument('-n','--cron',help="create all task with schedule ", required=False,type=str,metavar='cron')
-parser_create.add_argument('-e','--exclude',help="comma seperated exclude paths",required=False,type=str)
-parser_create.add_argument('-v','--novalidation',help="create can be faster for windows paths since valaidation is prevented", required=False,action='store_true')
+parser_create.add_argument('-e','--exclude',help="comma separated exclude paths",required=False,type=str)
+parser_create.add_argument('-v','--novalidation',help="create can be faster for windows paths since validation is prevented", required=False,action='store_true')
 #parser_create.add_argument('-a','--acl',help="use no-win-acl to prevent acl copy for cifs jobs or nfs4-acl to enable nfs4-acl copy", choices=['no-win-acl','nfs4-acl'], required=False,type=str,metavar='aclcopy')
 
 parser_copydata.add_argument('-s','--source',help="source nfs path (nfssrv:/mount)",required=True,type=str)
@@ -229,7 +229,7 @@ parser_deletedata.add_argument('-f','--force',help="force delete data without co
 parser_load.add_argument('-c','--csvfile',help="input CSV file with the following columns: JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIR FILE",required=True,type=str)
 parser_load.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_load.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
-parser_load.add_argument('-v','--novalidation',help="load can be faster for windows paths since valaidation is prevented", required=False,action='store_true')
+parser_load.add_argument('-v','--novalidation',help="load can be faster for windows paths since validation is prevented", required=False,action='store_true')
 
 parser_baseline.add_argument('-j','--job',help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_baseline.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
