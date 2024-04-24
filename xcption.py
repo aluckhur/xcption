@@ -3043,10 +3043,10 @@ def delete_job_by_prefix(prefix):
 				logging.error("can't delete job:"+nomadjob['ID']) 
 				exit(1)
 			#ruuning gabage collection to kill deleted job
-			response = requests.put(nomadapiurl+'system/gc')
-			if not response.ok:
-				logging.debug("can't run gc") 
-				exit(1)
+			#response = requests.put(nomadapiurl+'system/gc')
+			#if not response.ok:
+			#	logging.debug("can't run gc") 
+			#	exit(1)
 #delete jobs 
 def delete_jobs(forceparam):
 
@@ -3593,28 +3593,38 @@ def parse_nomad_jobs_to_files (parselog=True):
 						for line in content:
 							if re.search(" WARNING: ", line):
 								logging.debug("warning found in the log, creating file:"+cachewarningfile)
-								subprocess.call(['touch', cachewarningfile])
+								#subprocess.call(['touch', cachewarningfile])
+								open(cachewarningfile, 'a').close()
 							if re.search(" nfs3 error", line):
 								logging.debug("nfs3 error found in the log, creating file:"+cacheerrorfile)
-								subprocess.call(['touch', cacheerrorfile])
+								#subprocess.call(['touch', cacheerrorfile])
+								open(cacheerrorfile, 'a').close()
 								break
 
 			logging.debug("caching alloc:"+alloc['ID'])
 
 		# mark jobs as completed only as part of nomad subcommand and not status
 		if jobcomplete and not cachecomplete and parselog:
-			logging.debug("creating file:"+cachecompletefile+" to prevent further caching for the job")
-			alloclogfile = os.path.join(jobdir,'stderrlog_'+alloc['ID']+'.log')
-			statsresults = parse_stats_from_log('file',alloclogfile,logtype)
-			try:	
-				f = open(cachecompletefile,'w')
-				json.dump(statsresults,f)
-			except Exception as e:					
-				logging.error(f"cannot write data to 'complete' file:{cachecompletefile} - {e}") 
-				exit(1)
+			#delay completion in one cycle due to late in nomad log collection 
+			almostcachecompletefile = cachecompletefile+".almost"
+			if not os.path.isfile(almostcachecompletefile):
+				logging.debug(f"creating file:{almostcachecompletefile} to delay completion of the task")
+				open(almostcachecompletefile, 'a').close()
+			else:
+				logging.debug("creating file:"+cachecompletefile+" to prevent further caching for the task")
+				alloclogfile = os.path.join(jobdir,'stderrlog_'+alloc['ID']+'.log')
+				statsresults = parse_stats_from_log('file',alloclogfile,logtype)
 
-			#delete the job from nomad when complete
-			delete_job_by_prefix(job['ID'])
+				
+				try:	
+					f = open(cachecompletefile,'w')
+					json.dump(statsresults,f)
+				except Exception as e:					
+					logging.error(f"cannot write data to 'complete' file:{cachecompletefile} - {e}") 
+					exit(1)
+
+				#delete the job from nomad when complete
+				delete_job_by_prefix(job['ID'])
 			
 	#removing the lock file 
 	try:
@@ -4476,204 +4486,6 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 		logging.error("cannot write smart assess job json file:"+smartassessjobdictjson)
 		exit(1)
 
-
-#assessment of filesystem and creation of csv file out of it 
-def assess_fs_linux_old(csvfile,src,dst,depth,acl,jobname):
-	logging.debug("starting to assess src:" + src + " dst:" + dst) 
-
-	if not re.search("^\S+\:\/.*", src):
-		logging.error("source format is incorrect: " + src) 
-		exit(1)	
-	if not re.search("^\S+\:\/.*", dst):
-		logging.error("destination format is incorrect: " + dst)
-		exit(1)	
-
-	defaultprocessor = defaultcpu
-	if args.cpu: 
-		defaultprocessor = args.cpu 
-		if defaultprocessor < 0 or defaultprocessor > 20000:
-			logging.error("cpu allocation is illegal:"+defaultprocessor)
-			exit(1)	
-
-	defaultram = defaultmemory
-	if args.ram: 
-		defaultram = args.ram
-		if defaultram < 0 or defaultram > 20000:
-			logging.error("ram allocation is illegal:"+defaultram)
-			exit(1)	
-
-	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
-	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
-
-	logging.debug("temporary mounts for assement will be:"+tempmountpointsrc+" and "+tempmountpointdst)
-
-	#check if src/dst can be mounted
-	subprocess.call( [ 'mkdir', '-p',tempmountpointsrc ] )
-	subprocess.call( [ 'mkdir', '-p',tempmountpointdst ] )
-
-	logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
-
-	#clearing possiable previous mounts 
-	DEVNULL = open(os.devnull, 'wb')
-	subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
-	subprocess.call( [ 'umount', tempmountpointdst ], stdout=DEVNULL, stderr=DEVNULL)
-
-	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, tempmountpointsrc ],stderr=subprocess.STDOUT):
-		logging.error("cannot mount src using nfs: " + src)
-		exit(1)					
-	
-	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, tempmountpointdst ],stderr=subprocess.STDOUT):
-		logging.error("cannot mount dst using nfs: " + dst)
-		subprocess.call( [ 'umount', tempmountpointsrc ],stderr=subprocess.STDOUT)
-		exit(1)
-
-
-	if (depth < 1 or depth > 12):
-		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
-		exit(1)	
-
-	#prepare things for csv creation
-	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS","ACL COPY"]
-	csv_data = []
-
-	if os.path.isfile(csvfile):
-		logging.warning("csv file:"+csvfile+" already exists")
-		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
-
-	#will be true if warning identified 
-	warning = False 
-
-	#will set to true if Ctrl-C been pressed during os.walk
-	end = False
-
-	srcdirstructure = list_dirs_linux(tempmountpointsrc,depth-1)
-
-	try:
-		taskcounter = 0 
-		for o in srcdirstructure:
-
-			path = o[0]
-			dircount = o[1]
-			filecount = o[2]
-
-			currentdepth = path.count(os.path.sep) + 1
-			if path == './': currentdepth = 1
-
-			#print path,depth,currentdepth
-			
-			nfssrcpath = src+path.lstrip('.')
-			nfsdstpath = dst+path.lstrip('.')
-
-			dstpath = tempmountpointdst+path.lstrip('.')
-
-			#if filecount > 0 and (currentdepth < depth or (currentdepth == depth and dircount > 0)):
-			if (filecount > 0 and dircount > 0 and currentdepth < depth):
-				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")	
-				warning=True 
-			else:
-				if os.path.exists(dstpath):
-					dstdirfiles = os.listdir(dstpath)
-					if (len(dstdirfiles)>1 and dstdirfiles[0] != '.snapshot') or (len(dstdirfiles) == 1 and dstdirfiles[0] != '.snapshot'):
-						logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" contains files")
-						unmountdir(tempmountpointsrc)
-						unmountdir(tempmountpointdst)
-						exit(1)
-					else:
-						logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and empty")
-
-			#check if destination directory exists/contains files
-			if taskcounter > 50:
-				logging.warning("the amount of created jobs is above 50, this will create extensive amount of xcption tasks")
-				warning=True  
-				taskcounter = -1
-
-			#create xcption job entry
-			#print depth,currentdepth,dircount,nfssrcpath,path
-			#if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth == 1):
-			if (currentdepth < depth and dircount == 0) or (currentdepth == depth) or (depth == 1):
-				if nfssrcpath == src+"/" and nfsdstpath == dst+"/": 
-					nfssrcpath = src
-					nfsdstpath = dst
-
-				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
-				#append data to csv 
-				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":"","ACL COPY":acl})
-				if taskcounter != -1: taskcounter += 1
-
-
-		if warning:
-			if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
-		
-		if not end:
-			try:
-				with open(csvfile, 'w') as c:
-					writer = csv.DictWriter(c, fieldnames=csv_columns)
-					writer.writeheader()
-					for data in csv_data:
-						writer.writerow(data)
-					logging.info("job csv file:"+csvfile+" created")
-			except IOError:
-				logging.error("could not write data to csv file:"+csvfile)
-				unmountdir(tempmountpointsrc)
-				unmountdir(tempmountpointdst)
-				exit(1)		
-			
-			if depth > 1:
-				#use xcp to build the directory structure of the dest filesystem 
-				#xcpcmd = xcplocation + ' copy -noID -match "(type==d and depth=='+str(depth)+') or (type==f and depth<'+str(depth)+')" '+ src  + ' ' + dst
-				# logging.info("xcp can be used to create the destination initial directory structure for xcption jobs")
-				# logging.info("xcp command to sync directory structure for the required depth will be:")				
-				# logging.info(xcpcmd)
-				# if query_yes_no("do you want to run xcp copy to build the directory structure in the dest ?", default="no"): 
-				#  	end=False 
-				#  	logging.info("=================================================================")
-				#  	logging.info("========================Starting xcp=============================")
-				#  	logging.info("=================================================================")
-				#  	#run xcp and check if failed 
-				#  	if os.system(xcpcmd):
-				#  		logging.error("xcp copy failed")
-				#  		exit(1)
-				#  	logging.info("=================================================================")
-				#  	logging.info("=====================xcp ended successfully======================")
-				#  	logging.info("=================================================================")
-				
-				#use rsync to build the directory structure of the dest filesystem 
-				depthrsync = ''
-				for x in range(depth):
-					depthrsync += '/*'
-				rsynccmd = 'rsync -av --exclude ".snapshot" --exclude="'+depthrsync+ '" -f"+ */" -f"- *"  "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
-				logging.info("rsync command to sync directory structure for the required depth will be:")
-				logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
-				logging.info(rsynccmd)
-				logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
-				if query_yes_no("do you want to run rsync ?", default="no"): 
-					end=False 
-					logging.info("=================================================================")
-					logging.info("========================Starting rsync===========================")
-					logging.info("=================================================================")
-					#run rsync and check if failed 
-					if os.system(rsynccmd):
-						logging.error("rsync failed")
-						unmountdir(tempmountpointsrc)
-						unmountdir(tempmountpointdst)
-						exit(1)
-					logging.info("=================================================================")
-					logging.info("===================rsync ended successfully======================")
-					logging.info("=================================================================")
-
-				logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
-
-	except KeyboardInterrupt:
-		print("")
-		print("aborted")
-		end = True	
-
-	end = True 	
-	if end:
-		unmountdir(tempmountpointsrc)
-		unmountdir(tempmountpointdst)
-
 #assessment of filesystem and creation of csv file out of it 
 def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 	logging.debug("starting to assess src:" + src + " dst:" + dst) 
@@ -4756,7 +4568,7 @@ def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 		srcdirstructure = list_dirs_linux(tempmountpointsrc,depth)
 
 	excludefilename = src.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
-	csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":src,"DEST PATH":dst,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":excludefilename,"ACL COPY":acl})
+	csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":src,"DEST PATH":dst,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'xcp',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":excludefilename,"ACL COPY":acl})
 
 	try:
 		taskcounter = 0 
@@ -4801,7 +4613,7 @@ def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 
 				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
 				#append data to csv 
-				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS": excludefilename, "ACL COPY":acl})
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'xcp',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS": excludefilename, "ACL COPY":acl})
 				if taskcounter != -1: taskcounter += 1
 
 		#create the list of exluded files 
@@ -4896,33 +4708,6 @@ def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 			
 			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
 			
-			# if depth > 0:		
-			# 	#use rsync to build the directory structure of the dest filesystem 
-			# 	depthrsync = ''
-			# 	for x in range(depth):
-			# 		depthrsync += '/*'
-			# 	rsynccmd = 'rsync -av --exclude ".snapshot" --exclude="'+depthrsync+ '" -f"+ */" -f"- *"  "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
-			# 	logging.info("rsync command to sync directory structure for the required depth will be:")
-			# 	logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
-			# 	logging.info(rsynccmd)
-			# 	logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
-			# 	if query_yes_no("do you want to run rsync ?", default="no"): 
-			# 		end=False 
-			# 		logging.info("=================================================================")
-			# 		logging.info("========================Starting rsync===========================")
-			# 		logging.info("=================================================================")
-			# 		#run rsync and check if failed 
-			# 		if os.system(rsynccmd):
-			# 			logging.error("rsync failed")
-			# 			unmountdir(tempmountpointsrc)
-			# 			unmountdir(tempmountpointdst)
-			# 			exit(1)
-			# 		logging.info("=================================================================")
-			# 		logging.info("===================rsync ended successfully======================")
-			# 		logging.info("=================================================================")
-
-			# 	logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
-
 	except KeyboardInterrupt:
 		print("")
 		print("aborted")
@@ -6357,170 +6142,173 @@ def map_host(hosts,protocol,output):
 #####################################################################################################
 ###################                        MAIN                                        ##############
 #####################################################################################################
-
-if not os.path.isdir(cachedir):
-	try:
-		os.mkdir(cachedir)
-	except Exception as e:
-		logging.error("could not create cache directoy:" + cachedir)
-		exit (1)
-
-#filter by job or jobname
-jobfilter = ''
-if hasattr(args, 'job'): 
-	if args.job != None:
-		jobfilter = args.job
-
-#filter by job or src
-srcfilter = ''
-if hasattr(args, 'source'): 
-	if args.source != None:
-		srcfilter = args.source
-if srcfilter != '' and not '*' in srcfilter:
-	srcfilter = '*'+srcfilter+'*'
-
-
-#filter by phase (relevant to status)
-phasefilter = ''
-if hasattr(args,'phase'):
-	if args.phase != None:
-		phasefilter = args.phase
-
-if args.version: print(("XCPtion version:"+version))
-
-#check nomad avaialbility
-check_nomad()
-
-if args.subparser_name == 'nodestatus':
-	nomadstatus()
-	exit(0)
-
-if args.subparser_name == 'nomad':
-	parse_nomad_jobs_to_files()
-	rotate_sync_count_in_cache(maxsyncsperjob)
-	exit (0)
-
-if args.subparser_name == 'assess':
-	if args.cron: 
+try:
+	if not os.path.isdir(cachedir):
 		try:
-			now = datetime.datetime.now()
-			cront = croniter.croniter(args.cron, now)
+			os.mkdir(cachedir)
 		except Exception as e:
-			logging.error('cron format: "'+args.cron+ '" is incorrect')
-			exit(1)	
-		defaultjobcron = args.cron
-					
-	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
-		if args.acl and not args.acl == 'nfs4-acl':
-			logging.error('invalid acl copy option')
+			logging.error("could not create cache directoy:" + cachedir)
+			exit (1)
+
+	#filter by job or jobname
+	jobfilter = ''
+	if hasattr(args, 'job'): 
+		if args.job != None:
+			jobfilter = args.job
+
+	#filter by job or src
+	srcfilter = ''
+	if hasattr(args, 'source'): 
+		if args.source != None:
+			srcfilter = args.source
+	if srcfilter != '' and not '*' in srcfilter:
+		srcfilter = '*'+srcfilter+'*'
+
+
+	#filter by phase (relevant to status)
+	phasefilter = ''
+	if hasattr(args,'phase'):
+		if args.phase != None:
+			phasefilter = args.phase
+
+	if args.version: print(("XCPtion version:"+version))
+
+	#check nomad avaialbility
+	check_nomad()
+
+	if args.subparser_name == 'nodestatus':
+		nomadstatus()
+		exit(0)
+
+	if args.subparser_name == 'nomad':
+		parse_nomad_jobs_to_files()
+		rotate_sync_count_in_cache(maxsyncsperjob)
+		exit (0)
+
+	if args.subparser_name == 'assess':
+		if args.cron: 
+			try:
+				now = datetime.datetime.now()
+				cront = croniter.croniter(args.cron, now)
+			except Exception as e:
+				logging.error('cron format: "'+args.cron+ '" is incorrect')
+				exit(1)	
+			defaultjobcron = args.cron
+						
+		if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', args.source):
+			if args.acl and not args.acl == 'nfs4-acl':
+				logging.error('invalid acl copy option')
+				exit(1)
+			assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,args.basedepth,args.acl,jobfilter)
+		else:
+			if args.acl and not args.acl == 'no-win-acl':
+				logging.error('invalid acl copy option')
+				exit(1)		
+			assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+
+	if args.subparser_name == 'create':
+		create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram,args.exclude)
+		create_nomad_jobs()
+
+	if args.subparser_name == 'map':
+		map_host(args.hosts,args.protocol,args.output)
+
+	if args.subparser_name == 'copy-data':
+		monitored_copy(args.source,args.destination,args.nfs4acl)
+
+	if args.subparser_name == 'delete-data':
+		monitored_delete(args.source,args.force,args.tool)
+
+	#load jobs from json file
+	load_jobs_from_json(jobdictjson)
+
+	if args.subparser_name == 'load':
+		parse_csv(args.csvfile)
+		create_nomad_jobs()
+
+	if args.subparser_name == 'baseline':
+		start_nomad_jobs('baseline',args.force)
+
+	if args.subparser_name == 'sync':
+		start_nomad_jobs('sync',False)
+
+	if args.subparser_name == 'verify':
+		start_nomad_jobs('verify',False)
+
+	if args.subparser_name == 'status':
+		#False is passed to skip log parsing and make it faster
+		parse_nomad_jobs_to_files(False)
+		if not args.verbose:
+			create_status('general',args.logs,args.output)
+		else:
+			create_status('verbose',args.logs,args.output)
+
+	if args.subparser_name in ['pause','resume','syncnow']:
+		update_nomad_job_status(args.subparser_name)
+
+	if args.subparser_name == 'delete':
+		delete_jobs(args.force)
+
+	if args.subparser_name == 'abort':
+		abort_jobs(args.type, args.force)
+
+	if args.subparser_name == 'modify':
+		if not args.tojob  and not args.cpu and not args.ram and not args.cron:
+			logging.error("please provide one or more properties to modify")		
 			exit(1)
-		assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,args.basedepth,args.acl,jobfilter)
-	else:
-		if args.acl and not args.acl == 'no-win-acl':
-			logging.error('invalid acl copy option')
-			exit(1)		
-		assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+		if args.cron:
+			try:
+				now = datetime.datetime.now()
+				cront = croniter.croniter(args.cron, now)
+			except Exception as e:
+				logging.error('cron format: "'+args.cron+ '" is incorrect')
+				exit(1)	
 
-if args.subparser_name == 'create':
-	create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram,args.exclude)
-	create_nomad_jobs()
-
-if args.subparser_name == 'map':
-	map_host(args.hosts,args.protocol,args.output)
-
-if args.subparser_name == 'copy-data':
-	monitored_copy(args.source,args.destination,args.nfs4acl)
-
-if args.subparser_name == 'delete-data':
-	monitored_delete(args.source,args.force,args.tool)
-
-#load jobs from json file
-load_jobs_from_json(jobdictjson)
-
-if args.subparser_name == 'load':
-	parse_csv(args.csvfile)
-	create_nomad_jobs()
-
-if args.subparser_name == 'baseline':
-	start_nomad_jobs('baseline',args.force)
-
-if args.subparser_name == 'sync':
-	start_nomad_jobs('sync',False)
-
-if args.subparser_name == 'verify':
-	start_nomad_jobs('verify',False)
-
-if args.subparser_name == 'status':
-	#False is passed to skip log parsing and make it faster
-	parse_nomad_jobs_to_files(False)
-	if not args.verbose:
-		create_status('general',args.logs,args.output)
-	else:
-		create_status('verbose',args.logs,args.output)
-
-if args.subparser_name in ['pause','resume','syncnow']:
-	update_nomad_job_status(args.subparser_name)
-
-if args.subparser_name == 'delete':
-	delete_jobs(args.force)
-
-if args.subparser_name == 'abort':
-	abort_jobs(args.type, args.force)
-
-if args.subparser_name == 'modify':
-	if not args.tojob  and not args.cpu and not args.ram and not args.cron:
-		logging.error("please provide one or more properties to modify")		
-		exit(1)
-	if args.cron:
-		try:
-			now = datetime.datetime.now()
-			cront = croniter.croniter(args.cron, now)
-		except Exception as e:
-			logging.error('cron format: "'+args.cron+ '" is incorrect')
-			exit(1)	
-
-	modify_tasks(args,args.force)
-	#create_nomad_jobs()
-	parse_nomad_jobs_to_files(False)
-
-if args.subparser_name == 'export':	
-	parse_nomad_jobs_to_files(False)
-	export_csv(args.csvfile)
-
-if args.subparser_name == 'web':	
-	start_flask(args.port)
-
-if args.subparser_name == 'fileupload':
-	upload_file(args.file,args.linuxpath,args.windowspath)
-
-if args.subparser_name == 'smartassess':
-	if not args.smartassess_command:
-		parser_smartassess.print_help()
-
-	load_smartassess_jobs_from_json(smartassessjobdictjson)
-
-	if args.smartassess_command == 'start':
-		smartassess_fs_linux_start(args.source,args.depth,args.locate_cross_task_hardlink)
-
-	if args.smartassess_command in ['status','createcsv']:
-		if args.min_capacity:
-			matchObj = re.match("^(\d+)(\s*)((K|M|G|T)(i)?B)$",args.min_capacity)
-			if matchObj.group(4) == 'K': minsizekfortask_minborder=int(matchObj.group(1))
-			if matchObj.group(4) == 'M': minsizekfortask_minborder=int(matchObj.group(1))*1024
-			if matchObj.group(4) == 'G': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024
-			if matchObj.group(4) == 'T': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024*1024		
-		minsizekforjob = minsizekfortask_minborder + 100000
-
-		if args.min_inodes:
-			mininodespertask_minborder = args.min_inodes
-		mininodespertask = mininodespertask_minborder + 200000
+		modify_tasks(args,args.force)
+		#create_nomad_jobs()
 		parse_nomad_jobs_to_files(False)
 
-	if args.smartassess_command == 'status':
-		smartassess_fs_linux_status_createcsv(args,False)
+	if args.subparser_name == 'export':	
+		parse_nomad_jobs_to_files(False)
+		export_csv(args.csvfile)
 
-	if args.smartassess_command == 'createcsv':
-		smartassess_fs_linux_status_createcsv(args,True)
+	if args.subparser_name == 'web':	
+		start_flask(args.port)
 
-	if args.smartassess_command == 'delete':	
-		smartassess_fs_linux_delete(args.force)
+	if args.subparser_name == 'fileupload':
+		upload_file(args.file,args.linuxpath,args.windowspath)
+
+	if args.subparser_name == 'smartassess':
+		if not args.smartassess_command:
+			parser_smartassess.print_help()
+
+		load_smartassess_jobs_from_json(smartassessjobdictjson)
+
+		if args.smartassess_command == 'start':
+			smartassess_fs_linux_start(args.source,args.depth,args.locate_cross_task_hardlink)
+
+		if args.smartassess_command in ['status','createcsv']:
+			if args.min_capacity:
+				matchObj = re.match("^(\d+)(\s*)((K|M|G|T)(i)?B)$",args.min_capacity)
+				if matchObj.group(4) == 'K': minsizekfortask_minborder=int(matchObj.group(1))
+				if matchObj.group(4) == 'M': minsizekfortask_minborder=int(matchObj.group(1))*1024
+				if matchObj.group(4) == 'G': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024
+				if matchObj.group(4) == 'T': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024*1024		
+			minsizekforjob = minsizekfortask_minborder + 100000
+
+			if args.min_inodes:
+				mininodespertask_minborder = args.min_inodes
+			mininodespertask = mininodespertask_minborder + 200000
+			parse_nomad_jobs_to_files(False)
+
+		if args.smartassess_command == 'status':
+			smartassess_fs_linux_status_createcsv(args,False)
+
+		if args.smartassess_command == 'createcsv':
+			smartassess_fs_linux_status_createcsv(args,True)
+
+		if args.smartassess_command == 'delete':	
+			smartassess_fs_linux_delete(args.force)
+except KeyboardInterrupt:
+	logging.error("Ctrl-C aborted")
+	exit(1)
