@@ -192,6 +192,7 @@ parser_status.add_argument('-l','--logs',help="display job logs", required=False
 parser_assess.add_argument('-s','--source',help="source path",required=True,type=str)
 parser_assess.add_argument('-d','--destination',help="destination path",required=True,type=str)
 parser_assess.add_argument('-l','--depth',help="filesystem depth to create jobs, range of 1-12",required=True,type=int)
+parser_assess.add_argument('-b','--basedepth',help="lower filesystem depth to create jobs, when not provided it will default to depth, range of 1-12 lower/equal to depth",required=False,type=int, default=-1)
 parser_assess.add_argument('-c','--csvfile',help="output CSV file",required=True,type=str)
 parser_assess.add_argument('-p','--cpu',help="CPU allocation in MHz for each job",required=False,type=int)
 parser_assess.add_argument('-m','--ram',help="RAM allocation in MB for each job",required=False,type=int)
@@ -4477,7 +4478,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 
 
 #assessment of filesystem and creation of csv file out of it 
-def assess_fs_linux(csvfile,src,dst,depth,acl,jobname):
+def assess_fs_linux_old(csvfile,src,dst,depth,acl,jobname):
 	logging.debug("starting to assess src:" + src + " dst:" + dst) 
 
 	if not re.search("^\S+\:\/.*", src):
@@ -4566,11 +4567,9 @@ def assess_fs_linux(csvfile,src,dst,depth,acl,jobname):
 
 			dstpath = tempmountpointdst+path.lstrip('.')
 
-			
 			#if filecount > 0 and (currentdepth < depth or (currentdepth == depth and dircount > 0)):
 			if (filecount > 0 and dircount > 0 and currentdepth < depth):
-				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
-	
+				logging.warning("source directory: "+nfssrcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")	
 				warning=True 
 			else:
 				if os.path.exists(dstpath):
@@ -4585,7 +4584,7 @@ def assess_fs_linux(csvfile,src,dst,depth,acl,jobname):
 
 			#check if destination directory exists/contains files
 			if taskcounter > 50:
-				logging.warning("the amount of created jobs is above 50, this will create extensive amount of xcption jobs")
+				logging.warning("the amount of created jobs is above 50, this will create extensive amount of xcption tasks")
 				warning=True  
 				taskcounter = -1
 
@@ -4674,6 +4673,267 @@ def assess_fs_linux(csvfile,src,dst,depth,acl,jobname):
 	if end:
 		unmountdir(tempmountpointsrc)
 		unmountdir(tempmountpointdst)
+
+#assessment of filesystem and creation of csv file out of it 
+def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
+	logging.debug("starting to assess src:" + src + " dst:" + dst) 
+
+	if not re.search("^\S+\:\/.*", src):
+		logging.error("source format is incorrect: " + src) 
+		exit(1)	
+	if not re.search("^\S+\:\/.*", dst):
+		logging.error("destination format is incorrect: " + dst)
+		exit(1)	
+
+	defaultprocessor = defaultcpu
+	if args.cpu: 
+		defaultprocessor = args.cpu 
+		if defaultprocessor < 0 or defaultprocessor > 20000:
+			logging.error("cpu allocation is illegal:"+defaultprocessor)
+			exit(1)	
+
+	defaultram = defaultmemory
+	if args.ram: 
+		defaultram = args.ram
+		if defaultram < 0 or defaultram > 20000:
+			logging.error("ram allocation is illegal:"+defaultram)
+			exit(1)	
+
+	tempmountpointsrc = '/tmp/src_'+str(os.getpid())
+	tempmountpointdst = '/tmp/dst_'+str(os.getpid())
+
+	logging.debug("temporary mounts for assement will be:"+tempmountpointsrc+" and "+tempmountpointdst)
+
+	#check if src/dst can be mounted
+	subprocess.call( [ 'mkdir', '-p',tempmountpointsrc ] )
+	subprocess.call( [ 'mkdir', '-p',tempmountpointdst ] )
+
+	logging.debug("validating src:" + src + " and dst:" + dst+ " are mountable")
+
+	#clearing possiable previous mounts 
+	DEVNULL = open(os.devnull, 'wb')
+	subprocess.call( [ 'umount', tempmountpointsrc ], stdout=DEVNULL, stderr=DEVNULL)
+	subprocess.call( [ 'umount', tempmountpointdst ], stdout=DEVNULL, stderr=DEVNULL)
+
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', src, tempmountpointsrc ],stderr=subprocess.STDOUT):
+		logging.error("cannot mount src using nfs: " + src)
+		exit(1)					
+	
+	if subprocess.call( [ 'mount', '-t', 'nfs', '-o','vers=3', dst, tempmountpointdst ],stderr=subprocess.STDOUT):
+		logging.error("cannot mount dst using nfs: " + dst)
+		subprocess.call( [ 'umount', tempmountpointsrc ],stderr=subprocess.STDOUT)
+		exit(1)
+
+
+	if (depth < 0 or depth > 12):
+		logging.error("depth should be between 0 to 12, provided depth is:"+str(depth))
+		exit(1)	
+
+	if basedepth == -1:
+		basedepth = depth 
+
+	if (basedepth < 0 or basedepth > 12 or basedepth > depth):
+		logging.error("basedepth should be lower or equal to depath and between 0 to 12, provided value is:"+str(basedepth))
+		exit(1)			
+
+	#prepare things for csv creation
+	if jobname == '': jobname = 'job'+str(os.getpid())
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS","ACL COPY"]
+	csv_data = []
+
+	if os.path.isfile(csvfile):
+		logging.warning("csv file:"+csvfile+" already exists")
+		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
+
+	#will be true if warning identified 
+	warning = False 
+
+	#will set to true if Ctrl-C been pressed during os.walk
+	end = False
+
+	srcdirstructure = []
+	if depth > 0:
+		srcdirstructure = list_dirs_linux(tempmountpointsrc,depth)
+
+	excludefilename = src.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
+	csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":src,"DEST PATH":dst,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS":excludefilename,"ACL COPY":acl})
+
+	try:
+		taskcounter = 0 
+		for o in srcdirstructure:
+			path = o[0]
+			dircount = o[1]
+			filecount = o[2]
+
+			currentdepth = path.count(os.path.sep)
+			if path == './': currentdepth = 0
+
+			nfssrcpath = src+path.lstrip('.')
+			nfsdstpath = dst+path.lstrip('.')
+
+			dstpath = tempmountpointdst+path.lstrip('.')
+
+			if os.path.exists(dstpath):
+				dstdirfiles = os.listdir(dstpath)
+				if (len(dstdirfiles)==1 and dstdirfiles[0] != '.snapshot') or len(dstdirfiles)>1:
+					logging.error("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" contains files")
+					unmountdir(tempmountpointsrc)
+					unmountdir(tempmountpointdst)
+					exit(1)
+				else:
+					logging.info("destination dir: "+nfsdstpath+ " for source dir: "+nfssrcpath+" already exists and empty")
+
+			#check if destination directory exists/contains files
+			if taskcounter > 50:
+				logging.warning("the amount of created tasks is above 50, this will create extensive amount of xcption tasks")
+				warning=True  
+				taskcounter = -1
+
+			#create xcption job entry
+			if (currentdepth == depth) or (currentdepth == basedepth):
+				if nfssrcpath == src+"/" and nfsdstpath == dst+"/": 
+					nfssrcpath = src
+					nfsdstpath = dst
+				
+				excludefilename = ''
+				if currentdepth == basedepth and dircount >0 and basedepth < depth: 
+					excludefilename = nfssrcpath.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
+
+				logging.debug("src path: "+nfssrcpath+" and dst path: "+nfsdstpath+ " will be configured as xcp job")
+				#append data to csv 
+				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS": excludefilename, "ACL COPY":acl})
+				if taskcounter != -1: taskcounter += 1
+
+		#create the list of exluded files 
+		basepaths = {}
+		index = 0 
+		for task in csv_data:
+			taskpath = task['SOURCE PATH']
+			basepaths[taskpath] = []		
+			tasksubdirs = [t for t in csv_data if t['SOURCE PATH'].startswith(task['SOURCE PATH']+'/')]
+			for subdir in tasksubdirs:
+				path = subdir['SOURCE PATH']
+				shouldreturn = True
+				paths = path.split('/')
+				for subdir1 in tasksubdirs:
+					otherpath = subdir1['SOURCE PATH']
+					otherpathsplit = otherpath.split('/')
+					n = len(otherpathsplit)
+					if paths[0:n] == otherpathsplit and len(paths) > n:
+						shouldreturn = False
+				if shouldreturn:
+					basepaths[taskpath].append(path)
+			
+			if not len(basepaths[taskpath]):
+				csv_data[index]["EXCLUDE DIRS"] = ''
+			index += 1
+				
+		if warning:
+			if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
+		
+		if not end:
+			try:
+				with open(csvfile, 'w') as c:
+					writer = csv.DictWriter(c, fieldnames=csv_columns)
+					writer.writeheader()
+
+					for path in csv_data:
+						taskpath = path["SOURCE PATH"]								
+						dstpath = path["DEST PATH"]
+
+						srcnfspath = taskpath.replace(src,tempmountpointsrc)
+						dstnfspath = dstpath.replace(dst,tempmountpointdst)
+						
+						if not os.path.isdir(dstnfspath):
+							logging.debug(f"creating destination directory: {dstnfspath}")
+							os.makedirs(dstnfspath)
+
+							#change ownership and permssions of destination folder created 
+							dstfolders = dstnfspath.replace(tempmountpointdst,'')
+
+							incfoldersrc = tempmountpointsrc
+							incfolderdst = tempmountpointdst
+							for folder in dstfolders.split('/'):
+								if folder:
+									incfoldersrc = os.path.join(incfoldersrc,folder)
+									incfolderdst = os.path.join(incfolderdst,folder)
+									#get orriginal folder permssion 
+									srcstatinfo = os.stat(incfoldersrc)
+
+									# Copy the ownership to the destination folder
+									os.chown(incfolderdst, srcstatinfo.st_uid, srcstatinfo.st_gid)
+
+									# Copy the permissions to the destination folder
+									os.chmod(incfolderdst, srcstatinfo.st_mode)
+																			
+						writer.writerow(path)
+						if path["EXCLUDE DIRS"]:
+							excludedir = os.path.join(xcprepopath,'excludedir') 
+							try:
+								if not os.path.isdir(excludedir):
+									os.mkdir(excludedir)
+
+
+								excludefile = os.path.join(excludedir,path["EXCLUDE DIRS"]) 
+								logging.debug(f"creating exclude dir file: {excludefile} for source task: {taskpath}")
+								with open(excludefile, 'w') as e:
+									for line in basepaths[taskpath]:
+										e.write(f"{line}\n")
+								e.close()
+
+							except Exception as e:
+								logging.error(f"cannot create exclude dir directory: {excludedir} - {e}")
+								unmountdir(tempmountpointsrc)
+								unmountdir(tempmountpointdst)								
+								exit(1)
+
+					logging.info("job csv file:"+csvfile+" created")
+			except Exception as e:
+				logging.error(f"could not write data to csv file:{csvfile}: {e}")
+				unmountdir(tempmountpointsrc)
+				unmountdir(tempmountpointdst)
+				exit(1)		
+			
+			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+			
+			# if depth > 0:		
+			# 	#use rsync to build the directory structure of the dest filesystem 
+			# 	depthrsync = ''
+			# 	for x in range(depth):
+			# 		depthrsync += '/*'
+			# 	rsynccmd = 'rsync -av --exclude ".snapshot" --exclude="'+depthrsync+ '" -f"+ */" -f"- *"  "'+tempmountpointsrc+'/" "'+tempmountpointdst+'/"'
+			# 	logging.info("rsync command to sync directory structure for the required depth will be:")
+			# 	logging.info("rsync can be used to create the destination initial directory structure for xcption jobs")
+			# 	logging.info(rsynccmd)
+			# 	logging.info("("+src+" is mounted on:"+tempmountpointsrc+" and "+dst+" is mounted on:"+tempmountpointdst+")")
+			# 	if query_yes_no("do you want to run rsync ?", default="no"): 
+			# 		end=False 
+			# 		logging.info("=================================================================")
+			# 		logging.info("========================Starting rsync===========================")
+			# 		logging.info("=================================================================")
+			# 		#run rsync and check if failed 
+			# 		if os.system(rsynccmd):
+			# 			logging.error("rsync failed")
+			# 			unmountdir(tempmountpointsrc)
+			# 			unmountdir(tempmountpointdst)
+			# 			exit(1)
+			# 		logging.info("=================================================================")
+			# 		logging.info("===================rsync ended successfully======================")
+			# 		logging.info("=================================================================")
+
+			# 	logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+
+	except KeyboardInterrupt:
+		print("")
+		print("aborted")
+		end = True	
+
+	end = True 	
+	if end:
+		unmountdir(tempmountpointsrc)
+		unmountdir(tempmountpointdst)
+
+
 
 
 def list_dirs_windows(startpath,depth):
@@ -6154,7 +6414,7 @@ if args.subparser_name == 'assess':
 		if args.acl and not args.acl == 'nfs4-acl':
 			logging.error('invalid acl copy option')
 			exit(1)
-		assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,args.acl,jobfilter)
+		assess_fs_linux(args.csvfile,args.source,args.destination,args.depth,args.basedepth,args.acl,jobfilter)
 	else:
 		if args.acl and not args.acl == 'no-win-acl':
 			logging.error('invalid acl copy option')
