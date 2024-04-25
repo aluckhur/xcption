@@ -117,3 +117,7 @@
 3.3.3.0
 - add the map sub command to map exports and shares 
 - updated README file 
+
+3.3.4.0
+- redone assess for cifs and nfs
+- verify for xcp windows with excluded directories 
