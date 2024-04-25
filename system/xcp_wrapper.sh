@@ -12,7 +12,7 @@ if [[ " $@ " =~ "-acl4" ]]; then
     mount -t nfs4 $6 /tmp/xcption_nfs4_dst_mount$$    
 fi
 
-/usr/local/bin/xcp "$@" 
+stdbuf -i0 -o0 -e0 /usr/local/bin/xcp "$@" 
 exitcode=$?
 
 if [[ " $@ " =~ "-acl4" ]]; then

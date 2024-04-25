@@ -1008,10 +1008,13 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 	return results
 
 #create escaped sctring (used for command within hcl files)
-def escapestr (str1):
-	str1 = str1.replace('\\','\\\\')
-	str1 = str1.replace('\"','\\\"')
-	str1 = str1.replace("\'","\\\'")
+def escapestr (str1, exclude:str=""):
+	if not "\\" in exclude:
+		str1 = str1.replace('\\','\\\\')
+	if not '\"' in exclude:
+		str1 = str1.replace('\"','\\\"')
+	if not "\'" in exclude:
+		str1 = str1.replace("\'","\\\'")
 	return str1
 
 #create nomad hcl files
@@ -1095,7 +1098,6 @@ def create_nomad_jobs():
 							logging.error("exclude directories file for rclone cannot be parsed: " + excludedirfile)	
 							exit(1)
 
-
 					ndmpcopyexcludedirs = ''
 					if tool == 'ndmpcopy' and excludedirfile != '':
 						try:
@@ -1109,8 +1111,6 @@ def create_nomad_jobs():
 							logging.error("exclude directories file for ndmpcopy cannot be parsed: " + excludedirfile)	
 							exit(1)
 					
-
-
 					#creating baseline job 
 					baseline_job_file = os.path.join(jobdir,baseline_job_name+'.hcl')	
 					logging.info("creating/updating relationship configs for src: "+src)
@@ -1145,6 +1145,7 @@ def create_nomad_jobs():
 						else:
 							cmdargs = "isync\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 
+					xcpexcludepaths = ''
 					if ostype == 'windows' and tool == 'xcp': 
 						if aclcopy == 'no-win-acl':
 							xcpwincopyparam = "-preserve-atime"
@@ -1152,10 +1153,21 @@ def create_nomad_jobs():
 							xcpwincopyparam = "-preserve-atime -acl -root"
 
 						if excludedirfile == '':						
-							cmdargs = escapestr(xcpwinpath+" copy "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
+							cmdargs = escapestr(xcpwinpath+" sync "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 						else:
-							logging.error("exclude directory is not yet supported when xcp for windows is used for src:" + src)	
-							exit(1)
+							try:
+								f = open(excludedirfile)
+								excludepaths = f.readlines()
+								excludepaths = [x.strip() for x in excludepaths]
+								excludepaths = [f"path('*" + escapestr(path.replace(src,'')) for path in excludepaths] 
+								excludepaths = [path + "\\*')" for path in excludepaths] 
+								xcpexcludepaths = ' -exclude "'+ ' or '.join(excludepaths)+'"'
+								f.close()                        
+								logging.debug("exclude directories argument for xcp: " + xcpexcludepaths)
+							except Exception as e:
+								logging.error("exclude directories file cannot be parsed: " + robocopyexcludedirs)	
+								exit(1)
+							cmdargs = escapestr(xcpwinpath+" sync "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")+escapestr(xcpexcludepaths,"\'")
 
 					robocopyunicodelogpath = ''
 					robocopyexcludedirs = ''
@@ -1216,7 +1228,6 @@ def create_nomad_jobs():
 					elif tool == 'ndmpcopy':						
 						cmdargs = f"-oStrictHostKeyChecking=no\",\"-oBatchMode=yes\",\"{ndmpsrcinfo['user']}@{ndmpsrcinfo['host']}\",\"set\",\"d\",\";\",\"run\",\"-node\",\"{ndmpsrcinfo['node']}\",\"ndmpcopy\",\"-d\"{ndmpcopyexcludedirs},\"-i\",\"-sa\",\"{ndmpsrcinfo['user']}:{ndmpsrcinfo['ndmppass']}\",\"-da\",\"{ndmpdstinfo['user']}:{ndmpdstinfo['ndmppass']}\",\"\'"+ndmpsrcinfo['ndmppath']+'\'","\''+ndmpdstinfo['ndmppath']+"\'"
 												
-
 					if ostype == 'linux' and tool not in['cloudsync','rclone','ndmpcopy']:
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
 
@@ -1225,7 +1236,11 @@ def create_nomad_jobs():
 							xcpwinsyncparam = "-preserve-atime"
 						else:
 							xcpwinsyncparam = "-preserve-atime -acl -root"						
-						cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
+						if excludedirfile == '':						
+							cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
+						else:
+							cmdargs = escapestr(xcpwinpath+" sync "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")+escapestr(xcpexcludepaths,"\'")
+												
 					if ostype == 'windows' and tool == 'robocopy': 
 						if excludedirfile == '':
 							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
@@ -1260,8 +1275,12 @@ def create_nomad_jobs():
 							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
 						else:
 							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
-					if ostype == 'windows': cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
-					
+					if ostype == 'windows': 
+						if excludedirfile == '':						
+							cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
+						else:
+							cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')+escapestr(xcpexcludepaths,"\'")
+
 					with open(verify_job_file, 'w') as fh:
 						fh.write(verify_template.render(
 							dcname=dcname,
@@ -1272,7 +1291,6 @@ def create_nomad_jobs():
 							memory=memory,
 							cpu=cpu
 						))					
-
 
 def check_baseline_job_status (baselinejobname):
 
@@ -1492,17 +1510,36 @@ def start_nomad_jobs(action, force):
 									if excludedirfile == '':
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
 									else:
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+src+"\",\""+dst
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
 									
 								if ostype == 'windows': 
+									nodata = " -nodata "
+									if args.withdata: nodata=''									
 									utilitybinpath = 'powershell'
 									verifyparam = xcpwinverifyparam
 									if args.withdata: verifyparam = xcpwinverifyparam.replace("-nodata ","")
 									if not args.quick:
-										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' "'+srcverify+'" "'+dstverify+'"')
-									else:
-										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+' -match "rand(1000)" "'+srcverify+'" "'+dstverify+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+' "'+srcverify+'" "'+dstverify+'"')
+									elif args.quick and excludedirfile == '':
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+' -match "rand(1000)" "'+srcverify+'" "'+dstverify+'"')
+									elif args.quick and not excludedirfile == '':
+										logging.warning("quick verify together with exclude directories is not supported, full verify will be done")
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+' "'+srcverify+'" "'+dstverify+'"')
 
+									if not excludedirfile == '':						
+										try:
+											f = open(excludedirfile)
+											excludepaths = f.readlines()
+											excludepaths = [x.strip() for x in excludepaths]
+											excludepaths = [f"path('*" + escapestr(path.replace(src,'')) for path in excludepaths] 
+											excludepaths = [path + "\\*')" for path in excludepaths] 
+											xcpexcludepaths = ' -exclude "'+ ' or '.join(excludepaths)+'"'
+											f.close()                        
+											logging.debug("exclude directories argument for xcp: " + xcpexcludepaths)
+										except Exception as e:
+											logging.error("exclude directories file cannot be parsed: " + robocopyexcludedirs)	
+											exit(1)
+										cmdargs += escapestr(xcpexcludepaths,"\'")
 
 								templates_dir = ginga2templatedir
 								env = Environment(loader=FileSystemLoader(templates_dir) )
@@ -4616,7 +4653,7 @@ def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 				csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":nfssrcpath,"DEST PATH":nfsdstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":'xcp',"FAILBACKUSER":"","FAILBACKGROUP":"","EXCLUDE DIRS": excludefilename, "ACL COPY":acl})
 				if taskcounter != -1: taskcounter += 1
 
-		#create the list of exluded files 
+		#create the list of excluded files 
 		basepaths = {}
 		index = 0 
 		for task in csv_data:
@@ -4655,7 +4692,10 @@ def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 
 						srcnfspath = taskpath.replace(src,tempmountpointsrc)
 						dstnfspath = dstpath.replace(dst,tempmountpointdst)
-						
+
+						#write line to CSV
+						writer.writerow(path)
+
 						if not os.path.isdir(dstnfspath):
 							logging.debug(f"creating destination directory: {dstnfspath}")
 							os.makedirs(dstnfspath)
@@ -4678,13 +4718,12 @@ def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 									# Copy the permissions to the destination folder
 									os.chmod(incfolderdst, srcstatinfo.st_mode)
 																			
-						writer.writerow(path)
+
 						if path["EXCLUDE DIRS"]:
 							excludedir = os.path.join(xcprepopath,'excludedir') 
 							try:
 								if not os.path.isdir(excludedir):
 									os.mkdir(excludedir)
-
 
 								excludefile = os.path.join(excludedir,path["EXCLUDE DIRS"]) 
 								logging.debug(f"creating exclude dir file: {excludefile} for source task: {taskpath}")
@@ -4788,7 +4827,7 @@ def list_dirs_windows(startpath,depth):
 	return dirs
 
 #assessment of filesystem and creation of csv file out of it 
-def assess_fs_windows(csvfile,src,dst,depth,jobname):
+def assess_fs_windows_old(csvfile,src,dst,depth,jobname):
 	logging.debug("trying to assess src:" + src + " dst:" + dst) 
 
 	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
@@ -4964,6 +5003,208 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname):
 				logging.info("=================================================================")
 
 			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+
+#assessment of filesystem and creation of csv file out of it 
+def assess_fs_windows(csvfile,src,dst,depth,jobname,robocopy,acl,cpu,ram):
+	logging.debug("trying to assess src:" + src + " dst:" + dst) 
+
+	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
+		logging.error("src path format is incorrect: " + src) 
+		exit(1)	
+	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
+		logging.error("dst path format is incorrect: " + dst)
+		exit(1)	
+
+	if not cpu:
+		cpu = defaultcpu
+	if cpu < 0 or cpu > 200000:
+		logging.error("cpu allocation is illegal:"+cpu)
+		exit(1)	
+
+	if not ram: 
+		ram = defaultmemory
+	if ram < 0 or ram > 640000:
+		logging.error("ram allocation is illegal:"+ram)
+		exit(1)	
+
+	tool = defaultwintool
+	if robocopy:
+		tool = 'robocopy'
+
+	failbackuser = ''
+	failbackgroup = ''
+	if tool == 'xcp' and (not args.failbackuser or not args.failbackgroup):
+		logging.error("--failbackuser and --failbackgroup are required to use xcp for windows")
+		exit(1)	
+	else:		
+		failbackuser = args.failbackuser
+		failbackgroup = args.failbackgroup		
+
+	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are available from one of the windows servers") 
+	# pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
+	# psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+	# if  psstatus != 'complete':
+	# 	logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
+	# 	exit(1)								
+	# pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
+	# psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+	# if  psstatus != 'complete':
+	# 	logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
+	# 	exit(1)	
+
+	if (depth < 0 or depth > 12):
+		logging.error("depth should be between 0 to 12, provided depth is:"+str(depth))
+		exit(1)	
+
+	#prepare things for csv creation
+	if jobname == '': jobname = 'job'+str(os.getpid())
+	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS","ACL COPY"]
+	csv_data = []
+
+	if os.path.isfile(csvfile):
+		logging.warning("csv file:"+csvfile+" already exists")
+		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
+
+	#will be true if warning identified 
+	warning = False 
+
+	#will set to true if Ctrl-C been pressed during os.walk
+	end = True
+	
+	srcdirstructure = {}
+	if depth > 0:
+		srcdirstructure = list_dirs_windows(src,depth)
+		dstdirstructure = list_dirs_windows(dst,depth+1)
+	taskcounter = 1
+
+	basedepth = 1
+
+	excludefilename = src.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
+	csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":src,"DEST PATH":dst,"SYNC SCHED":defaultjobcron,"CPU MHz":cpu,"RAM MB":ram,"TOOL": tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup,"EXCLUDE DIRS":excludefilename,"ACL COPY":acl})
+
+	for path in srcdirstructure:
+		currentdepth = len(path.split("\\"))-1
+
+		dircount = srcdirstructure[path]['dircount']
+		filecount = srcdirstructure[path]['filecount']
+
+		srcpath = src+path.replace('.','',1)
+		dstpath = dst+path.replace('.','',1)
+
+		#check if destination have too much directories 
+		if taskcounter > 50:
+			logging.warning("the amount of created tasks is above 50, this will create extensive amount of xcption tasks")
+			warning=True  
+			taskcounter = -1
+
+		#create xcption job entry
+		
+		if currentdepth == depth or currentdepth == basedepth:
+			if path in list(dstdirstructure.keys()):
+				dstdircount = dstdirstructure[path]['dircount']
+				dstfilecount = dstdirstructure[path]['filecount']		
+
+				if dstfilecount+dstdircount > 0:
+					logging.error(f"destination path: {dstpath} is not empty")
+					exit(1)	
+
+			logging.debug("src path: "+srcpath+" and dst path: "+dstpath+ " will be configured as xcp job")
+
+			#append data to csv 
+			excludefilename = srcpath.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
+			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":cpu,"RAM MB":ram,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup,"EXCLUDE DIRS":excludefilename,"ACL COPY":acl})
+			if taskcounter != -1: taskcounter += 1
+
+	#create the list of excluded files 
+	basepaths = {}
+	index = 0 
+	for task in csv_data:
+		taskpath = task['SOURCE PATH']
+		basepaths[taskpath] = []		
+		tasksubdirs = [t for t in csv_data if t['SOURCE PATH'].startswith(task['SOURCE PATH']+"\\")]
+		for subdir in tasksubdirs:
+			path = subdir['SOURCE PATH']
+			shouldreturn = True
+			paths = path.split("\\")
+			for subdir1 in tasksubdirs:
+				otherpath = subdir1['SOURCE PATH']
+				otherpathsplit = otherpath.split("\\")
+				n = len(otherpathsplit)
+				if paths[0:n] == otherpathsplit and len(paths) > n:
+					shouldreturn = False
+			if shouldreturn:
+				basepaths[taskpath].append(path)
+		
+		if not len(basepaths[taskpath]):
+			csv_data[index]["EXCLUDE DIRS"] = ''
+		index += 1 
+ 
+	if warning:
+		if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
+	else:
+		end = False
+
+	if not end:
+		try:
+			with open(csvfile, 'w') as c:
+				writer = csv.DictWriter(c, fieldnames=csv_columns)
+				writer.writeheader()
+				for path in csv_data:
+					taskpath = path["SOURCE PATH"]								
+					dstpath = path["DEST PATH"]		
+
+					#write line to CSV file 			
+					writer.writerow(path)
+
+					if path["EXCLUDE DIRS"]:
+						try:
+							if not os.path.isdir(excludedir):
+								os.mkdir(excludedir)
+							excludefile = os.path.join(excludedir,path["EXCLUDE DIRS"]) 
+							logging.debug(f"creating exclude dir file: {excludefile} for source task: {taskpath}")
+							with open(excludefile, 'w') as e:
+								for line in basepaths[taskpath]:
+									e.write(f"{line}\n")
+							e.close()
+						except Exception as e:
+							logging.error(f"cannot create exclude dir directory: {excludedir} - {e}")							
+							exit(1)							
+
+
+				logging.info("job csv file:"+csvfile+" created")
+		except IOError:
+			logging.error("could not write data to csv file:"+csvfile)
+			exit(1)	
+
+		if depth > 0:
+			end=False 
+
+			pscmd1 = f"{robocopywinpathassess} /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:{depth+1}"+" \""+src+"\" \""+dst+"\" /XF *"
+			logging.info("creating directory structure on destination path")
+			logging.debug("robocopy command to sync directory structure for the required depth will be:")
+			logging.debug(pscmd1+" ------ for directory structure")
+			
+			logging.debug("=================================================================")
+			logging.debug("========================Starting robocopy========================")
+			logging.debug("=================================================================")
+
+			results = run_powershell_cmd_on_windows_agent(pscmd1,True)
+			if results['status'] != 'complete':
+				logging.error("diretory structure creation failed")
+				if results['stderr']:
+					logging.error("errorlog:\n"+results['stderr'].decode('utf-8'))	
+				if results['stdout']:
+					logging.error("errorlog:\n"+results['stdout'].decode('utf-8'))						
+				exit(1)		
+
+			logging.debug(results['stdout'])
+
+			logging.debug("=================================================================")
+			logging.debug("=================robocopy ended successfully=====================")
+			logging.debug("=================================================================")
+
+			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+
 
 #move job 
 def modify_tasks(args,forceparam):
@@ -6204,7 +6445,7 @@ try:
 			if args.acl and not args.acl == 'no-win-acl':
 				logging.error('invalid acl copy option')
 				exit(1)		
-			assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter)
+			assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter,args.robocopy,args.acl,args.cpu,args.ram)
 
 	if args.subparser_name == 'create':
 		create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram,args.exclude)
