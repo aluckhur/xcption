@@ -990,7 +990,7 @@ def run_powershell_cmd_on_windows_agent (pscmd,log=False):
 	#start job and monitor status'
 	psjobstatus = 'not started'
 	if start_nomad_job_from_hcl(powershell_job_file, psjobname):
-		retrycount = 50
+		retrycount = 100
 		while retrycount > 0:
 			results = check_job_status(psjobname,log)
 			retrycount =  retrycount - 1
@@ -4827,185 +4827,7 @@ def list_dirs_windows(startpath,depth):
 	return dirs
 
 #assessment of filesystem and creation of csv file out of it 
-def assess_fs_windows_old(csvfile,src,dst,depth,jobname):
-	logging.debug("trying to assess src:" + src + " dst:" + dst) 
-
-	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
-		logging.error("src path format is incorrect: " + src) 
-		exit(1)	
-	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', dst):
-		logging.error("dst path format is incorrect: " + dst)
-		exit(1)	
-
-	defaultprocessor = defaultcpu
-	if args.cpu: 
-		defaultprocessor = args.cpu 
-		if defaultprocessor < 0 or defaultprocessor > 20000:
-			logging.error("cpu allocation is illegal:"+defaultprocessor)
-			exit(1)	
-
-	defaultram = defaultmemory
-	if args.ram: 
-		defaultram = args.ram
-		if defaultram < 0 or defaultram > 20000:
-			logging.error("cpu allocation is illegal:"+defaultram)
-			exit(1)	
-
-	tool = defaultwintool
-	if args.robocopy:
-		tool = 'robocopy'
-
-	failbackuser = ''
-	failbackgroup = ''
-	if tool == 'xcp' and (not args.failbackuser or not args.failbackgroup):
-		logging.error("--failbackuser and --failbackgroup are required to use xcp for windows")
-		exit(1)	
-	else:		
-		failbackuser = args.failbackuser
-		failbackgroup = args.failbackgroup		
-
-	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are available from one of the windows servers") 
-	pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
-	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
-	if  psstatus != 'complete':
-		logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
-		exit(1)								
-	pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
-	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
-	if  psstatus != 'complete':
-		logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
-		exit(1)	
-
-	if (depth < 1 or depth > 12):
-		logging.error("depth should be between 1 to 12, provided depth is:"+str(depth))
-		exit(1)	
-
-	#prepare things for csv creation
-	if jobname == '': jobname = 'job'+str(os.getpid())
-	csv_columns = ["#JOB NAME","SOURCE PATH","DEST PATH","SYNC SCHED","CPU MHz","RAM MB","TOOL","FAILBACKUSER","FAILBACKGROUP","EXCLUDE DIRS"]
-	csv_data = []
-
-	if os.path.isfile(csvfile):
-		logging.warning("csv file:"+csvfile+" already exists")
-		if not query_yes_no("do you want to overwrite it?", default="no"): exit(0)
-
-	#will be true if warning identified 
-	warning = False 
-
-	#will set to true if Ctrl-C been pressed during os.walk
-	end = True
-	srcdirstructure = list_dirs_windows(src,depth-1)
-	dstdirstructure = list_dirs_windows(dst,depth)
-
-	excludedir = ''
-
-	for path in srcdirstructure:
-		currentdepth = len(path.split("\\"))-1
-		#print path, currentdepth
-
-		dircount = srcdirstructure[path]['dircount']
-		filecount = srcdirstructure[path]['filecount']
-
-		srcpath = src+path.replace('.','',1)
-		dstpath = dst+path.replace('.','',1)
-
-
-		if filecount > 0 and dircount > 0 and currentdepth < depth :
-			logging.warning("source path: "+srcpath+" contains "+str(filecount)+" files. those files will not be included in the xcption jobs and need to be copied externaly")
-
-			warning=True 
-
-		if path in list(dstdirstructure.keys()):
-			dstdircount = dstdirstructure[path]['dircount']
-			dstfilecount = dstdirstructure[path]['filecount']		
-
-			if (dstfilecount  > 0 or dstdircount >0) and ((currentdepth < depth-1 and dstdircount == 0)
-					or (currentdepth == depth-1 and (dstdircount > 0 or dstfilecount >0))):
-				logging.error("destination path: "+dstpath+ " for source dir: "+srcpath+" exists and contains files")
-				exit(1)
-			#elsif :
-			#	logging.info("destination path: "+dstpath+ " for source dir: "+srcpath+" exists but empty")
-
-		#check if destination have tomuch directories 
-		if dircount > 20:
-			logging.warning("the amount of directories under: "+dstpath+" is above 20, this will create extensive amount of xcption jobs")
-			warning=True  
-
-		#create xcption job entry
-		
-		if (currentdepth < depth-1 and dircount == 0) or (currentdepth == depth-1 and currentdepth > 0) or (depth-1 == 0):
-			logging.info("src path: "+srcpath+" and dst path: "+dstpath+ " will be configured as xcp job")
-
-			#append data to csv 
-			csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":srcpath,"DEST PATH":dstpath,"SYNC SCHED":defaultjobcron,"CPU MHz":defaultprocessor,"RAM MB":defaultram,"TOOL":tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup,"EXCLUDE DIRS":""})
-
-			#exlude copy of files in this dir 
-			if currentdepth < depth-1:
-				if excludedir == '': excludedir = " /XD "
-				excludedir += "\""+srcpath+"\" "
-
-	if warning:
-		if query_yes_no("please review the warnings above, do you want to continue?", default="no"): end=False 
-	else:
-		end = False
-
-	if not end:
-		try:
-			with open(csvfile, 'w') as c:
-				writer = csv.DictWriter(c, fieldnames=csv_columns)
-				writer.writeheader()
-				for data in csv_data:
-					writer.writerow(data)
-				logging.info("job csv file:"+csvfile+" created")
-		except IOError:
-			logging.error("could not write data to csv file:"+csvfile)
-			exit(1)	
-
-		if depth-1 > 0:
-			depthxcpcopy = ''
-
-			pscmd1 = robocopywinpathassess+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth)+" \""+src+"\" \""+dst+"\" /XF *"
-			pscmd2 = robocopywinpathassess+" /E /NP /COPY:DATSO /DCOPY:DAT /MT:16 /R:0 /W:0 /TEE /LEV:"+str(depth-1)+" \""+src+"\" \""+dst+"\""+excludedir
-
-			logging.info("robocopy can be used to create the destination initial directory structure for xcption jobs")
-			logging.info("robocopy command to sync directory structure for the required depth will be:")
-			logging.info(pscmd1+" ------ for directory structure")
-			logging.info(pscmd2+" ------ for files")
-			if query_yes_no("do you want to run robocopy ?", default="no"): 
-				end=False 
-				logging.info("=================================================================")
-				logging.info("========================Starting robocopy========================")
-				logging.info("=================================================================")
-
-				results = run_powershell_cmd_on_windows_agent(pscmd1,True)
-				if results['status'] != 'complete':
-					logging.error("robocopy failed")
-					if results['stderr']:
-						logging.error("errorlog:\n"+results['stderr'].decode('utf-8'))	
-					if results['stdout']:
-						logging.error("errorlog:\n"+results['stdout'].decode('utf-8'))						
-					exit(1)		
-
-				print(results['stdout'])
-
-				results = run_powershell_cmd_on_windows_agent(pscmd2,True)
-				if results['status'] != 'complete':
-					logging.error("robocopy failed")
-					if results['stderr']:
-						logging.error("errorlog:\n"+results['stderr'].decode('utf-8'))	
-					if results['stdout']:
-						logging.error("errorlog:\n"+results['stdout'].decode('utf-8'))							
-					exit(1)							
-				print(results['stdout'])
-
-				logging.info("=================================================================")
-				logging.info("=================robocopy ended successfully=====================")
-				logging.info("=================================================================")
-
-			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
-
-#assessment of filesystem and creation of csv file out of it 
-def assess_fs_windows(csvfile,src,dst,depth,jobname,robocopy,acl,cpu,ram):
+def assess_fs_windows(csvfile,src,dst,depth,basedepth,jobname,robocopy,acl,cpu,ram):
 	logging.debug("trying to assess src:" + src + " dst:" + dst) 
 
 	if not re.search(r'^(\\\\?([^\\/]*[\\/])*)([^\\/]+)$', src):
@@ -5041,16 +4863,16 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname,robocopy,acl,cpu,ram):
 		failbackgroup = args.failbackgroup		
 
 	logging.info("validating src:" + src + " and dst:" + dst+ " cifs paths are available from one of the windows servers") 
-	# pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
-	# psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
-	# if  psstatus != 'complete':
-	# 	logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
-	# 	exit(1)								
-	# pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
-	# psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
-	# if  psstatus != 'complete':
-	# 	logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
-	# 	exit(1)	
+	pscmd = 'if (test-path "'+src+'") {exit 0} else {exit 1}'
+	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+	if  psstatus != 'complete':
+		logging.error("cannot validate src:"+src+" using cifs, validation is:"+psstatus)
+		exit(1)								
+	pscmd = 'if (test-path "'+dst+'") {exit 0} else {exit 1}'
+	psstatus = run_powershell_cmd_on_windows_agent(pscmd)['status']
+	if  psstatus != 'complete':
+		logging.error("cannot validate dst:"+dst+" using cifs, validation status is:"+psstatus)
+		exit(1)	
 
 	if (depth < 0 or depth > 12):
 		logging.error("depth should be between 0 to 12, provided depth is:"+str(depth))
@@ -5077,7 +4899,12 @@ def assess_fs_windows(csvfile,src,dst,depth,jobname,robocopy,acl,cpu,ram):
 		dstdirstructure = list_dirs_windows(dst,depth+1)
 	taskcounter = 1
 
-	basedepth = 1
+	if basedepth == -1:
+		basedepth = depth 
+
+	if (basedepth < 0 or basedepth > 12 or basedepth > depth):
+		logging.error("basedepth should be lower or equal to depath and between 0 to 12, provided value is:"+str(basedepth))
+		exit(1)	
 
 	excludefilename = src.replace(':/','-_').replace('/','_').replace(' ','-').replace('\\','_').replace('$','_dollar')+'.exclude'
 	csv_data.append({"#JOB NAME":jobname,"SOURCE PATH":src,"DEST PATH":dst,"SYNC SCHED":defaultjobcron,"CPU MHz":cpu,"RAM MB":ram,"TOOL": tool,"FAILBACKUSER":failbackuser,"FAILBACKGROUP":failbackgroup,"EXCLUDE DIRS":excludefilename,"ACL COPY":acl})
@@ -6445,7 +6272,7 @@ try:
 			if args.acl and not args.acl == 'no-win-acl':
 				logging.error('invalid acl copy option')
 				exit(1)		
-			assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,jobfilter,args.robocopy,args.acl,args.cpu,args.ram)
+			assess_fs_windows(args.csvfile,args.source,args.destination,args.depth,args.basedepth,jobfilter,args.robocopy,args.acl,args.cpu,args.ram)
 
 	if args.subparser_name == 'create':
 		create_job(args.job,args.source,args.destination,args.tool,args.cron,args.cpu,args.ram,args.exclude)
