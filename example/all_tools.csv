@@ -1,0 +1,7 @@
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIRS,ACL COPY
+nfs,192.168.0.132:/vol1,192.168.0.132:/vol2,0 2 * * *,2000,800,xcp,,,/root/xcption/system/xcp_repo/excludedir/nfs.exclude,
+nfs,192.168.0.132:/vol1/xcption,192.168.0.132:/vol2/xcption,0 2 * * *,2000,800,xcp,,,,
+cifs,\\192.168.0.131\vol1,\\192.168.0.131\vol2,0 2 * * *,2000,800,robocopy,,,,
+ndmpcopy,admin@cluster1:/svm1_cluster1/vol1,admin@cluster1:/svm1_cluster1/vol2,3 2 * * *,2000,800,ndmpcopy,,,,
+cloudsync,nfs://192.168.0.131:/vol1@BrokerGroup1@XCPtion@bluexp,nfs://192.168.0.131:/vol2@BrokerGroup1@XCPtion@bluexp,0 0 * * *,3000,800,cloudsync,,,,
+rclone,src:bucket1,dst:bucket2,0 0 * * *,3000,800,rclone,,,,

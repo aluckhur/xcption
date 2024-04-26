@@ -1,0 +1,4 @@
+#JOB NAME,SOURCE PATH,DEST PATH,SYNC SCHED,CPU MHz,RAM MB,TOOL,FAILBACKUSER,FAILBACKGROUP,EXCLUDE DIRS,ACL COPY
+cloudsync,nfs://192.168.0.131:/cloudsync1@BrokerGroup1@Demo_LAB@BlueXP,nfs://192.168.0.135:/cloudsync1@BrokerGroup1@Demo_LAB@BlueXP,0 0 * * *,3000,800,cloudsync,,,,
+ndmpcopy,admin@cluster1:/svm1-cluster1/ndmpcopy1/qtree1,admin@cluster1:/svm2_cluster1/ndmpcopy1,3 2 * * *,2000,800,ndmpcopy,,,,
+rclone,src:bucket1,dst:bucket2,0 0 * * *,2000,800,rclone,,,,
