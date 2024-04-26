@@ -2,7 +2,7 @@ job "{{ sync_job_name }}" {
 	datacenters = ["{{ dcname }}"]
 	type = "batch"
 	periodic {
-		cron = "{{ jobcron }}"
+		crons = ["{{ jobcron }}"]
 		prohibit_overlap = true
 	}
 	constraint {
