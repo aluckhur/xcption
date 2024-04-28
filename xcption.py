@@ -7,6 +7,7 @@
 #version 
 version = '3.3.4.0'
 
+import configparser
 import csv
 import argparse
 import re
@@ -48,12 +49,12 @@ winpath = 'C:\\NetApp\\XCP'
 xcpwinpath = 'C:\\NetApp\\XCP\\xcp.exe'
 xcpwincopyparam = "-preserve-atime -acl -root"
 xcpwinsyncparam = "-preserve-atime -acl -root"
-xcpwinverifyparam = "-v -l -nodata -preserve-atime "
+xcpwinverifyparam = "-v -l -nodata -preserve-atime"
 
 #robocopy windows location
 robocopywinpath = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
 robocopywinpathassess = 'C:\\NetApp\\XCP\\robocopy_wrapper.ps1'
-robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /BYTES /NDL '
+robocopyargs = '/COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /BYTES /NDL'
 
 #location of the script 
 root = os.path.dirname(os.path.abspath(__file__))
@@ -61,7 +62,7 @@ root = os.path.dirname(os.path.abspath(__file__))
 #path to file containing the location of robocopy unicode log file (usefull for hebrew)
 robocopylogpath = os.path.join(root,'windows','robocopy_log_file_dir')
 
-#xcp repo and cache dir loaction 
+#xcp repo and cache dir location 
 xcprepopath = os.path.join(root,'system','xcp_repo')
 
 #xcplinux path - need wrapper to support xcp 1.6
@@ -73,7 +74,6 @@ xcpindexespath = os.path.join(xcprepopath,'catalog','indexes')
 
 #cache dir for current state 
 cachedir = os.path.join(xcprepopath,'nomadcache')
-#cachedir = os.path.join(root,'nomadcache')
 
 #smartassess dir for current state 
 smartassessdir = os.path.join(xcprepopath,'smartassess')
@@ -99,7 +99,7 @@ ginga2templatedir = os.path.join(root,'template')
 #webtemplates 
 webtemplatedir = os.path.join(root,'webtemplates') 
 
-#file pload location within the webtempate dir
+#file upload location within the webtempate dir
 uploaddir = os.path.join(webtemplatedir,'upload') 
 
 #cloudsync integration script 
@@ -109,7 +109,7 @@ cloudsyncscript = os.path.join(root,'cloudsync','cloudsync.py')
 rclonebin = os.path.join(root,'system','rclone_wrapper.sh')
 #rclone conf dir 
 rcloneconffile = os.path.join(xcprepopath,'rclone','rclone.conf')
-rcloneglobalflags = '--no-check-certificate --log-level debug --stats 1s --retries 1 --auto-confirm --multi-thread-streams 32 --checkers 32 --progress --metadata --transfers 16'
+rcloneglobalflags = '--no-check-certificate --log-level debug --stats 10s --retries 1 --auto-confirm --multi-thread-streams 32 --checkers 32 --progress --metadata --transfers 16'
 
 #ndmpcopy bin 
 ndmpcopybin = os.path.join(root,'system','ndmpcopy_wrapper.sh')
@@ -1147,13 +1147,12 @@ def create_nomad_jobs():
 
 					xcpexcludepaths = ''
 					if ostype == 'windows' and tool == 'xcp': 
+						taskxcpwincopyparam = xcpwincopyparam
 						if aclcopy == 'no-win-acl':
-							xcpwincopyparam = "-preserve-atime"
-						else:
-							xcpwincopyparam = "-preserve-atime -acl -root"
+							taskxcpwincopyparam = "-preserve-atime"
 
 						if excludedirfile == '':						
-							cmdargs = escapestr(xcpwinpath+" sync "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
+							cmdargs = escapestr(xcpwinpath+" sync "+taskxcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 						else:
 							try:
 								f = open(excludedirfile)
@@ -1167,7 +1166,7 @@ def create_nomad_jobs():
 							except Exception as e:
 								logging.error("exclude directories file cannot be parsed: " + robocopyexcludedirs)	
 								exit(1)
-							cmdargs = escapestr(xcpwinpath+" sync "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")+escapestr(xcpexcludepaths,"\'")
+							cmdargs = escapestr(xcpwinpath+" sync "+taskxcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")+escapestr(xcpexcludepaths,"\'")
 
 					robocopyunicodelogpath = ''
 					robocopyexcludedirs = ''
@@ -1182,13 +1181,13 @@ def create_nomad_jobs():
 						if robocopyunicodelogpath != '':
 							robocopyunicodelogpath = " /UNILOG:"+robocopyunicodelogpath+"\\"+xcpindexname+".log"
 
+						taskrobocopyargs = robocopyargs
+						#when no ACL remove SO (SECURITY and OWNER) from DATSO 
 						if aclcopy == 'no-win-acl':
-							robocopyargs = ' /COPY:DAT /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /BYTES /NDL '
-						else:
-							robocopyargs = ' /COPY:DATSO /MIR /NP /DCOPY:DAT /MT:32 /R:0 /W:0 /TEE /BYTES /NDL '
+							taskrobocopyargs = taskrobocopyargs.replace("COPY:DATSO","COPY:DAT")
 
 						if excludedirfile == '':						
-							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\" "+taskrobocopyargs+" "+robocopyunicodelogpath)
 						else:
 							try:
 								f = open(excludedirfile)
@@ -1203,7 +1202,7 @@ def create_nomad_jobs():
 								logging.error("exclude directories file cannot be parsed: " + robocopyexcludedirs)	
 								exit(1)
 
-							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath+robocopyexcludedirs)
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\" "+taskrobocopyargs+" "+robocopyunicodelogpath+robocopyexcludedirs)
                     
 					
 					with open(baseline_job_file, 'w') as fh:
@@ -1232,20 +1231,21 @@ def create_nomad_jobs():
 						cmdargs = "sync\",\"-id\",\""+xcpindexname
 
 					if ostype == 'windows' and tool == 'xcp': 
+
+						taskxcpwinsyncparam = xcpwinsyncparam
 						if aclcopy == 'no-win-acl':
-							xcpwinsyncparam = "-preserve-atime"
-						else:
-							xcpwinsyncparam = "-preserve-atime -acl -root"						
+							taskxcpwinsyncparam = "-preserve-atime"
+
 						if excludedirfile == '':						
-							cmdargs = escapestr(xcpwinpath+" sync "+xcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
+							cmdargs = escapestr(xcpwinpath+" sync "+taskxcpwinsyncparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")
 						else:
-							cmdargs = escapestr(xcpwinpath+" sync "+xcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")+escapestr(xcpexcludepaths,"\'")
+							cmdargs = escapestr(xcpwinpath+" sync "+taskxcpwincopyparam+" -fallback-user \""+failbackuser+"\" -fallback-group \""+failbackgroup+"\" \""+src+"\" \""+dst+"\"")+escapestr(xcpexcludepaths,"\'")
 												
 					if ostype == 'windows' and tool == 'robocopy': 
 						if excludedirfile == '':
-							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath)
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\" "+taskrobocopyargs+" "+robocopyunicodelogpath)
 						else:
-							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\""+robocopyargs+robocopyunicodelogpath+robocopyexcludedirs)
+							cmdargs = escapestr(robocopywinpath+ " \""+src+"\" \""+dst+"\" "+taskrobocopyargs+" "+robocopyunicodelogpath+robocopyexcludedirs)
 
 					with open(sync_job_file, 'w') as fh:
 						fh.write(sync_template.render(
@@ -1696,7 +1696,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['time'] = match.group(1)		
 		if 'time' in results:
 			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['content'],re.M|re.I):
-				results['bwout'] = match.group(1)
+				results['bwout'] = match.group(1).replace(' out ','')
 		
 		# for cases when xcp failed but did not return exit code 
 		# example: Cannot start sync: 0.6 GiB memory available, 5.0 total, at least 2 GiB required
@@ -2093,13 +2093,20 @@ def create_verbose_status (jsondict, displaylogs=False):
 						print("")
 
 						for logtype in ['stdout','stderr']:
-							print(("Log type:"+logtype))
+							print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
+							print(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}")
+							print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
 							if phase[logtype+'logexists']:
 								print((phase[logtype+'logcontent']))
-								print(("the last "+str(maxloglinestodisplay)+" lines are displayed"))
-								print(("full log file path: " +phase[logtype+'logpath']))
+								#print(("the last "+str(maxloglinestodisplay)+" lines are displayed"))
+								#print(("full log file path: " +phase[logtype+'logpath']))
+								#print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
+								print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
+								print(f"END LOG TYPE: {logtype} FULL LOG: {phase[logtype+'logpath']}")
+								print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
+								print("")							
 							else:
-								print(("log:"+logtype+" is not available"))
+								print(("LOG TYPE:"+logtype+" IS NOT AVAIALBLE"))
 								print("")
 						
 						print("")
@@ -2483,8 +2490,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 							
 							#rclone
 							if tool == 'rclone':
-								if verifystatsresults['found'] != verifystatsresults['scanned']: verifystatus =  'diff'
-								if verifystatsresults['found'] == verifystatsresults['scanned']: verifystatus =  'equal'
+								if verifystatus != 'running':
+									if verifystatsresults['found'] != verifystatsresults['scanned']: verifystatus =  'diff'
+									if verifystatsresults['found'] == verifystatsresults['scanned']: verifystatus =  'equal'
 
 						except Exception as e:
 							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
@@ -2810,8 +2818,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 												if jobstatus == 'idle' and (currentlog['found'] == currentlog['scanned']): jobstatus =  'equal'
 
 												if tool == 'rclone':
-													if currentlog['found'] != currentlog['scanned']: jobstatus =  'diff'
-													if currentlog['found'] == currentlog['scanned']: jobstatus =  'equal'													
+													if jobstatus != 'running':
+														if currentlog['found'] != currentlog['scanned']: jobstatus =  'diff'
+														if currentlog['found'] == currentlog['scanned']: jobstatus =  'equal'													
 
 											
 											if tasktype == 'sync':
