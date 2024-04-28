@@ -1501,9 +1501,9 @@ def start_nomad_jobs(action, force):
 									utilitybinpath = rclonebin
 									cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\",\"--error\",\"/dev/stdout\""+withdata+",\""+src+"\",\""+dst	
 
-								if tool == 'ndmpcopy': 
-									utilitybinpath = ndmpcopybin 
-									cmdargs = 'verify'
+								# if tool == 'ndmpcopy': 
+								# 	utilitybinpath = ndmpcopybin 
+								# 	cmdargs = 'verify'
 
 								if tool == 'xcp' and args.quick:  
 									utilitybinpath = xcppath
@@ -1512,6 +1512,10 @@ def start_nomad_jobs(action, force):
 									else:
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
 									
+								if tool in ['cloudsync','ndmpcopy']:
+									logging.warning(f"{action} is not supported for {tool}")
+									continue
+
 								if ostype == 'windows': 
 									nodata = " -nodata "
 									if args.withdata: nodata=''									
@@ -1708,10 +1712,15 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 
 		#try to parse rclone or NDMPcopy log file 
 		if not lastline and logtype in  ['stdout','xcpdelete']:
+			#this is for rclone logs 
 			for match in re.finditer(r"Checks:\s+([-+]?[0-9]*\.?[0-9])\s*\/\s*([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
 				results['scanned'] = match.group(1)	
 				#results['found'] = '?'
 				results['reviewed'] = match.group(2)
+				#for delete there are 2 checks per file so we ned to devide it in 2
+				if logtype ==  'xcpdelete':
+					results['scanned'] = str(int(int(results['scanned'])/2))
+					results['reviewed'] = str(int(int(results['reviewed'])/2))
 			for match in re.finditer(r"Elapsed time:\s+(\S+)",results['content'],re.M|re.I):
 				results['time'] = match.group(1)
 			for match in re.finditer(r"Transferred:\s+([-+]?[0-9]*\.?[0-9])\s*\/\s*[-+]?[0-9]*\.?[0-9],",results['content'],re.M|re.I):
