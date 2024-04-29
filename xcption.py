@@ -1416,44 +1416,6 @@ def start_nomad_jobs(action, force):
 									syncjob1['Job']=syncjob
 									nomadout = n.job.register_job(syncjobname, syncjob1)
 
-								# recreate baseline job to run isync instead of copy for xcp 1.9.3 
-								# if ostype == 'linux' and (tool == 'xcp' or tool == '') and tool != 'cloudsync':
-								# 	logging.debug("recreting job:"+nomadjobname+" to support isync instead of copy for xcp 1.9.3") 
-
-								# 	baseline_job_file = jobdetails['baseline_job_name']+'.hcl'
-								# 	excludedirfile    = jobdetails['excludedirfile']
-								# 	aclcopy           = jobdetails['aclcopy']									
-								# 	memory            = jobdetails['memory']
-								# 	cpu               = jobdetails['cpu'] 
-								# 	tool 			  = jobdetails['tool'] 
-									 
-								# 	aclcopyarg = ''
-								# 	if aclcopy == 'nfs4-acl':  
-								# 		aclcopyarg = "\"-acl4\","  									
-								# 	if excludedirfile == '':
-								# 		cmdargs = "isync\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\""+src+"\",\""+dst
-								# 	else:
-								# 		cmdargs = "isync\","+aclcopyarg+"\"-newid\",\""+xcpindexname+"\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
-
-								# 	templates_dir = ginga2templatedir
-								# 	env = Environment(loader=FileSystemLoader(templates_dir) )
-
-								# 	try:
-								# 		baseline_template = env.get_template('nomad_baseline.txt')
-								# 	except Exception as e:
-								# 		logging.error("could not find template file: " + os.path.join(templates_dir,'nomad_baseline.txt'))
-								# 		exit(1)
-
-								# 	with open(baseline_job_file, 'w') as fh:
-								# 		fh.write(baseline_template.render(
-								# 			dcname=dcname,
-								# 			os=ostype,
-								# 			baseline_job_name=baseline_job_name,
-								# 			xcppath=xcplocation,
-								# 			args=cmdargs,
-								# 			memory=memory,
-								# 			cpu=cpu
-								# 		))
 
 								forcebaseline=True
 
@@ -1500,10 +1462,6 @@ def start_nomad_jobs(action, force):
 										withdata = ',"--download"'
 									utilitybinpath = rclonebin
 									cmdargs = '--config","'+rcloneconffile+'","'+escapestr(rcloneglobalflags).replace(' ','","')+"\",\"check\",\"--error\",\"/dev/stdout\""+withdata+",\""+src+"\",\""+dst	
-
-								# if tool == 'ndmpcopy': 
-								# 	utilitybinpath = ndmpcopybin 
-								# 	cmdargs = 'verify'
 
 								if tool == 'xcp' and args.quick:  
 									utilitybinpath = xcppath
@@ -1579,8 +1537,11 @@ def start_nomad_jobs(action, force):
 							#if sync job and baseline was not started disable schedule for sync 
 							if action == 'sync':
 								# this if for situations where you want to start sync when baseline was not done/completed
-								if os.getenv('XCPTION_FORCE_SYNC') == "TRUE":
-									logging.info("XCPTION_FORCE_SYNC is TRUE, can start "+action)
+								if os.getenv('XCPTION_FORCE_SYNC') == "TRUE" and baselinestatus != 'baseline is complete':
+									if ostype == 'linux' and tool == 'xcp':
+										logging.warning("XCPTION_FORCE_SYNC is TRUE, "+action+" will fail for xcp because task catalog does not exists")
+									else:
+										logging.info("XCPTION_FORCE_SYNC is TRUE, can start "+action)
 								elif baselinestatus != 'baseline is complete':
 									logging.warning(action+" will be paused for src:"+src+" to dst:"+dst+" - "+baselinestatus.lower())									
 									nomadjobdict["Job"]["Stop"] = True
@@ -1592,11 +1553,14 @@ def start_nomad_jobs(action, force):
 								if tool=='cloudsync':
 									logging.warning(action+" is not supported for cloudsync")
 									continue
-								if baselinestatus != 'baseline is complete':
+								
+								if os.getenv('XCPTION_FORCE_VERIFY') == "TRUE" and baselinestatus != 'baseline is complete':
+									logging.info("XCPTION_FORCE_VERIFY is TRUE, can start "+action)
+								elif baselinestatus != 'baseline is complete':
 									logging.warning(action+" is not possiable:"+baselinestatus.lower())									
 									continue
 								else:
-									logging.debug("baseline is completed, can start "+action)
+									logging.debug("baseline is completed, can start "+action)									
 
 							nomadout = n.job.register_job(nomadjobname, nomadjobdict)	
 							try:
@@ -1606,7 +1570,8 @@ def start_nomad_jobs(action, force):
 								exit(1)
 
 							#force immediate baseline / verify
-							if action == 'baseline' or (action == 'verify' and baselinestatus == 'baseline is complete'):
+							#if action == 'baseline' or (action == 'verify' and baselinestatus == 'baseline is complete'):
+							if action in ['baseline','verify']:
 								response = requests.post(nomadapiurl+'job/'+nomadjobname+'/periodic/force')	
 								if not response.ok:
 									logging.error("job:"+nomadjobname+" force start failed") 
@@ -1717,7 +1682,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['scanned'] = match.group(1)	
 				#results['found'] = '?'
 				results['reviewed'] = match.group(2)
-				#for delete there are 2 checks per file so we ned to devide it in 2
+				#for rclone delete there are 2 checks per file so we ned to devide it in 2
 				if logtype ==  'xcpdelete':
 					results['scanned'] = str(int(int(results['scanned'])/2))
 					results['reviewed'] = str(int(int(results['reviewed'])/2))

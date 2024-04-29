@@ -61,7 +61,7 @@
 
 2.9.2.7
 - fix log parsing issue related to delete files count 
-- delete older that 10 syncs from the cache (this can be modified using the maxsyncsperjob parameter in the code). this is usefull for environemnt with rapid syncs which can delay responses from the status command. 
+- delete older that 10 syncs from the cache (this can be modified using the maxsyncsperjob parameter in the code). this is useful for environemnt with rapid syncs which can delay responses from the status command. 
 
 2.9.2.8
 - support verify with data validation (run xcp verify without the -nodata). can be used using the verify -w flag 
@@ -82,7 +82,7 @@
 - changed csv output comma to tab seperated 
 
 2.9.2.12
-- dispaly status with warning in the log file (the status will show warning)
+- display status with warning in the log file (the status will show warning)
 - fail sync job if it contains the nfs3 error in the log (xcp bug)
 
 2.9.3.0
@@ -110,8 +110,8 @@
 
 3.3.2.0
 - add support for xcp 1.9.3
-- enable sync without baseline completion when XCPTION_FORCE_SYNC environmental variable is set to TRUE (usefull for cloudsync/robocopy)
-- enable cloudsync to abort exisitng running job when sync is starting when XCPTION_ABORT_RUNNING_CLOUD_SYNC_JOBS environmental variable is set to TRUE (usefull when only xcption manages cloudsync jobs and external syncs should be disbaled)
+- enable sync without baseline completion when XCPTION_FORCE_SYNC environmental variable is set to TRUE (useful for cloudsync/robocopy/XCP WINDOWS/rclone)
+- enable cloudsync to abort existing running job when sync is starting when XCPTION_ABORT_RUNNING_CLOUD_SYNC_JOBS environmental variable is set to TRUE (useful when only xcption manages cloudsync jobs and external syncs should be disabled)
 - use isync instead of copy for xcp linux jobs. enables re-baseline without coping all data from scratch 
 
 3.3.3.0
@@ -122,3 +122,4 @@
 - redone assess for cifs and nfs
 - verify for xcp windows with excluded directories 
 - verify for rclone working
+- enable verify without baseline completion when XCPTION_FORCE_VERIFY environmental variable is set to TRUE (useful for robocopy/XCP WINDOWS/rclone)
