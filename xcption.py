@@ -183,9 +183,9 @@ parser_status.add_argument('-j','--job',help="change the scope of the command to
 parser_status.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
 parser_status.add_argument('-t','--jobstatus',help="change the scope of the command to specific job status ex:complete,running,failed,pending,aborted", required=False,type=str,metavar='jobstatus')
 parser_status.add_argument('-v','--verbose',help="provide verbose per phase info", required=False,action='store_true')
-parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync (requires -v/--verbose)", required=False,type=str,metavar='phase')
-parser_status.add_argument('-n','--node',help="change the scope of the command to specific node (requires -v/--verbose)", required=False,type=str,metavar='node')
-parser_status.add_argument('-e','--error',help="change the scope of the command to jobs with errors (requires -v/--verbose)", required=False,action='store_true')
+parser_status.add_argument('-p','--phase',help="change the scope of the command to specific phase ex:baseline,sync#,verify#,lastsync", required=False,type=str,metavar='phase')
+parser_status.add_argument('-n','--node',help="change the scope of the command to specific node", required=False,type=str,metavar='node')
+parser_status.add_argument('-e','--error',help="change the scope of the command to jobs with errors", required=False,action='store_true')
 parser_status.add_argument('-o','--output',help="output type: [csv|json]",choices=['csv','json'],required=False,type=str,metavar='output')
 parser_status.add_argument('-l','--logs',help="display job logs", required=False,action='store_true')
 
@@ -2110,8 +2110,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 	jsondict = {}
 	jsongeneraldict = []
 
-	#if display logs or phase filter then print verbose 
-	if displaylogs or phasefilter: reporttype = 'verbose' 	
+	#if display logs, phase filter, error filter then print verbose 
+	if displaylogs or phasefilter or args.error : reporttype = 'verbose' 	
 
 	#if output is json or html report type is verbose 
 	if output in ['json','csv']: reporttype = 'verbose' 
@@ -2603,13 +2603,14 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 							try:
 								#filter out results based on scope 
-								#if phasefilter and not task.startswith(phasefilter):
-								if phasefilter and not task==phasefilter:
+								if phasefilter and not task.startswith(phasefilter):
+								#if phasefilter and not task==phasefilter:
 									addrow = False  
 								if args.node and not nodename.startswith(args.node):
 									addrow = False
 								if args.jobstatus and not baselinestatus.startswith(args.jobstatus):
 									addrow = False 
+								errors = errors.split(' ')[0]
 								if args.error and errors.isdigit():
 									if int(errors) == 0:
 										addrow = False
@@ -2840,7 +2841,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 									if args.node and not nodename.startswith(args.node):
 										addrow = False
 									if args.jobstatus and not jobstatus.startswith(args.jobstatus):
-										addrow = False 
+										addrow = False
+									errors = errors.split(' ')[0]										 
 									if args.error and errors.isdigit():
 										if int(errors) == 0:
 											addrow = False
