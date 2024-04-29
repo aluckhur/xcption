@@ -2110,8 +2110,8 @@ def create_status (reporttype,displaylogs=False, output='text'):
 	jsondict = {}
 	jsongeneraldict = []
 
-	#if display logs then print verbose 
-	if displaylogs==True: reporttype = 'verbose' 	
+	#if display logs or phase filter then print verbose 
+	if displaylogs or phasefilter: reporttype = 'verbose' 	
 
 	#if output is json or html report type is verbose 
 	if output in ['json','csv']: reporttype = 'verbose' 
@@ -2471,9 +2471,6 @@ def create_status (reporttype,displaylogs=False, output='text'):
 						except Exception as e:
 							logging.debug("verify log details:"+verifylogcachefile+" are not complete")
 
-						#ndmpcopy 
-						if tool == 'ndmpcopy':
-							verifystatus =  'no-support'
 
 						try:
 							verifystarttime = verifyalloclastdetails['TaskStates']['verify']['StartedAt']
@@ -2490,6 +2487,10 @@ def create_status (reporttype,displaylogs=False, output='text'):
 
 					baselinesentshort = re.sub("\(.+\)","",baselinesent)
 					syncsentshort = re.sub("\(.+\)","",syncsent)
+					
+					#mention that verify for ndmpcopy and cloudsync is not supported
+					if tool in ['ndmpcopy','cloudsync']:
+						verifystatus =  'no-support'					
 
 					#work on error filter 
 					addrow = True
@@ -2830,8 +2831,9 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								#filter results
 								addrow = True 
 								try:
-									#if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
-									if phasefilter and not task == phasefilter and phasefilter != 'lastsync':
+									#ability to filter phase starting with str (haim)
+									if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
+									#if phasefilter and not task == phasefilter and phasefilter != 'lastsync':
 										addrow = False
 									if phasefilter == 'lastsync' and task != 'sync'+str(lastsync):
 										addrow = False 											
