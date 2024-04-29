@@ -2096,7 +2096,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 
 
 #create general status
-def create_status (reporttype,displaylogs=False, output='text'):
+def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=False,nodefilter:str=None,jobstatusfilter:str=None):
 
 	#text output if output not provided 
 	if not output: output = 'text'
@@ -2111,7 +2111,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 	jsongeneraldict = []
 
 	#if display logs, phase filter, error filter then print verbose 
-	if displaylogs or phasefilter or args.error : reporttype = 'verbose' 	
+	if displaylogs or phasefilter or errorfilter : reporttype = 'verbose' 	
 
 	#if output is json or html report type is verbose 
 	if output in ['json','csv']: reporttype = 'verbose' 
@@ -2495,7 +2495,7 @@ def create_status (reporttype,displaylogs=False, output='text'):
 					#work on error filter 
 					addrow = True
 					try:
-						if args.jobstatus and not baselinestatus.startswith(args.jobstatus) and not syncstatus.startswith(args.jobstatus) and not verifystatus.startswith(args.jobstatus):
+						if jobstatusfilter and not baselinestatus.startswith(jobstatusfilter) and not syncstatus.startswith(jobstatusfilter) and not verifystatus.startswith(jobstatusfilter):
 							addrow = False 
 					except Exception as e:
 						logging.debug("filter was not passed")
@@ -2606,15 +2606,15 @@ def create_status (reporttype,displaylogs=False, output='text'):
 								if phasefilter and not task.startswith(phasefilter):
 								#if phasefilter and not task==phasefilter:
 									addrow = False  
-								if args.node and not nodename.startswith(args.node):
+								if nodefilter and not nodename.startswith(nodefilter):
 									addrow = False
-								if args.jobstatus and not baselinestatus.startswith(args.jobstatus):
+								if jobstatusfilter and not baselinestatus.startswith(jobstatusfilter):
 									addrow = False 
 								errors = errors.split(' ')[0]
-								if args.error and errors.isdigit():
+								if errorfilter and errors.isdigit():
 									if int(errors) == 0:
 										addrow = False
-								if args.error and errors == '-':
+								if errorfilter and errors == '-':
 									addrow = False								
 							except Exception as e:
 								logging.debug("filter was not passed")
@@ -2838,15 +2838,15 @@ def create_status (reporttype,displaylogs=False, output='text'):
 										addrow = False
 									if phasefilter == 'lastsync' and task != 'sync'+str(lastsync):
 										addrow = False 											
-									if args.node and not nodename.startswith(args.node):
+									if nodefilter and not nodename.startswith(nodefilter):
 										addrow = False
-									if args.jobstatus and not jobstatus.startswith(args.jobstatus):
+									if jobstatusfilter and not jobstatus.startswith(jobstatusfilter):
 										addrow = False
 									errors = errors.split(' ')[0]										 
-									if args.error and errors.isdigit():
+									if errorfilter and errors.isdigit():
 										if int(errors) == 0:
 											addrow = False
-									if args.error and errors == '-':
+									if errorfilter and errors == '-':
 										addrow = False
 								except Exception as e:
 									logging.debug("filter was not passed")
@@ -3641,7 +3641,6 @@ def parse_nomad_jobs_to_files (parselog=True):
 				logging.debug("creating file:"+cachecompletefile+" to prevent further caching for the task")
 				alloclogfile = os.path.join(jobdir,'stderrlog_'+alloc['ID']+'.log')
 				statsresults = parse_stats_from_log('file',alloclogfile,logtype)
-
 				
 				try:	
 					f = open(cachecompletefile,'w')
@@ -6299,7 +6298,7 @@ try:
 		if not args.verbose:
 			create_status('general',args.logs,args.output)
 		else:
-			create_status('verbose',args.logs,args.output)
+			create_status('verbose',args.logs,args.output,errorfilter=args.error,nodefilter=args.node,jobstatusfilter=args.jobstatus)
 
 	if args.subparser_name in ['pause','resume','syncnow']:
 		update_nomad_job_status(args.subparser_name)
