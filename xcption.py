@@ -1274,7 +1274,7 @@ def create_nomad_jobs():
 						if excludedirfile == '':
 							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\""+src+"\",\""+dst
 						else:
-							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-match\",\"not paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
+							cmdargs = "verify\",\"-v\",\"-noid\",\"-nodata\",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+src+"\",\""+dst
 					if ostype == 'windows': 
 						if excludedirfile == '':						
 							cmdargs = escapestr(xcpwinpath+' verify '+xcpwinverifyparam+' "'+src+'" "'+dst+'"')
@@ -1454,7 +1454,7 @@ def start_nomad_jobs(action, force):
 									if excludedirfile == '':
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\""+srcverify+"\",\""+dstverify
 									else:
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"')\",\""+srcverify+"\",\""+dstverify
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+srcverify+"\",\""+dstverify
 								
 								if tool == 'rclone': 
 									withdata = ''
@@ -1468,7 +1468,7 @@ def start_nomad_jobs(action, force):
 									if excludedirfile == '':
 										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
 									else:
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-match\",\"not paths('"+excludedirfile+"') and type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-exclude\",\"paths('"+excludedirfile+"')\",\"-match\",\"type==f and rand(1000)\",\""+srcverify+"\",\""+dstverify
 									
 								if tool in ['cloudsync','ndmpcopy']:
 									logging.warning(f"{action} is not supported for {tool}")
@@ -1499,7 +1499,7 @@ def start_nomad_jobs(action, force):
 											f.close()                        
 											logging.debug("exclude directories argument for xcp: " + xcpexcludepaths)
 										except Exception as e:
-											logging.error("exclude directories file cannot be parsed: " + robocopyexcludedirs)	
+											logging.error("exclude directories file cannot be parsed: " + excludedirfile)	
 											exit(1)
 										cmdargs += escapestr(xcpexcludepaths,"\'")
 
@@ -2041,6 +2041,9 @@ def create_verbose_status (jsondict, displaylogs=False):
 			if 'paused' in jobdetails:
 				nextrun = 'paused'
 			print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"))
+			# else:
+			# 	print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN NOT INITIATED)"))
+
 
 			print(("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'))
 
@@ -3596,7 +3599,7 @@ def parse_nomad_jobs_to_files (parselog=True):
 							logging.error(f"cannot append data to file:{alloclogfile} - {e}") 
 							exit(1)								
 					else:
-						logging.info(f"log for type:{logtype} job:{alloc['ID']} does NOT exists")
+						logging.debug(f"log for type:{logtype} job:{alloc['ID']} does NOT exists")
 						
 				try:
 					f = open(cacherunningfile,'w')
@@ -4734,7 +4737,7 @@ def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 				unmountdir(tempmountpointdst)
 				exit(1)		
 			
-			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+			logging.info(f"csv file: {csvfile} is ready to be loaded into xcption with {len(csv_data)} tasks")
 			
 	except KeyboardInterrupt:
 		print("")
@@ -5019,7 +5022,7 @@ def assess_fs_windows(csvfile,src,dst,depth,basedepth,jobname,robocopy,acl,cpu,r
 			logging.debug("=================robocopy ended successfully=====================")
 			logging.debug("=================================================================")
 
-			logging.info("csv file:"+csvfile+ " is ready to be loaded into xcption")
+		logging.info(f"csv file: {csvfile} is ready to be loaded into xcption with {len(csv_data)} tasks")
 
 
 #move job 
