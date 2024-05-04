@@ -2040,10 +2040,10 @@ def create_verbose_status (jsondict, displaylogs=False):
 			nextrun = get_next_cron_time(jobdetails['cron'])
 			if 'paused' in jobdetails:
 				nextrun = 'paused'
-			print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"))
-			# else:
-			# 	print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN NOT INITIATED)"))
 
+			if jobdetails['cronstatus'] == '-':
+				nextrun = 'sync disabled'
+			print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"))
 
 			print(("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'))
 
@@ -2104,11 +2104,6 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 	#text output if output not provided 
 	if not output: output = 'text'
 
-	#get nomad allocations 
-	jobs = {}
-	allocs = {}
-	nodes = {}
-
 	#used to create json outpput 
 	jsondict = {}
 	jsongeneraldict = []
@@ -2119,22 +2114,12 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 	#if output is json or html report type is verbose 
 	if output in ['json','csv']: reporttype = 'verbose' 
 
-	try:
-		jobs  = n.jobs.get_jobs()
-	except Exception as e:
-		logging.error('cannot get nomad job list')
-		exit(1)
-	try:
-		allocs = n.allocations.get_allocations()
-	except Exception as e:
-		logging.error('cannot get alloc list')
-		exit(1)
+	nodes = {}
 	try:
 		nodes = n.nodes.get_nodes()
 	except Exception as e:
 		logging.error('cannot get node list')
 		exit(1)
-
 	nodename = '-'
 	
 	rowcount = 0
@@ -2261,11 +2246,12 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 					else:			
 						for file in os.listdir(synccachedir):
 							if file == 'job_'+sync_job_name:
-								syncjobfound = True
 								synccachefile = os.path.join(synccachedir,file)
 								with open(synccachefile) as f:
 									logging.debug('loading cached info job file:'+synccachefile)
 									jobdata = json.load(f)
+									if jobdata['Status'] == 'running':
+										syncjobfound = True
 									if jobdata['Stop']: 
 										syncsched = 'paused'
 										jobsdict[jobname][src]['paused'] = True 
@@ -2322,7 +2308,7 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 									syncjobsstructure['logs'][logallocid] = {}										
 									syncjobsstructure['logs'][logallocid] = statsresults
 
-					if not syncjobfound: syncsched = '-'
+					if not syncjobfound and syncsched != 'paused': syncsched = '-'
 			
 					if alloclastdetails: 
 						logging.debug("sync job name:"+sync_job_name+" lastjobid:"+joblastdetails['ID']+' allocjobid:'+alloclastdetails['ID'])
@@ -2835,7 +2821,7 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 								#filter results
 								addrow = True 
 								try:
-									#ability to filter phase starting with str (haim)
+									#ability to filter phase starting with str 
 									if phasefilter and not task.startswith(phasefilter) and phasefilter != 'lastsync':
 									#if phasefilter and not task == phasefilter and phasefilter != 'lastsync':
 										addrow = False
@@ -2870,6 +2856,9 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 
 									jsondict = addtostatusjson(jobname,src, [task,starttime,endtime,duration,scanned,reviewed,copied,modified,deleted,errors,sent,nodename,jobstatus,currentlog['stdoutlogpath'],
 									currentlog['stderrlogpath'],currentlog['stdoutlogexists'],currentlog['stderrlogexists'],currentlog[stdoutkey],currentlog[stderrkey]],jsondict)						
+
+									#set cron status for sync job
+									jsondict[jobname][src]['cronstatus'] = syncsched
 
 									task = ''
 									starttime='-'
@@ -3318,6 +3307,41 @@ def check_nomad():
 				exit(1)
 		else:
 			logging.debug("xcption_gc_system job is running")
+
+#mark jobs as stoped in cache if they do no exists in nomad
+def santize_nomad_cache():
+	#get nomad allocations 
+	jobs = {}	
+	try:
+		jobs  = n.jobs.get_jobs()
+	except Exception as e:
+		logging.error('cannot get nomad job list')
+		exit(1)	
+	
+	#list all directries in the cache dir
+	cachedirs = [f for f in os.listdir(cachedir) if os.path.isdir(os.path.join(cachedir, f))]
+	for jobnamecache in cachedirs:
+		jobname = jobnamecache.lstrip('job_')
+		#relevant only for sync jobs 
+		if jobname.startswith('sync'):
+			nomadjob = [j for j in jobs if j['ID'] == jobname]
+			if not nomadjob:
+				jobjsonfile = os.path.join(cachedir,jobnamecache,jobnamecache)		
+				#make sure the job is marked as deleted
+				if os.path.isfile(jobjsonfile):
+					try:
+						with open(jobjsonfile, 'r') as fp:
+							jobinfo = json.load(fp)
+							if jobinfo['Status'] != 'deleted':
+								jobinfo['Status'] = 'deleted'
+								jobinfo['Stop'] = False
+								fp.close()
+								with open(jobjsonfile, 'w') as fw:
+									json.dump(jobinfo, fw)
+									fw.close()
+								logging.debug(f"{jobname} found in cache but does not exists in nomad, marking job:{jobname} as deleted in the cache")		
+					except Exception as e:
+						logging.error(f"cannot create file:{jobjsonfile} error:{e}")
 
 #used to parse nomad jobs to files, will be used as a cache in case of nomad GC removed ended jobs 
 def parse_nomad_jobs_to_files (parselog=True):
@@ -6243,6 +6267,7 @@ try:
 	if args.subparser_name == 'nomad':
 		parse_nomad_jobs_to_files()
 		rotate_sync_count_in_cache(maxsyncsperjob)
+		santize_nomad_cache()
 		exit (0)
 
 	if args.subparser_name == 'assess':
