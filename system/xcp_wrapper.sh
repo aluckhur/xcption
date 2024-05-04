@@ -17,9 +17,13 @@ exitcode=$?
 
 if [[ " $@ " =~ "-acl4" ]]; then
     umount /tmp/xcption_nfs4_src_mount$$
-    rm -d /tmp/xcption_nfs4_src_mount$$
+    if [ $? -eq 0 ]; then
+    	rm -d /tmp/xcption_nfs4_src_mount$$
+    fi
     umount /tmp/xcption_nfs4_dst_mount$$
-    rm -d /tmp/xcption_nfs4_dst_mount$$    
+    if [ $? -eq 0 ]; then
+        rm -d /tmp/xcption_nfs4_dst_mount$$    
+    fi
 fi
 
 exit $exitcode
