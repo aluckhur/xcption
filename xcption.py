@@ -2308,7 +2308,7 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 									syncjobsstructure['logs'][logallocid] = {}										
 									syncjobsstructure['logs'][logallocid] = statsresults
 
-					if not syncjobfound and syncsched != 'paused': syncsched = '-'
+					if not syncjobfound and syncsched != 'paused': syncsched = 'disabled'
 			
 					if alloclastdetails: 
 						logging.debug("sync job name:"+sync_job_name+" lastjobid:"+joblastdetails['ID']+' allocjobid:'+alloclastdetails['ID'])
