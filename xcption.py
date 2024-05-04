@@ -1695,7 +1695,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 				results['removes'] = match.group(1)
 				results['rmdirs'] = match.group(2)			
 			for match in re.finditer(r"Transferred:\s+([-+]?[0-9]*\.?[0-9]*\s+.*B)\s+\/",results['content'],re.M|re.I):
-				results['bwout'] = match.group(1)
+				results['bwout'] = match.group(1).replace(' out ','')
 			for match in re.finditer(r"Errors:\s+([-+]?[0-9]*\.?[0-9])",results['content'],re.M|re.I):
 				results['errors'] = match.group(1)	
 				if 'scanned' in results:
@@ -1753,7 +1753,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			results['time'] = match.group(1)		
 		if 'time' in results:
 			for match in re.finditer(r"Speed\s+\:.+,\s+([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))",results['contentotherlog'],re.M|re.I):
-				results['bwout'] = match.group(1)
+				results['bwout'] = match.group(1).replace(' out ','')
 		#if otherloglastline != '' and lastline == '':
         #xcp for windows displays the summary in the stderr when there are errors + xcp 1.9.3 with isync prints 'target scan completed in the stdout and not stderr
 		if otherloglastline != '' and not 'target scan completed' in otherloglastline:
@@ -1824,7 +1824,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		#xcp for windows
 		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+(\SiB)?\s\([0-9]*\.?[0-9]+(\SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
-			results['bwout'] = matchObj.group(1)	
+			results['bwout'] = matchObj.group(1)
 
 		#matches for verify job
 		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) found", lastline,re.M|re.I)
