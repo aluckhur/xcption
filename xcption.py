@@ -2041,8 +2041,10 @@ def create_verbose_status (jsondict, displaylogs=False):
 			if 'paused' in jobdetails:
 				nextrun = 'paused'
 
-			if jobdetails['cronstatus'] == '-':
-				nextrun = 'sync disabled'
+			if 'cronstatus' in jobdetails:
+				if jobdetails['cronstatus'] == '-':
+					nextrun = 'sync disabled'
+					
 			print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"))
 
 			print(("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'))
