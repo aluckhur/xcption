@@ -296,7 +296,7 @@ parser_smartassess_start.add_argument('-k','--locate-cross-task-hardlink',help="
 
 #check capacity parameter 
 def checkcapacity (capacity):
-	matchObj = re.match("^(\d+)(\s+)?(K|B|M|G|T)(i)?B$",capacity)
+	matchObj = re.match(r"^(\d+)(\s+)?(K|B|M|G|T)(i)?B$",capacity)
 	if not matchObj:
 		raise argparse.ArgumentTypeError("invalid capacity")
 	return capacity
@@ -389,7 +389,7 @@ def load_smartassess_jobs_from_json (jobdictjson):
 	if os.path.exists(jobdictjson):
 		try:
 			logging.debug("loading existing json file:"+jobdictjson)
-			with open(jobdictjson, 'r') as f:
+			with open(jobdictjson) as f:
 				smartassessdict = json.load(f)
 		except Exception as e:
 			logging.debug("could not load existing json file:"+jobdictjson)
@@ -401,12 +401,12 @@ def load_jobs_from_json (jobdictjson):
 	if os.path.exists(jobdictjson):
 		try:
 			logging.debug("loading existing json file:"+jobdictjson)
-			with open(jobdictjson, 'r') as f:
+			with open(jobdictjson) as f:
 				jobsdict = json.load(f)
 		except Exception as e:
 			logging.debug("could not load existing json file:"+jobdictjson)
 
-#run ssh to remore host
+#run ssh to remote host
 def ssh (hostname:str, cmd: list = []):
     cmdarr =  ['ssh','-oStrictHostKeyChecking=no','-oBatchMode=yes',hostname] + cmd
 
@@ -418,7 +418,7 @@ def ssh (hostname:str, cmd: list = []):
               'stderr': result.stderr.decode('utf-8'),
               'stdoutlines': result.stdout.decode('utf-8').splitlines()
              }   
-    matchObj = re.search(" jobId \'(\d+)\'",output['stdout'])
+    matchObj = re.search(r" jobId \'(\d+)\'",output['stdout'])
     if matchObj:
         output['jobid'] = matchObj.group(1) 
 
@@ -430,7 +430,7 @@ def ssh (hostname:str, cmd: list = []):
 
 #validate ontap ndmp 
 def validate_ontap_ndmp(ontappath):
-	matchObj = re.match("^([a-zA-Z0-9\._%+-_]+)@([a-zA-Z0-9-_]+):\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9_]+)(.*)$",ontappath)
+	matchObj = re.match(r"^([a-zA-Z0-9\._%+-_]+)@([a-zA-Z0-9-_]+):\/([a-zA-Z0-9-_]+)\/([a-zA-Z0-9_]+)(.*)$",ontappath)
 	if matchObj:
 		ontapuser = matchObj.group(1)
 		ontaphost = matchObj.group(2)
@@ -457,7 +457,7 @@ def validate_ontap_ndmp(ontappath):
 		logging.error("could not identify ontap cluste-mgmt lif")
 		exit(1)
 
-	matchObj = re.search("Vserver Name:\s([a-zA-Z0-9_-]+)",out['stdout'])
+	matchObj = re.search(r"Vserver Name:\s([a-zA-Z0-9_-]+)",out['stdout'])
 	if matchObj:
 		clustername = matchObj.group(1)
 	else:
@@ -484,14 +484,14 @@ def validate_ontap_ndmp(ontappath):
 	# get ndmp password 
 	cmd = 'vserver services ndmp generate-password -vserver '+clustername+' -user '+ontapuser
 	out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
-	matchObj = re.search("Password:\s(\w+)",out['stdout'])
+	matchObj = re.search(r"Password:\s(\w+)",out['stdout'])
 	if matchObj:
 		ndmpinfo['ndmppass'] = matchObj.group(1)
 
 	# get volume details  
 	cmd = 'volume show -vserver '+svm+' -volume '+vol+' -fields state,junction-path,type,node'
 	out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
-	matchObj = re.search(f"\s{vol}\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*",out['stdout'])
+	matchObj = re.search(fr"\s{vol}\s+(\S+)\s+(\S+)\s+(\S+)\s+(\S+)\s*",out['stdout'])
 	if matchObj:
 		ndmpinfo['atate'] = matchObj.group(1)	
 		ndmpinfo['junction'] = matchObj.group(2)	
@@ -509,7 +509,7 @@ def validate_ontap_ndmp(ontappath):
 	if ndmpinfo['junction'].startswith('/'):
 		cmd = 'vserver security file-directory show -vserver '+svm+' -path'
 		out = ssh(ontapuser+'@'+ontaphost,cmd.split(' ')+['"'+ndmpinfo['junction']+dir+'/.'+'"'])
-		matchObj = re.search(f"File Path:\s+{ndmpinfo['junction']}",out['stdout'])
+		matchObj = re.search(fr"File Path:\s+{ndmpinfo['junction']}",out['stdout'])
 		if not matchObj:
 			logging.error(f"ontap path: {svm}:{vol}{dir} does not exists")
 			exit(1)
@@ -519,7 +519,7 @@ def validate_ontap_ndmp(ontappath):
 	#look for intercluster IP address we will use for NDMP on the owning node 
 	cmd = 'network interface show -vserver '+clustername+' -role intercluster -curr-node '+ndmpinfo['node']+' -status-admin up -status-oper up -fields curr-node,address'
 	out = ssh(ontapuser+'@'+ontaphost,cmd.split(' '))
-	matchObj = re.search(f"\s+([0-9.]+)\s+{ndmpinfo['node']}\s*",out['stdout'])
+	matchObj = re.search(fr"\s+([0-9.]+)\s+{ndmpinfo['node']}\s*",out['stdout'])
 	if matchObj:
 		ndmpinfo['ndmpip'] = matchObj.group(1)
 	else:
@@ -586,7 +586,7 @@ def parse_csv(csv_path):
 		line_count = 0
 		for row in csv_reader:
 			line = ' '.join(row)
-			if line_count == 0 or re.search("^\s*\#",line) or re.search("^\s*$",line):
+			if line_count == 0 or re.search(r"^\s*\#",line) or re.search(r"^\s*$",line):
 				line_count += 1
 			else:
 				
@@ -728,10 +728,10 @@ def parse_csv(csv_path):
 						
 						if ostype == 'linux':
 						
-							if not re.search("\S+\:\/\S+", src):
+							if not re.search(r"\S+\:\/\S+", src):
 								logging.error("src path format is incorrect: " + src) 
 								exit(1)	
-							if not re.search("\S+\:\/\S+", dst):
+							if not re.search(r"\S+\:\/\S+", dst):
 								logging.error("dst path format is incorrect: " + dst)
 								exit(1)	
 
@@ -856,7 +856,7 @@ def start_nomad_job_from_hcl(hclpath, nomadjobname):
 		exit(1)
 
 	logging.debug("reading hcl file:"+hclpath)
-	with open(hclpath, 'r') as f:
+	with open(hclpath) as f:
 		hclcontent = f.read()
 		
 		#hclcontent = hclcontent.replace('\n', '').replace('\r', '').replace('\t','')
@@ -1645,7 +1645,7 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 		#try to get the log file using api
 		allocid = name
 		response = requests.get(nomadapiurl+'client/fs/logs/'+allocid+'?task='+task+'&type='+logtype+'&plain=true')
-		if response.ok and re.search("\d", response.content, re.M|re.I):
+		if response.ok and re.search(r"\d", response.content, re.M|re.I):
 			logging.debug("log for job:"+allocid+" is available using api")								
 			lines = response.content.splitlines()
 			if lines:
@@ -1761,77 +1761,77 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 	
 	#for xcp/robocopy/cloudsync logs 
 	if lastline:
-		matchObj = re.search("\s+(\S*\d+[s|m|h])(\.)?$", lastline, re.M|re.I)
+		matchObj = re.search(r"\s+(\S*\d+[s|m|h])(\.)?$", lastline, re.M|re.I)
 		if matchObj: 
 			results['time'] = matchObj.group(1)
 		
 		#reviewed in xcp linux, compared xcp windows
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(reviewed|compared)", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) ?(reviewed|compared)", lastline, re.M|re.I)
 		if matchObj:
 			results['reviewed'] = matchObj.group(1)
 
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) scanned", lastline, re.M|re.I)
 		if matchObj:
 			results['scanned'] = matchObj.group(1)	
 
 		#in case of match filter being used the scanned files will used
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) matched", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) matched", lastline, re.M|re.I)
 		if matchObj: 
 			if 	matchObj.group(1) != '0':		
 				results['scanned'] = matchObj.group(1)		
 
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) copied", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) copied", lastline, re.M|re.I)
 		if matchObj: 
 			results['copied'] = matchObj.group(1)
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) indexed", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) indexed", lastline, re.M|re.I)
 		if matchObj: 
 			results['indexed'] = matchObj.group(1)
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (gone|removed)", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (gone|removed)", lastline, re.M|re.I)
 		if matchObj: 
 			results['gone'] = matchObj.group(1)	
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) modification", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) modification", lastline, re.M|re.I)
 		if matchObj: 
 			results['modification'] = matchObj.group(1)
 
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) error", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) error", lastline, re.M|re.I)
 		if matchObj: 
 			results['errors'] = matchObj.group(1)
 
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) removes", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) removes", lastline, re.M|re.I)
 		if matchObj: 
 			results['removes'] = matchObj.group(1)
 		
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) rmdirs", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) rmdirs", lastline, re.M|re.I)
 		if matchObj: 
 			results['rmdirs'] = matchObj.group(1)			
 
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) file.gone", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) file.gone", lastline, re.M|re.I)
 		if matchObj: 
-			if not re.search(" gone\,.+ file\.gone",lastline, re.M|re.I):
+			if not re.search(r" gone\,.+ file\.gone",lastline, re.M|re.I):
 				if not 'gone' in results: results['gone'] = 0
 				results['gone'] += int(matchObj.group(1).replace(',',''))
 
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
+		matchObj = re.search(r"(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) dir.gone", lastline, re.M|re.I)
 		if matchObj: 
-			if not re.search (" gone\,.+ dir\.gone",lastline, re.M|re.I):
+			if not re.search (r" gone\,.+ dir\.gone",lastline, re.M|re.I):
 				if not 'gone' in results: results['gone'] = 0
 				results['gone'] += int(matchObj.group(1).replace(',',''))
 
-		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))", lastline, re.M|re.I)
+		matchObj = re.search(r"([-+]?[0-9]*\.?[0-9]+ \SiB out \([-+]?[0-9]*\.?[0-9]+( \SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
 			results['bwout'] = matchObj.group(1).replace(' out ','')
 
 		#xcp for windows
-		matchObj = re.search("([-+]?[0-9]*\.?[0-9]+(\SiB)?\s\([0-9]*\.?[0-9]+(\SiB)?\/s\))", lastline, re.M|re.I)
+		matchObj = re.search(r"([-+]?[0-9]*\.?[0-9]+(\SiB)?\s\([0-9]*\.?[0-9]+(\SiB)?\/s\))", lastline, re.M|re.I)
 		if matchObj: 
 			results['bwout'] = matchObj.group(1)
 
 		#matches for verify job
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) found", lastline,re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) found", lastline,re.M|re.I)
 		if matchObj:
 			results['found'] = matchObj.group(1)
 
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?\%?|\d+) (found )?\(([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) have data\)", otherloglastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?\%?|\d+) (found )?\(([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) have data\)", otherloglastline, re.M|re.I)
 		if matchObj: 
 			results['found'] = matchObj.group(1)
 			results['withdata'] = matchObj.group(2)
@@ -1841,31 +1841,31 @@ def parse_stats_from_log (type,name,logtype,task='none'):
 			else:
 				results['found']=format(int(results['found'].replace(',','')),',')
 		
-		matchObj = re.search("100\% verified \(attrs, mods\)", lastline, re.M|re.I)
+		matchObj = re.search(r"100\% verified \(attrs, mods\)", lastline, re.M|re.I)
 		if matchObj:
 			results['verifiedmod']='yes'
 			results['verifiedattr']='yes'
 
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) different attr", lastline, re.M|re.I)
+		matchObj = re.search(r"(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) different attr", lastline, re.M|re.I)
 		if matchObj:
 			results['diffattr'] = matchObj.group(1)
 
-		matchObj = re.search("(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) different mod time", lastline, re.M|re.I)
+		matchObj = re.search(r"(\d*\.?\d+|\d{1,3}(,\d{3})*(\.\d+)?) different mod time", lastline, re.M|re.I)
 		if matchObj:
 			results['diffmodtime'] = matchObj.group(1)
 
 		#xcp verify for windows 	
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) compared", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) compared", lastline, re.M|re.I)
 		if matchObj:
 			results['scanned'] = matchObj.group(1)		
 			
-		matchObj = re.search("([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) same", lastline, re.M|re.I)
+		matchObj = re.search(r"([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) same", lastline, re.M|re.I)
 		if matchObj:		
 			results['found'] = matchObj.group(1)
 			if results['scanned'] == results['found']: results['verified']='yes'
 		
 		#cloudsync broker name
-		matchObj = re.search("broker:(\S+)\s", lastline, re.M|re.I)
+		matchObj = re.search(r"broker:(\S+)\s", lastline, re.M|re.I)
 		if matchObj:		
 			results['broker'] = matchObj.group(1)
 
@@ -1920,7 +1920,7 @@ def truncate_middle(s, n):
 	n_2 = int(int(n) / 2 - 3)
 	# whatever's left
 	n_1 = int(n - n_2 - 3)
-	return '{0}...{1}'.format(s[:n_1], s[-n_2:])
+	return '{}...{}'.format(s[:n_1], s[-n_2:])
 
 #create eneral status json 
 def addtogeneralstatusjson(details,jsongeneraldict):
@@ -2030,9 +2030,9 @@ def create_verbose_status (jsondict, displaylogs=False):
 			jobdetails = copy.deepcopy(jsondict[job][src])
 
 			#print general information 
-			print(("JOB: "+job))
-			print(("SRC: "+src))
-			print(("DST: "+jobdetails['dst']))
+			print("JOB: "+job)
+			print("SRC: "+src)
+			print("DST: "+jobdetails['dst'])
 			
 			if jobdetails['aclcopy'] == "nfs4-acl": print("ACL: NFS4 ACL COPY")
 			if jobdetails['aclcopy'] == "no-win-acl": print("ACL: NO CIFS ACL COPY")
@@ -2045,14 +2045,14 @@ def create_verbose_status (jsondict, displaylogs=False):
 				if jobdetails['cronstatus'] == '-':
 					nextrun = 'sync disabled'
 					
-			print(("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")"))
+			print("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")")
 
-			print(("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM'))
+			print("RESOURCES: " + str(jobdetails['cpu'])+"MHz CPU "+str(jobdetails['memory'])+'MB RAM')
 
-			if jobdetails['ostype'] =='linux' and jobdetails['tool'] == 'xcp': print(("XCP INDEX NAME: "+jobdetails['xcpindexname']))
-			if jobdetails['excludedirfile'] != '': print(("EXCLUDE DIRS FILE: "+jobdetails['excludedirfile']))
-			if jobdetails['tool'] != 'cloudsync': print(("OS: "+jobdetails['ostype'].upper()))
-			print(("TOOL NAME: "+jobdetails['tool']))
+			if jobdetails['ostype'] =='linux' and jobdetails['tool'] == 'xcp': print("XCP INDEX NAME: "+jobdetails['xcpindexname'])
+			if jobdetails['excludedirfile'] != '': print("EXCLUDE DIRS FILE: "+jobdetails['excludedirfile'])
+			if jobdetails['tool'] != 'cloudsync': print("OS: "+jobdetails['ostype'].upper())
+			print("TOOL NAME: "+jobdetails['tool'])
 			print("")
 
 			if len(jobdetails['phases']) > 0:
@@ -2068,7 +2068,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 					if displaylogs:
 						verbosetable.border = False
 						verbosetable.align = 'l'
-						print((verbosetable.get_string(sortby="Start Time")))
+						print(verbosetable.get_string(sortby="Start Time"))
 						print("")
 
 						for logtype in ['stdout','stderr']:
@@ -2076,7 +2076,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 							print(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}")
 							print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
 							if phase[logtype+'logexists']:
-								print((phase[logtype+'logcontent']))
+								print(phase[logtype+'logcontent'])
 								#print(("the last "+str(maxloglinestodisplay)+" lines are displayed"))
 								#print(("full log file path: " +phase[logtype+'logpath']))
 								#print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
@@ -2085,7 +2085,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 								print("-" * len(f"LOG TYPE: {logtype} LAST: {maxloglinestodisplay} LINES, FULL LOG: {phase[logtype+'logpath']}"))
 								print("")							
 							else:
-								print(("LOG TYPE:"+logtype+" IS NOT AVAIALBLE"))
+								print("LOG TYPE:"+logtype+" IS NOT AVAIALBLE")
 								print("")
 						
 						print("")
@@ -2096,7 +2096,7 @@ def create_verbose_status (jsondict, displaylogs=False):
 			if not displaylogs and len(jobdetails['phases']) > 0:
 				verbosetable.border = False
 				verbosetable.align = 'l'
-				print((verbosetable.get_string(sortby="Start Time")))
+				print(verbosetable.get_string(sortby="Start Time"))
 				print("")
 
 
@@ -2476,8 +2476,8 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 						#if os.path.isfile(os.path.join(verifycachedir,'error.'+verifyalloclastdetails['JobID'].split('/')[1])):
 						#	verifystatus = 'failed'	
 
-					baselinesentshort = re.sub("\(.+\)","",baselinesent)
-					syncsentshort = re.sub("\(.+\)","",syncsent)
+					baselinesentshort = re.sub(r"\(.+\)","",baselinesent)
+					syncsentshort = re.sub(r"\(.+\)","",syncsent)
 					
 					#mention that verify for ndmpcopy and cloudsync is not supported
 					if tool in ['ndmpcopy','cloudsync']:
@@ -2884,7 +2884,7 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 				print("no data found")				
 
 		elif output == 'json':
-			print((json.dumps(jsondict)))
+			print(json.dumps(jsondict))
 		elif output == 'csv':
 			create_csv_status(jsondict)
 
@@ -3332,7 +3332,7 @@ def santize_nomad_cache():
 				#make sure the job is marked as deleted
 				if os.path.isfile(jobjsonfile):
 					try:
-						with open(jobjsonfile, 'r') as fp:
+						with open(jobjsonfile) as fp:
 							jobinfo = json.load(fp)
 							if jobinfo['Status'] != 'deleted':
 								jobinfo['Status'] = 'deleted'
@@ -4017,10 +4017,10 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 
 			logging.debug("starting smartassess createcsv") 	
 
-			if not re.search("\S+\:\/\S+", src):
+			if not re.search(r"\S+\:\/\S+", src):
 				logging.error("source format is incorrect: " + src) 
 				exit(1)	
-			if not re.search("\S+\:\/\S+", src):
+			if not re.search(r"\S+\:\/\S+", src):
 				logging.error("destination format is incorrect: " + dst)
 				exit(1)		
 
@@ -4217,7 +4217,7 @@ def smartassess_fs_linux_status_createcsv(args,createcsv):
 							for data in csv_data:
 								writer.writerow(data)
 							logging.info("job csv file:"+args.csvfile+" created")
-					except IOError:
+					except:
 						logging.error("could not write data to csv file:"+args.csvfile)
 						unmountdir(tempmountpointsrc)
 						unmountdir(tempmountpointdst)
@@ -4329,20 +4329,20 @@ def smartassess_parse_log_to_tree (basepath, inputfile):
 
 	content = [x.strip() for x in content] 
 	for line in content:
-		matchObj = re.search("^([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (\SiB) ([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) inode. ("+basepath+".+$)", line)
+		matchObj = re.search(r"^([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) (\SiB) ([0-9]{1,3}(,[0-9]{3})*(\.[0-9]+)?\S?) inode. ("+basepath+".+$)", line)
 		if matchObj:
 			size = float(matchObj.group(1).replace(',',''))
 			sizeq = matchObj.group(4)
 			inodesstr = matchObj.group(5).replace(',','')
 			if 'M' in inodesstr:
-				inodesstr = float(re.findall("\d+\.\d+", inodesstr)[0])*1000000
+				inodesstr = float(re.findall(r"\d+\.\d+", inodesstr)[0])*1000000
 
 			inodes = int(inodesstr)
 			inodes_hr = matchObj.group(5)
 			size_hr = matchObj.group(1)+' '+sizeq
 			path = matchObj.group(8)
 
-			if re.search("^"+basepath+"($|\/)",path):
+			if re.search("^"+basepath+r"($|\/)",path):
 				if sizeq == 'KiB': sizek = float(size)
 				if sizeq == 'MiB': sizek = float(size)*1024
 				if sizeq == 'GiB': sizek = float(size)*1024*1024
@@ -4407,7 +4407,7 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 		logging.error("smartassess job already exists for src:"+src+', to run again please delete exisiting task 1st') 
 		exit(1)	
 
-	if not re.search("^\S+\:\/\S+", src):
+	if not re.search(r"^\S+\:\/\S+", src):
 		logging.error("source format is incorrect: " + src) 
 		exit(1)	
 
@@ -4545,10 +4545,10 @@ def smartassess_fs_linux_start(src,depth,locate_cross_task_hardlink):
 def assess_fs_linux(csvfile,src,dst,depth,basedepth,acl,jobname):
 	logging.debug("starting to assess src:" + src + " dst:" + dst) 
 
-	if not re.search("^\S+\:\/.*", src):
+	if not re.search(r"^\S+\:\/.*", src):
 		logging.error("source format is incorrect: " + src) 
 		exit(1)	
-	if not re.search("^\S+\:\/.*", dst):
+	if not re.search(r"^\S+\:\/.*", dst):
 		logging.error("destination format is incorrect: " + dst)
 		exit(1)	
 
@@ -4795,7 +4795,7 @@ def list_dirs_windows(startpath,depth):
 		exit(1)			
 
 	if results['stderr']:
-		matchObj = re.search("(\d+) errors,", results['stderr'], re.M|re.I)
+		matchObj = re.search(r"(\d+) errors,", results['stderr'], re.M|re.I)
 		if matchObj:
 			if matchObj.group(1) > 1:
 				logging.error("errors encountered during while scanning path:"+startpath)
@@ -4807,7 +4807,7 @@ def list_dirs_windows(startpath,depth):
 
 	lines = results['stdout'].splitlines()
 	for line in lines:
-		matchObj = re.search("^(f|d)\s+\S+\s+\S+\s+(.+)$", line, re.M|re.I)
+		matchObj = re.search(r"^(f|d)\s+\S+\s+\S+\s+(.+)$", line, re.M|re.I)
 		if matchObj:
 			path = matchObj.group(2).replace(startfolder,".",1)
 			#if path == ".": path = ".\\"
@@ -5017,7 +5017,7 @@ def assess_fs_windows(csvfile,src,dst,depth,basedepth,jobname,robocopy,acl,cpu,r
 
 
 				logging.info("job csv file:"+csvfile+" created")
-		except IOError:
+		except:
 			logging.error("could not write data to csv file:"+csvfile)
 			exit(1)	
 
@@ -5335,7 +5335,7 @@ def normalizedict (jsondict):
 						except Exception as e:
 							phase[key] = 0 
 					if key == 'duration':
-						matchObj = re.match("((\d+)h)?((\d+)m)?(\d+)s",phase[key])
+						matchObj = re.match(r"((\d+)h)?((\d+)m)?(\d+)s",phase[key])
 						if matchObj:
 							durationsec = 0
 							if matchObj.group(2) > 0: durationsec += int(matchObj.group(2))*3600 
@@ -5375,8 +5375,8 @@ def start_flask(tcpport):
         '=': '\\u003D',
         '-': '\\u002D',
         ';': '\\u003B',
-        u'\u2028': '\\u2028',
-        u'\u2029': '\\u2029'
+        '\u2028': '\\u2028',
+        '\u2029': '\\u2029'
 	}
 	# Escape every ASCII character with a value less than 32.
 	_js_escapes.update(('%c' % z, '\\u%04X' % z) for z in range(32))
@@ -5626,10 +5626,10 @@ def monitored_copy(src,dst,nfs4acl):
 	xcption_script = os.path.abspath(__file__)
 
 	#validate provided paths are unix based 
-	if not re.search("^\S+\:\/\S+", src):
+	if not re.search(r"^\S+\:\/\S+", src):
 		logging.error("source format is incorrect: " + src) 
 		exit(1)	
-	if not re.search("^\S+\:\/\S+", dst):
+	if not re.search(r"^\S+\:\/\S+", dst):
 		logging.error("destination format is incorrect: " + src) 
 		exit(1)	
 
@@ -5689,7 +5689,7 @@ def monitored_copy(src,dst,nfs4acl):
 			statusdict = json.loads(json_status)
 			
 			status = statusdict[xcption_job][src]['phases'][0]['status']
-			status = re.sub('\(.+\)','', status.rstrip())
+			status = re.sub(r'\(.+\)','', status.rstrip())
 			scanned = statusdict[xcption_job][src]['phases'][0]['scanned']
 			copied = statusdict[xcption_job][src]['phases'][0]['copied']
 			sent = statusdict[xcption_job][src]['phases'][0]['sent']
@@ -5699,16 +5699,16 @@ def monitored_copy(src,dst,nfs4acl):
 			stderrlogpath = statusdict[xcption_job][src]['phases'][0]['stderrlogpath']
 			
 			if not counter  or counter%10==0:
-				print(('-' * 120))
-				print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename')))
-				print(('-' * 120))
+				print('-' * 120)
+				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format('status','scanned','copied','errors','duration','sent','nodename'))
+				print('-' * 120)
 			
 			if status in ['complete','failed','aborted']: 
 				cont = False
-				print(('-' * 120))
+				print('-' * 120)
 			else:
 				time.sleep(5)
-			print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format(status,scanned,copied,errors,duration,sent,nodename)))
+			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}{:<30s}{:<20s}'.format(status,scanned,copied,errors,duration,sent,nodename))
 
 
 			if status in ['failed','aborted']: 
@@ -5763,7 +5763,7 @@ def monitored_copy(src,dst,nfs4acl):
 def monitored_delete (src,force,tool):
 	if tool == 'xcp':
 		#validate provided paths are unix based 
-		if not re.search("^\S+\:\/\S+", src):
+		if not re.search(r"^\S+\:\/\S+", src):
 			logging.error("fs format is incorrect: " + src) 
 			exit(1)	    
 
@@ -5890,16 +5890,16 @@ def monitored_delete (src,force,tool):
 				if 'time'     in logstats: duration = logstats['time']			
 
 			if not counter or counter%10==0:
-				print(('-' * 100))
-				print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format('status','scanned','object-delete' if tool=='rclone' else 'file-delete','dir-delete','errors','duration')))
-				print(('-' * 100))
+				print('-' * 100)
+				print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format('status','scanned','object-delete' if tool=='rclone' else 'file-delete','dir-delete','errors','duration'))
+				print('-' * 100)
 			if jobstatus in ['completed','failed','aborted']: 
 				cont = False
-				print(('-' * 100))				
+				print('-' * 100)				
 			else:
 				time.sleep(5)
 			
-			print(('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format(jobstatus,scanned,removes,rmdirs,errors,duration)))
+			print('{:<15s}{:<15s}{:<15s}{:<15s}{:<15s}{:<10s}'.format(jobstatus,scanned,removes,rmdirs,errors,duration))
 			
 			if jobstatus in ['failed','aborted']: 
 				failed = True
@@ -5986,7 +5986,7 @@ def parse_xcp_status_shares(lines):
         line = lines[count1]
         if "Shares  Errors  Server" in line: 
             count1 += 1
-            matchObj = re.search("(\d+)\s+(\d+)\s+(\S+)",lines[count1])
+            matchObj = re.search(r"(\d+)\s+(\d+)\s+(\S+)",lines[count1])
             if matchObj:
                 out['shares'] = matchObj.group(1) 
                 out['errors'] = matchObj.group(2) 
@@ -6000,7 +6000,7 @@ def parse_xcp_status_shares(lines):
             count1 += 1
         
         if all(val > 0 for val in [share_start,path_start,share_end]):
-            if not re.search("^\s*$",lines[count1]):
+            if not re.search(r"^\s*$",lines[count1]):
                 free_space = re.split(r'\s+',lines[count1])[1]
                 used_space = re.split(r'\s+',lines[count1])[2]
                 share_path_name = lines[count1][share_start:share_end].rstrip() 
@@ -6021,9 +6021,9 @@ def parse_xcp_status_shares(lines):
             count1 += 1
         
         if start_attributes:
-            if not re.search("^\s*$",lines[count1]):
+            if not re.search(r"^\s*$",lines[count1]):
                 for share_name in out['shares_info'].keys():
-                    matchObj = re.search(f"{re.escape(share_name)}\s+(DISKTREE|SPECIAL)\s*(.*)$",lines[count1])
+                    matchObj = re.search(fr"{re.escape(share_name)}\s+(DISKTREE|SPECIAL)\s*(.*)$",lines[count1])
                     if matchObj:
                        
                        out['shares_info'][share_name]['type'] = matchObj.group(1)
@@ -6038,7 +6038,7 @@ def parse_xcp_status_shares(lines):
         if start_acl and len(lines)!=count1:
             if re.search(r"^\s\S+\s+.+$",lines[count1].rstrip()):
                 for share_name in out['shares_info'].keys():
-                    matchObj = re.search(f"\s{re.escape(share_name)}\s+(.+)\s+(\S+\/.+)",lines[count1])
+                    matchObj = re.search(fr"\s{re.escape(share_name)}\s+(.+)\s+(\S+\/.+)",lines[count1])
                     if matchObj:
                         if not 'acl' in out['shares_info'][share_name]:
                             out['shares_info'][share_name]['acl'] = []
@@ -6047,8 +6047,8 @@ def parse_xcp_status_shares(lines):
                                                                       "permission": matchObj.group(2).rstrip().split('/')[1]
                                                                      })
                         current_share = share_name
-            elif re.search("\s+(.+)\s+(\S+\/.+)",lines[count1].rstrip()) and current_share:  
-                matchObj = re.search("\s+(.+)\s+(\S+\/.+)",lines[count1].rstrip())
+            elif re.search(r"\s+(.+)\s+(\S+\/.+)",lines[count1].rstrip()) and current_share:  
+                matchObj = re.search(r"\s+(.+)\s+(\S+\/.+)",lines[count1].rstrip())
                 out['shares_info'][current_share]['acl'].append({"user": matchObj.group(1).rstrip(), 
                                                                 "action": matchObj.group(2).rstrip().split('/')[0], 
                                                                 "permission": matchObj.group(2).rstrip().split('/')[1]
@@ -6076,7 +6076,7 @@ def parse_xcp_status_exports(lines):
         line = lines[count1]
         if "Mounts  Errors  Server" in line: 
             count1 += 1
-            matchObj = re.search("(\d+)\s+(\d+)\s+(\S+)",lines[count1])
+            matchObj = re.search(r"(\d+)\s+(\d+)\s+(\S+)",lines[count1])
             if matchObj:
                 out['mounts'] = matchObj.group(1) 
                 out['errors'] = matchObj.group(2) 
@@ -6087,7 +6087,7 @@ def parse_xcp_status_exports(lines):
             export_start = True 
 			
         if export_start:
-            matchObj = re.search("^\s+([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))\s+(.iB).+\s+(\S+)\:\/?(\S+)\s*$",lines[count1])
+            matchObj = re.search(r"^\s+([+-]?([0-9]+([.][0-9]*)?|[.][0-9]+))\s+(.iB).+\s+(\S+)\:\/?(\S+)\s*$",lines[count1])
             
             if matchObj:
                 details = lines[count1].split()
@@ -6257,7 +6257,7 @@ try:
 		if args.phase != None:
 			phasefilter = args.phase
 
-	if args.version: print(("XCPtion version:"+version))
+	if args.version: print("XCPtion version:"+version)
 
 	#check nomad avaialbility
 	check_nomad()
@@ -6376,7 +6376,7 @@ try:
 
 		if args.smartassess_command in ['status','createcsv']:
 			if args.min_capacity:
-				matchObj = re.match("^(\d+)(\s*)((K|M|G|T)(i)?B)$",args.min_capacity)
+				matchObj = re.match(r"^(\d+)(\s*)((K|M|G|T)(i)?B)$",args.min_capacity)
 				if matchObj.group(4) == 'K': minsizekfortask_minborder=int(matchObj.group(1))
 				if matchObj.group(4) == 'M': minsizekfortask_minborder=int(matchObj.group(1))*1024
 				if matchObj.group(4) == 'G': minsizekfortask_minborder=int(matchObj.group(1))*1024*1024
