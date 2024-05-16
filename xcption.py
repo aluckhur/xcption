@@ -2110,8 +2110,8 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 	jsondict = {}
 	jsongeneraldict = []
 
-	#if display logs, phase filter, error filter then print verbose 
-	if displaylogs or phasefilter or errorfilter : reporttype = 'verbose' 	
+	#if display logs, phase filter, error filter or nodefilter then print verbose 
+	if displaylogs or phasefilter or errorfilter or nodefilter: reporttype = 'verbose' 	
 
 	#if output is json or html report type is verbose 
 	if output in ['json','csv']: reporttype = 'verbose' 
@@ -6326,7 +6326,7 @@ try:
 		#False is passed to skip log parsing and make it faster
 		parse_nomad_jobs_to_files(False)
 		if not args.verbose:
-			create_status('general',args.logs,args.output)
+			create_status('general',args.logs,args.output,errorfilter=args.error,nodefilter=args.node,jobstatusfilter=args.jobstatus)
 		else:
 			create_status('verbose',args.logs,args.output,errorfilter=args.error,nodefilter=args.node,jobstatusfilter=args.jobstatus)
 
