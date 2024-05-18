@@ -2047,8 +2047,8 @@ def create_verbose_status (jsondict, displaylogs=False):
 			if 'paused' in jobdetails:
 				nextrun = 'paused'
 
-			if 'cronstatus' in jobdetails:
-				if jobdetails['cronstatus'] == '-':
+			if 'cronstatus' in jobdetails:				
+				if jobdetails['cronstatus'] in ['-','disabled']:
 					nextrun = 'sync disabled'
 					
 			print("SYNC CRON: "+jobdetails['cron']+" (NEXT RUN "+nextrun+")")
@@ -2316,7 +2316,8 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 									syncjobsstructure['logs'][logallocid] = {}										
 									syncjobsstructure['logs'][logallocid] = statsresults
 
-					if not syncjobfound and syncsched != 'paused': syncsched = 'disabled'
+					if not syncjobfound and syncsched != 'paused': 
+						syncsched = 'disabled'
 			
 					if alloclastdetails: 
 						logging.debug("sync job name:"+sync_job_name+" lastjobid:"+joblastdetails['ID']+' allocjobid:'+alloclastdetails['ID'])
@@ -2819,7 +2820,6 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 										except Exception as e:
 											pp.pprint(currentlog)											
 										
-
 								#handle aborted jobs 
 								if currentperiodic['Status'] == 'dead' and currentperiodic['Stop']: jobstatus = 'aborted'											
 
@@ -2866,6 +2866,7 @@ def create_status (reporttype,displaylogs=False, output='text',errorfilter:bool=
 									currentlog['stderrlogpath'],currentlog['stdoutlogexists'],currentlog['stderrlogexists'],currentlog[stdoutkey],currentlog[stderrkey]],jsondict)						
 
 									#set cron status for sync job
+									
 									jsondict[jobname][src]['cronstatus'] = syncsched
 
 									task = ''
