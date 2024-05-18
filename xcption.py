@@ -659,6 +659,8 @@ def parse_csv(csv_path):
 					srcbase = srcbase.replace('$','_dollar')
 					srcbase = srcbase.replace('@','_at_')
 					srcbase = srcbase.replace(':','_')
+					srcbase = srcbase.replace('(','_')
+					srcbase = srcbase.replace(')','_')
 					
 					dstbase = dst.replace(':/','-_')
 					dstbase = dstbase.replace('/','_')
@@ -667,6 +669,8 @@ def parse_csv(csv_path):
 					dstbase = dstbase.replace('$','_dollar')
 					dstbase = dstbase.replace('@','_at_')
 					dstbase = dstbase.replace(':','_')
+					dstbase = srcbase.replace('(','_')
+					dstbase = srcbase.replace(')','_')					
 
 					#validate no duplicate src and destination 
 					for j in jobsdict:
@@ -809,6 +813,8 @@ def parse_csv(csv_path):
 						verify_job_name = 'verify_'+'_'+srcbase[:100]+randnum						
 					
 					xcpindexname = srcbase +'-'+dstbase	
+
+					if len(xcpindexname) > 180: xcpindexname = xcpindexname[:180]
 					
 					#fill dict with info
 					jobsdict[jobname][src] = {}
@@ -5801,6 +5807,8 @@ def monitored_delete (src,force,tool):
 	xcp_delete_job_name = xcp_delete_job_name.replace(' ','-')
 	xcp_delete_job_name = xcp_delete_job_name.replace('\\','_')
 	xcp_delete_job_name = xcp_delete_job_name.replace('$','_dollar')	
+	xcp_delete_job_name = xcp_delete_job_name.replace('(','_')
+	xcp_delete_job_name = xcp_delete_job_name.replace(')','_')
 
 	xcp_delete_job = getnomadjobdetails(xcp_delete_job_name)
 	if xcp_delete_job:
