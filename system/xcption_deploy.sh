@@ -106,31 +106,18 @@ fi
 
 $INST_APP install -y apt-transport-https software-properties-common
 
-$INST_APP install -y \
-    ca-certificates \
-    curl \
-    jq \
-    unzip \
-    python3 \
-    rsync \
-    nfs-utils \
-    python3-pip 
-
+$INST_APP install -y ca-certificates
+$INST_APP install -y curl 
+$INST_APP install -y jq
+$INST_APP install -y unzip 
+$INST_APP install -y python3 
+$INST_APP install -y rsync 
+$INST_APP install -y nfs-utils 
+$INST_APP install -y nfs-common 
+$INST_APP install -y python3-pip 
 
 if [ "$ONLINE" == "true" ]; then
   pip3 install -r $SCRIPT_DIR/requirments.txt 
-  # pip3 install python-nomad
-  # pip3 install jinja2
-  # pip3 install csv
-  # pip3 install argparse
-  # pip3 install logging
-  # pip3 install pprint
-  # pip3 install requests
-  # pip3 install prettytable
-  # pip3 install croniter
-  # pip3 install hurry.filesize
-  # pip3 install treelib
-  # pip3 install flask
 else
   mkdir -p /tmp/pip_unzip_loc
   unzip -o ${SCRIPT_DIR}/pipmodules.zip -d /tmp/pip_unzip_loc
