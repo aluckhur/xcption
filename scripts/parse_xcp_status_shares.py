@@ -86,7 +86,7 @@ def parse_xcp_status_shares(path):
             start_acl = True
             count1 += 1        
         
-        if start_acl:
+        if start_acl and len(lines) != count1:
             #print(lines[count1])
             if re.search(r"^\s\S+\s+.+$",lines[count1].rstrip()):
                 for share_name in out['shares_info'].keys():
