@@ -258,6 +258,7 @@ parser_verify.add_argument('-s','--source',help="change the scope of the command
 parser_verify.add_argument('-q','--quick',help="perform quicker verify by using xcp random file verify (1 out of 1000)", required=False,action='store_true')
 parser_verify.add_argument('-w','--withdata',help="perform deep data verification (full content verification)", required=False,action='store_true')
 parser_verify.add_argument('-r','--reverse',help="perform reverse verify (dst will be compared to the src)", required=False,action='store_true')
+parser_verify.add_argument('-n','--nometadata',help="dont verify file ownerhip, acl and attr", required=False,action='store_true', default=False)
 
 parser_delete.add_argument('-j','--job', help="change the scope of the command to specific job", required=False,type=str,metavar='jobname')
 parser_delete.add_argument('-s','--source',help="change the scope of the command to specific path", required=False,type=str,metavar='srcpath')
@@ -1448,6 +1449,10 @@ def start_nomad_jobs(action, force):
 								nodata = ",\"-nodata\""
 								if args.withdata: nodata=''
 
+								nometadata = ''
+								if args.nometadata:
+									nometadata = ",\"-noattrs\",\"-noown\""
+
 								if not args.reverse:
 									srcverify = src 
 									dstverify = dst 
@@ -1458,9 +1463,9 @@ def start_nomad_jobs(action, force):
 								if tool == 'xcp' and not args.quick:  
 									utilitybinpath = xcppath
 									if excludedirfile == '':
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\""+srcverify+"\",\""+dstverify
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+nometadata+",\""+srcverify+"\",\""+dstverify
 									else:
-										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+srcverify+"\",\""+dstverify
+										cmdargs = "verify\",\"-v\",\"-noid\""+nodata+nometadata+",\"-exclude\",\"paths('"+excludedirfile+"')\",\""+srcverify+"\",\""+dstverify
 								
 								if tool == 'rclone': 
 									withdata = ''
@@ -1482,17 +1487,22 @@ def start_nomad_jobs(action, force):
 
 								if ostype == 'windows': 
 									nodata = " -nodata "
-									if args.withdata: nodata=''									
+									if args.withdata: nodata=''				
+
+									nometadata = ''
+									if args.nometadata:
+										nometadata = " -noownership -noattrs -noacls "														
+
 									utilitybinpath = 'powershell'
 									verifyparam = xcpwinverifyparam
 									if args.withdata: verifyparam = xcpwinverifyparam.replace("-nodata ","")
 									if not args.quick:
-										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+' "'+srcverify+'" "'+dstverify+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+nometadata+' "'+srcverify+'" "'+dstverify+'"')
 									elif args.quick and excludedirfile == '':
-										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+' -match "rand(1000)" "'+srcverify+'" "'+dstverify+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+nometadata+' -match "rand(1000)" "'+srcverify+'" "'+dstverify+'"')
 									elif args.quick and not excludedirfile == '':
 										logging.warning("quick verify together with exclude directories is not supported, full verify will be done")
-										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+' "'+srcverify+'" "'+dstverify+'"')
+										cmdargs = escapestr(xcpwinpath+' verify '+verifyparam+nodata+nometadata+' "'+srcverify+'" "'+dstverify+'"')
 
 									if not excludedirfile == '':						
 										try:
